@@ -535,7 +535,7 @@ text(c(1,50,100),rep(-1,3),labels=c(round(min(geneStatsN$cellMax),2),
 Cells that fail to normalize are generally due to poor information content (small library size, weak gene expression relative to other cells).
 
 ```{r, include=F}
-rm(list=ls()[!(ls() %in% c("cycScores","eb1F") | grepl("forText",ls()))])
+rm(list=ls()[!(ls() %in% c("cycScores","eb1F","dataName") | grepl("forText",ls()))])
 gc()
 ```
 
