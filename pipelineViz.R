@@ -134,7 +134,11 @@ shinyApp(
       par(mar=c(3,3,1,1),mgp=2:0)
       plot(x=numClust,y=unlist(minDEgenes),type="b",cex=1.2,
            xlab="Number of clusters",
+<<<<<<< HEAD
            ylab="min DE genes (@ 5% FDR) vs all other clusters")
+=======
+           ylab="DE genes (@FWER <= 1e-2) b/w most similar clusters")
+>>>>>>> master
       abline(h=seq(0,max(unlist(minDEgenes)),10),lty=3,col=alpha(1,0.3))
       points(x=numClust[input$res],y=unlist(minDEgenes)[input$res],
              pch=16,cex=1.5,col="red")
