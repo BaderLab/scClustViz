@@ -16,6 +16,8 @@ output:
 #species <- "human"
 species <- "mouse"
 
+dataName <- "yourData" #replace with appropriate data name (see expected directory structure below)
+
 ### Load libraries
 library(MASS)
 library(Matrix)
@@ -35,21 +37,21 @@ forText_dropMito <- forText_mitoMads <- forText_genesRemain <- forText_genesLost
 ```
 
 ```{r Load_raw_data, include=F}
-### Make output directory (find/replace "yourData" with an appropriate name throughout this pipeline)
-if (!dir.exists("../yourData/output")) { dir.create("../yourData/output") }
+### Make output directory
+if (!dir.exists(paste0("../",dataName,"/output"))) { dir.create(paste0("../",dataName,"/output")) }
 
 ### One method for loading in the data, a little more memory efficient
-setwd("../yourData/input/") # point to data folder (WD is set per code block only)
-temp_cells <- scan("yourData_CELLNAMES.txt",character(),sep="\t") #column names
-temp_genes <- scan("yourData_GENENAMES.txt",character(),sep="\t") #row names
-eb_raw <- Matrix(scan("yourData_MATRIX.txt",integer(),sep="\t"), #matrix of integer (count) values
+setwd(paste0("../",dataName,"/input")) # point to data folder (WD is set per code block only)
+temp_cells <- scan(paste0(dataName,"_CELLNAMES.txt"),character(),sep="\t") #column names
+temp_genes <- scan(paste0(dataName,"_GENENAMES.txt"),character(),sep="\t") #row names
+eb_raw <- Matrix(scan(paste0(dataName,"_MATRIX.txt"),integer(),sep="\t"), #matrix of integer (count) values
                  nrow=length(temp_genes),byrow=T,sparse=T)
 colnames(eb_raw) <- temp_cells
 rownames(eb_raw) <- temp_genes
 
 ### Alternative, simpler method
-#setwd("../yourData/input") # point to data folder (WD is set per code block only)
-#eb_raw <- Matrix(as.matrix(read.table("yourData_DGE.txt",header=T,sep="\t",row.names=1)),sparse=T)
+#setwd(paste0("../",dataName,"/input")) # point to data folder (WD is set per code block only)
+#eb_raw <- Matrix(as.matrix(read.table(paste0(dataName,"_DGE.txt"),header=T,sep="\t",row.names=1)),sparse=T)
 
 ### Remove duplicated gene names (a couple genes are in under their MGI and HGNC symbols)
 temp_r <- rownames(eb_raw)[which(duplicated(toupper(rownames(eb_raw))))]
@@ -197,14 +199,14 @@ The majority of cells have less than `r forText_mitoPct`% of transcripts from mi
 
 ## Cell cycle annotation
 ```{r cell_cycle_annotation, echo=F,fig.height=4.2,fig.width=8.4}
-if (!file.exists("../yourData/output/yourData_cycScores.RData")) {
+if (!file.exists(paste0("../",dataName,"/output/",dataName,"_cycScores.RData"))) {
   anno <- select(org.Mm.eg.db, keys=rownames(eb1), keytype="SYMBOL", column="ENSEMBL") 
   cycScores <- cyclone(eb1,gene.names=anno$ENSEMBL[match(rownames(eb1), anno$SYMBOL)],
                        pairs=readRDS(system.file("exdata", "mouse_cycle_markers.rds", package="scran")))
   cycScores$phases <- as.factor(cycScores$phases)
-  save(cycScores,file="../yourData/output/yourData_cycScores.RData")
+  save(cycScores,file=paste0("../",dataName,"/output/",dataName,"_cycScores.RData"))
 } else {
-  load("../yourData/output/yourData_cycScores.RData")
+  load(paste0("../",dataName,"/output/",dataName,"_cycScores.RData"))
 }
 
 ### Visualize cell cycle phase per cell
@@ -328,7 +330,7 @@ Following this, it is suggested to investigate sources of technical variance, bu
 
 
 ```{r normalize_by_deconvolution_quickCluster, echo=F,fig.height=4.6,fig.width=8.4,fig.show="hold"}
-if (!file.exists("../yourData/output/yourData_eb1Fnorm.RData")) {
+if (!file.exists(paste0("../",dataName,"/output/",dataName,"_eb1Fnorm.RData"))) {
   qClust <- quickCluster(eb1F1) # skip for homogenous samples.  Might help with batch effect though?
   if (exists("qClust")) {
     names(qClust) <- colnames(eb1F1)
@@ -345,12 +347,12 @@ if (!file.exists("../yourData/output/yourData_eb1Fnorm.RData")) {
     exprs(eb1F)[,naCells] <- min(apply(exprs(eb1F),1,function(X) min(X,na.rm = T)))
   }
   if (exists("qClust")) {
-    save(dropNorm,forText_numQClust,qClust,eb1F,file="../yourData/output/yourData_eb1Fnorm.RData")
+    save(dropNorm,forText_numQClust,qClust,eb1F,file=paste0("../",dataName,"/output/",dataName,"_eb1Fnorm.RData"))
   } else {
-    save(dropNorm,eb1F,file="../yourData/output/yourData_eb1Fnorm.RData")
+    save(dropNorm,eb1F,file=paste0("../",dataName,"/output/",dataName,"_eb1Fnorm.RData"))
   }
 } else {
-  load("../yourData/output/yourData_eb1Fnorm.RData")
+  load(paste0("../",dataName,"/output/",dataName,"_eb1Fnorm.RData"))
 }
 
 ### Visualize normalization output (and effect of clustering if applicable)
@@ -543,7 +545,7 @@ Seurat implements an interpretation of SNN-Cliq (https://doi.org/10.1093/bioinfo
 Cluster resolution is assessed by testing for differential expression between each cluster and its neighbours using a likelihood-ratio test designed for single-cell qPCR assays (https://doi.org/10.1093/bioinformatics/bts714).  Cluster distributions are modelled as mixture models, with a discrete component modelling the likelihood of detecting a gene, and a log-normal component representing gene expression of detected genes.  P-values were adjusted using the Benjamini–Hochberg method to determine a false discovery rate (FDR), and the presences of more than one gene differentially expressed with a FDR tolerance of 5% was considered sufficient evidence that a cluster was different than its neighbours.
 
 ``` {r seurat_clustering, include=F}
-if (!file.exists("../yourData/output/yourData_eb1S.RData")) {
+if (!file.exists(paste0("../",dataName,"/output/",dataName,"_eb1S.RData"))) {
   pDat <- pData(eb1F)[,c("total_counts","total_features")]
   eb1S <- new("seurat",raw.data=exprs(eb1F))
   rm(eb1F)
@@ -632,14 +634,14 @@ if (!file.exists("../yourData/output/yourData_eb1S.RData")) {
     MTC <- apply(eb1S@data,1,function(X) tapply(X,eb1S@ident,mean))
     CGS <- lapply(levels(eb1S@ident), function(X) data.frame(DR=DR[X,],MDTC=MDTC[X,],MTC=MTC[X,]))
     
-    save(deGvs,file=paste0("../yourData/output/yourData_",gsub(".","",res,fixed=T),"_deGvs.RData"))
-    save(deGall,file=paste0("../yourData/output/yourData_",gsub(".","",res,fixed=T),"_deGall.RData"))
-    save(CGS,file=paste0("../yourData/output/yourData_",gsub(".","",res,fixed=T),"_CGS.RData"))
+    save(deGvs,file=paste0("../",dataName,"/output/",dataName,"_precalc_",gsub(".","",res,fixed=T),"_deGvs.RData"))
+    save(deGall,file=paste0("../",dataName,"/output/",dataName,"_precalc_",gsub(".","",res,fixed=T),"_deGall.RData"))
+    save(CGS,file=paste0("../",dataName,"/output/",dataName,"_precalc_",gsub(".","",res,fixed=T),"_CGS.RData"))
     rm(list=c("deGvs","deGall","CGS","DR","MTC","MDTC"))
     gc()
     print(paste("Saved data at",res))
   }
   stopCluster(CL)
-  save(eb1S,maxPCt,minDEgenes,uniqDE,pDat,file="../yourData/output/yourData_eb1S.RData")
+  save(eb1S,maxPCt,minDEgenes,uniqDE,pDat,file=paste0("../",dataName,"/output/",dataName,"_eb1S.RData"))
 }
 ```
