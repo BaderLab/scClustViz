@@ -129,7 +129,7 @@ abline(h=c_loG * tempSF + (min(tempB) - min(tempH$mids) * tempSF),lty=2,lwd=2,co
 ## Doublet filtering 
 In order to filter out predicted doublets, library sizes were fit to a negative binomial distribution and cells unlikely to have been sampled from those distributions were removed (red x).
 
-Data processing will now be performed based on the Marioni group's published workflow (Lun *et al.*, F1000Research 2016. http://dx.doi.org/10.12688/f1000research.9501.2).
+Data processing will now be performed based on a published workflow from the Marioni group (Lun *et al.*, F1000Research 2016. http://dx.doi.org/10.12688/f1000research.9501.2).
 
 ```{r create_scran_object, include=F}
 eb1p <- newSCESet(countData=eb_rawF)
