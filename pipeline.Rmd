@@ -5,7 +5,11 @@ author:
 - can be added here
 output:
   md_document:
+<<<<<<< HEAD
+    toc: yes
+=======
     toc: true
+>>>>>>> master
   html_notebook:
     highlight: tango
     theme: flatly

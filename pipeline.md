@@ -47,7 +47,11 @@ Cell cycle annotation
 ![](pipeline_files/figure-markdown_strict/cell_cycle_annotation-1.png)
 
     ##                   G1   G2M     S
+<<<<<<< HEAD
+    ## CellCyclePhase 73.3% 20.9% 5.82%
+=======
     ## CellCyclePhase 73.1% 21.1% 5.82%
+>>>>>>> master
 
 Cell cycle prediction performed by Cyclone (Scialdone *et al.*, Methods
 2015. <http://dx.doi.org/10.1016/j.ymeth.2015.06.021>)
@@ -115,8 +119,16 @@ designed for single-cell qPCR assays
 (<https://doi.org/10.1093/bioinformatics/bts714>). Cluster distributions
 are modelled as mixture models, with a discrete component modelling the
 likelihood of detecting a gene, and a log-normal component representing
+<<<<<<< HEAD
+gene expression of detected genes. P-values were adjusted using the
+Benjamini–Hochberg method to determine a false discovery rate (FDR), and
+the presences of more than one gene differentially expressed with a FDR
+tolerance of 5% was considered sufficient evidence that a cluster was
+different than its neighbours.
+=======
 gene expression of detected genes. P-values were adjusted using Holm's
 method to determine a family-wise error rate (FWER), and the presences
 of more than one gene differentially expressed with a FWER tolerance of
 10^-2 was considered sufficient evidence that a cluster was different
 than its neighbours.
+>>>>>>> master
