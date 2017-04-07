@@ -22,7 +22,6 @@ library(Matrix)
 library(RColorBrewer)
 library(scales)
 library(viridis)
-library(cluster)
 library(scran) # from Bioconductor
 if (species == "human") {
   library(org.Hs.eg.db) # from Bioconductor (for human data)
