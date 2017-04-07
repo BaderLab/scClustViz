@@ -545,61 +545,80 @@ Cluster resolution is assessed by testing for differential expression between ea
 
 ``` {r seurat_clustering, include=F}
 if (!file.exists("../yourData/output/yourData_eb1S.RData")) {
+  pDat <- pData(eb1F)[,c("total_counts","total_features")]
   eb1S <- new("seurat",raw.data=exprs(eb1F))
-  eb1S <- Setup(eb1S,"yourData",min.cells=0,min.genes=0,do.logNormalize=F,save.raw=T)
-  eb1S@var.genes <- rownames(hvg.out) 
+  rm(eb1F)
+  gc()
+  eb1Ssm <- eb1S <- Setup(eb1S,"170402_CC",min.cells=0,min.genes=0,do.logNormalize=F,save.raw=F)
+  eb1Ssm@scale.data <- NULL
+  eb1S@var.genes <- rownames(eb1S@data) 
   eb1S <- PCA(eb1S,pc.genes=eb1S@var.genes,do.print=F)
-  #PCAPlot(eb1S)
-  eb1S <- JackStraw(eb1S)
-  #JackStrawPlot(eb1S,PCs=1:30)
+  print("PCs calculated")
+  eb1S <- JackStraw(eb1S) 
+  #PCElbowPlot(eb1S,40)
+  #JackStrawPlot(eb1S)
   temp <- as.numeric(sub("PC[0-9]+ ","",levels(JackStrawPlot(eb1S,PCs=1:30)[["data"]]$PC.Score)))
-  maxPCt <- min(which(temp > 1e-4)) - 1
-  #PCElbowPlot(eb1S)
-  #print(maxPCt)
+  maxPCt <- max(which(temp < 1e-4))
   temp_PCs <- seq(1,maxPCt) #based on JackStraw output
+  print("Significant PCs determined")
   eb1S <- RunTSNE(eb1S,dims.use=temp_PCs,do.fast=T)
+  print("tSNE projection calculated")
+  CL <- makeCluster(detectCores() - 2) # WARNING: Memory usage will multiply with the number of cores used.
+  tempCL <- clusterEvalQ(CL,library(Seurat))
+  clusterExport(CL,"eb1Ssm")
+  rm(eb1Ssm)
+  gc()
+  
   minDEgenes <- uniqDE <- list()
   k <- 0; minDEgenesToNeighbour <- 100
   while (minDEgenesToNeighbour > 1) {
+    if (minDEgenesToNeighbour <= 30) {
     if (minDEgenesToNeighbour <= 30) {
       k <- k + 0.2
     } else {
       k <- k + 0.4
     }
-    print(paste0("~~~~~~~~~~~~ res.",k," ~~~~~~~~~~~~"))
+    print(paste0("~~~~~~~~~~~~ Clustering at res.",k," ~~~~~~~~~~~~"))
     if (!any(grepl("res",colnames(eb1S@data.info)))) {
-      eb1S <- FindClusters(eb1S,pc.use=temp_PCs,print.output=F,save.SNN=T,resolution=k)
+      eb1S <- FindClusters(eb1S,pc.use=PCuse,print.output=F,save.SNN=T,resolution=k)
     } else {
-      eb1S <- FindClusters(eb1S,pc.use=temp_PCs,print.output=F,reuse.SNN=T,resolution=k)
+      eb1S <- FindClusters(eb1S,pc.use=PCuse,print.output=F,reuse.SNN=T,resolution=k)
     }
     res <- colnames(eb1S@data.info)[length(colnames(eb1S@data.info))]
-    eb1S@ident <- eb1S@data.info[,res] <- as.factor(as.integer(eb1S@data.info[,res]) + 1)
-    names(eb1S@ident) <- rownames(eb1S@data.info)
-    CL <- makeCluster(detectCores() - 2)
-    tempCL <- clusterEvalQ(CL,library(Seurat))
-    clusterExport(CL,"eb1S")
+    temp_ident <- eb1S@ident <- eb1S@data.info[,res] <- as.factor(as.integer(eb1S@data.info[,res]) + 1)
+    names(temp_ident) <- names(eb1S@ident) <- rownames(eb1S@data.info)
+    tempCL <- clusterExport(CL,"temp_ident")
+    tempCL <- clusterEvalQ(CL,{ eb1Ssm@ident <- temp_ident; rm(temp_ident); gc() })
+    print(paste(length(levels(eb1S@ident)),"clusters identified"))
     
     deGall <- parLapplyLB(cl=CL,levels(eb1S@ident),function(X) {
-      temp <- FindMarkers(eb1S,X)
-      temp$fwer <- p.adjust(temp$p_val,"holm",nrow(eb1S@data))
-      return(temp[temp$fwer <= 1e-2 & temp$avg_diff > 0,]) # postive DE at FWER of 1%
+      FindMarkers(eb1Ssm,X,test.use="bimod",thresh.use=0.25,min.pct=0.1)
     })
+    for (i in seq_along(deGall)) {
+      deGall[[i]]$fwer <- p.adjust(deGall[[i]]$p_val,"holm")
+      deGall[[i]] <- deGall[[i]][deGall[[i]]$fwer <= 1e-2 & deGall[[i]]$avg_diff > 0,] # postive DE at FWER of 1%
+    }
+    print("DE vs tissue calculated")
     
-    deGvs <- parApply(CL,combn(levels(eb1S@ident),2),2,function(cl) {
-      tempOut <- FindMarkers(eb1S,ident.1=cl[1],ident.2=cl[2])
-      tempOut$fwer <- p.adjust(tempOut$p_val,"holm",n=nrow(eb1S@data))
-      tempOut$clustPair <- factor(paste(cl,collapse="~"))
-      tempOut$gene <- rownames(tempOut)
-      return(tempOut[tempOut$fwer <= 5e-2,]) # FWER at 5%
+    compClust <- apply(combn(levels(eb1S@ident),2),2,function(X) paste(X,collapse="~"))
+    deGvs <- parLapplyLB(CL,strsplit(compClust,"~"),function(X) {
+      FindMarkers(eb1Ssm,ident.1=X[1],ident.2=X[2],test.use="bimod",thresh.use=0.25,min.pct=0.1)
     })
-    stopCluster(CL)
+    for (i in seq_along(deGvs)) {
+      deGvs[[i]]$fwer <- p.adjust(deGvs[[i]]$p_val,"holm")
+      deGvs[[i]]$clustPair <- factor(compClust[i])
+      deGvs[[i]]$gene <- rownames(deGvs[[i]])
+      deGvs[[i]] <- deGvs[[i]][deGvs[[i]]$fwer <= 5e-2,] # FWER at 5%
+    }
+    print("DE vs other clusters calculated")
+    
     names(deGvs) <- apply(combn(levels(eb1S@ident),2),2,function(X) paste(X,collapse="~"))
     deGvs <- do.call(rbind,deGvs[order(names(deGvs))])
     deGvs$posClust <- as.factor(mapply(function(a,b) strsplit(as.character(a),"~")[[1]][(b < 0)+1],
-                                              deGvs$clustPair,deGvs$avg_diff))
+                                       deGvs$clustPair,deGvs$avg_diff))
     uniqDE[[res]] <- tapply(deGvs$gene,deGvs$posClust,function(X) 
       names(table(X))[table(X) == length(levels(deGvs$posClust))-1])
-
+    
     tempDist <- dist(eb1S@pca.rot[,seq(1,maxPCt)],method="euclidean")
     tempSil <- silhouette(as.integer(eb1S@ident),dist=tempDist)
     pw <- list()
@@ -611,6 +630,8 @@ if (!file.exists("../yourData/output/yourData_eb1S.RData")) {
     }
     pw <- sapply(pw,function(X) paste(X,collapse="~"))
     minDEgenesToNeighbour <- with(deGvs,tapply(fwer,clustPair,function(X) sum(X <= 1e-2)))
+    print("Number of DE genes to neighbouring clusters:")
+    print(summary(minDEgenesToNeighbour[pw]))
     minDEgenes[[res]] <- minDEgenesToNeighbour <- min(minDEgenesToNeighbour[pw])
     
     DR <- apply(eb1S@data,1,function(X) tapply(X,eb1S@ident,function(Y) sum(Y>0)/length(Y)))
@@ -623,15 +644,15 @@ if (!file.exists("../yourData/output/yourData_eb1S.RData")) {
                                      }))
     MTC <- apply(eb1S@data,1,function(X) tapply(X,eb1S@ident,mean))
     CGS <- lapply(levels(eb1S@ident), function(X) data.frame(DR=DR[X,],MDTC=MDTC[X,],MTC=MTC[X,]))
-
-    save(deGvs,file=paste0("../yourData/output/yourData_precalc_",gsub(".","",res,fixed=T),"_deGvs.RData"))
-    save(deGall,file=paste0("../yourData/output/yourData_precalc_",gsub(".","",res,fixed=T),"_deGall.RData"))
-    save(CGS,file=paste0("../yourData/output/yourData_precalc_",gsub(".","",res,fixed=T),"_CGS.RData"))
+    
+    save(deGvs,file=paste0("../yourData/output/yourData_",gsub(".","",res,fixed=T),"_deGvs.RData"))
+    save(deGall,file=paste0("../yourData/output/yourData_",gsub(".","",res,fixed=T),"_deGall.RData"))
+    save(CGS,file=paste0("../yourData/output/yourData_",gsub(".","",res,fixed=T),"_CGS.RData"))
+    rm(list=c("deGvs","deGall","CGS","DR","MTC","MDTC"))
+    gc()
+    print(paste("Saved data at",res))
   }
-  pDat <- pData(eb1F)[,c("total_counts","total_features")]
+  stopCluster(CL)
   save(eb1S,maxPCt,minDEgenes,uniqDE,pDat,file="../yourData/output/yourData_eb1S.RData")
-  rm(list=ls()[!(ls() %in% c("cycScores","eb1F","hvg.out","pwGenes",
-                             "tempConds","i","CL") | grepl("forText",ls()))])
-  gc()
 }
 ```
