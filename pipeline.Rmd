@@ -541,7 +541,7 @@ gc()
 
 # Clustering by SNN-cliq  
 Seurat implements an interpretation of SNN-Cliq (https://doi.org/10.1093/bioinformatics/btv088) for clustering of single-cell expression data.  They use PCs to define the distance metric, then embed the cells in a graph where edges between cells (nodes) are weighted based on their similarity (euclidean distance in PCA space).  These edge weights are refined based on Jaccard distance (overlap in local neighbourhoods), and then communities ("quasi-cliques") are identified in the graph using a smart local moving algorithm (SLM, http://dx.doi.org/10.1088/1742-5468/2008/10/P10008) to optimize the modularity measure of the defined communities in the graph.  
-Cluster resolution is assessed by testing for differential expression between each cluster and its neighbours using a likelihood-ratio test designed for single-cell qPCR assays (https://doi.org/10.1093/bioinformatics/bts714).  Cluster distributions are modelled as mixture models, with a discrete component modelling the likelihood of detecting a gene, and a log-normal component representing gene expression of detected genes.  P-values were adjusted using Holm's method to determine a family-wise error rate (FWER), and the presences of more than one gene differentially expressed with a FWER tolerance of 10^-2 was considered sufficient evidence that a cluster was different than its neighbours.
+Cluster resolution is assessed by testing for differential expression between each cluster and its neighbours using a likelihood-ratio test designed for single-cell qPCR assays (https://doi.org/10.1093/bioinformatics/bts714).  Cluster distributions are modelled as mixture models, with a discrete component modelling the likelihood of detecting a gene, and a log-normal component representing gene expression of detected genes.  P-values were adjusted using the Benjamini–Hochberg method to determine a false discovery rate (FDR), and the presences of more than one gene differentially expressed with a FDR tolerance of 5% was considered sufficient evidence that a cluster was different than its neighbours.
 
 ``` {r seurat_clustering, include=F}
 if (!file.exists("../yourData/output/yourData_eb1S.RData")) {
@@ -559,9 +559,9 @@ if (!file.exists("../yourData/output/yourData_eb1S.RData")) {
   #JackStrawPlot(eb1S)
   temp <- as.numeric(sub("PC[0-9]+ ","",levels(JackStrawPlot(eb1S,PCs=1:30)[["data"]]$PC.Score)))
   maxPCt <- max(which(temp < 1e-4))
-  temp_PCs <- seq(1,maxPCt) #based on JackStraw output
+  PCuse <- seq(1,maxPCt) #based on JackStraw output
   print("Significant PCs determined")
-  eb1S <- RunTSNE(eb1S,dims.use=temp_PCs,do.fast=T)
+  eb1S <- RunTSNE(eb1S,dims.use=PCuse,do.fast=T)
   print("tSNE projection calculated")
   CL <- makeCluster(detectCores() - 2) # WARNING: Memory usage will multiply with the number of cores used.
   tempCL <- clusterEvalQ(CL,library(Seurat))
@@ -570,10 +570,9 @@ if (!file.exists("../yourData/output/yourData_eb1S.RData")) {
   gc()
   
   minDEgenes <- uniqDE <- list()
-  k <- 0; minDEgenesToNeighbour <- 100
-  while (minDEgenesToNeighbour > 1) {
-    if (minDEgenesToNeighbour <= 30) {
-    if (minDEgenesToNeighbour <= 30) {
+  k <- 0; minUniqDE <- 100
+  while (minUniqDE > 1) {
+    if (minUniqDE <= 30) {
       k <- k + 0.2
     } else {
       k <- k + 0.4
@@ -595,8 +594,8 @@ if (!file.exists("../yourData/output/yourData_eb1S.RData")) {
       FindMarkers(eb1Ssm,X,test.use="bimod",thresh.use=0.25,min.pct=0.1)
     })
     for (i in seq_along(deGall)) {
-      deGall[[i]]$fwer <- p.adjust(deGall[[i]]$p_val,"holm")
-      deGall[[i]] <- deGall[[i]][deGall[[i]]$fwer <= 1e-2 & deGall[[i]]$avg_diff > 0,] # postive DE at FWER of 1%
+      deGall[[i]]$fdr <- p.adjust(deGall[[i]]$p_val,"fdr")
+      deGall[[i]] <- deGall[[i]][deGall[[i]]$fdr <= 5e-2 & deGall[[i]]$avg_diff > 0,] # postive DE at FDR of 5%
     }
     print("DE vs tissue calculated")
     
@@ -605,10 +604,10 @@ if (!file.exists("../yourData/output/yourData_eb1S.RData")) {
       FindMarkers(eb1Ssm,ident.1=X[1],ident.2=X[2],test.use="bimod",thresh.use=0.25,min.pct=0.1)
     })
     for (i in seq_along(deGvs)) {
-      deGvs[[i]]$fwer <- p.adjust(deGvs[[i]]$p_val,"holm")
+      deGvs[[i]]$fdr <- p.adjust(deGvs[[i]]$p_val,"fdr")
       deGvs[[i]]$clustPair <- factor(compClust[i])
       deGvs[[i]]$gene <- rownames(deGvs[[i]])
-      deGvs[[i]] <- deGvs[[i]][deGvs[[i]]$fwer <= 5e-2,] # FWER at 5%
+      deGvs[[i]] <- deGvs[[i]][deGvs[[i]]$fdr <= 5e-2,] # FDR at 5%
     }
     print("DE vs other clusters calculated")
     
@@ -617,22 +616,11 @@ if (!file.exists("../yourData/output/yourData_eb1S.RData")) {
     deGvs$posClust <- as.factor(mapply(function(a,b) strsplit(as.character(a),"~")[[1]][(b < 0)+1],
                                        deGvs$clustPair,deGvs$avg_diff))
     uniqDE[[res]] <- tapply(deGvs$gene,deGvs$posClust,function(X) 
-      names(table(X))[table(X) == length(levels(deGvs$posClust))-1])
+      names(which(table(X) == length(levels(deGvs$posClust))-1)))
     
-    tempDist <- dist(eb1S@pca.rot[,seq(1,maxPCt)],method="euclidean")
-    tempSil <- silhouette(as.integer(eb1S@ident),dist=tempDist)
-    pw <- list()
-    cc <- t(apply(tempSil[,1:2],1,sort))
-    for (x in sort(unique(cc[,1]))) {
-      for (y in sort(unique(cc[cc[,1] == x,2]))) {
-        pw[[length(pw)+1]] <- c(x,y)
-      }
-    }
-    pw <- sapply(pw,function(X) paste(X,collapse="~"))
-    minDEgenesToNeighbour <- with(deGvs,tapply(fwer,clustPair,function(X) sum(X <= 1e-2)))
-    print("Number of DE genes to neighbouring clusters:")
-    print(summary(minDEgenesToNeighbour[pw]))
-    minDEgenes[[res]] <- minDEgenesToNeighbour <- min(minDEgenesToNeighbour[pw])
+    print("Number of unique DE genes per cluster:")
+    print(summary(sapply(uniqDE[[res]],length)))
+    minDEgenes[[res]] <- minUniqDE <- min(sapply(uniqDE[[res]],length))
     
     DR <- apply(eb1S@data,1,function(X) tapply(X,eb1S@ident,function(Y) sum(Y>0)/length(Y)))
     MDTC <- apply(eb1S@data,1,
