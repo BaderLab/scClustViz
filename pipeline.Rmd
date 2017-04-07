@@ -550,7 +550,7 @@ if (!file.exists(paste0("../",dataName,"/output/",dataName,"_eb1S.RData"))) {
   eb1S <- new("seurat",raw.data=exprs(eb1F))
   rm(eb1F)
   gc()
-  eb1Ssm <- eb1S <- Setup(eb1S,"170402_CC",min.cells=0,min.genes=0,do.logNormalize=F,save.raw=F)
+  eb1Ssm <- eb1S <- Setup(eb1S,project=dataName,min.cells=0,min.genes=0,do.logNormalize=F,save.raw=F)
   eb1Ssm@scale.data <- NULL
   eb1S@var.genes <- rownames(eb1S@data) 
   eb1S <- PCA(eb1S,pc.genes=eb1S@var.genes,do.print=F)
