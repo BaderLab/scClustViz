@@ -5,11 +5,7 @@ author:
 - can be added here
 output:
   md_document:
-<<<<<<< HEAD
-    toc: yes
-=======
     toc: true
->>>>>>> master
   html_notebook:
     highlight: tango
     theme: flatly
@@ -27,7 +23,6 @@ dataName <- "yourData" #replace with appropriate data name (see expected directo
 ### Load libraries
 library(MASS)
 library(Matrix)
-library(cluster)
 library(RColorBrewer)
 library(scales)
 library(viridis)
@@ -549,7 +544,7 @@ gc()
 
 # Clustering by SNN-cliq  
 Seurat implements an interpretation of SNN-Cliq (https://doi.org/10.1093/bioinformatics/btv088) for clustering of single-cell expression data.  They use PCs to define the distance metric, then embed the cells in a graph where edges between cells (nodes) are weighted based on their similarity (euclidean distance in PCA space).  These edge weights are refined based on Jaccard distance (overlap in local neighbourhoods), and then communities ("quasi-cliques") are identified in the graph using a smart local moving algorithm (SLM, http://dx.doi.org/10.1088/1742-5468/2008/10/P10008) to optimize the modularity measure of the defined communities in the graph.  
-Cluster resolution is assessed by testing for differential expression between each cluster and its neighbours using a likelihood-ratio test designed for single-cell qPCR assays (https://doi.org/10.1093/bioinformatics/bts714).  Cluster distributions are modelled as mixture models, with a discrete component modelling the likelihood of detecting a gene, and a log-normal component representing gene expression of detected genes.  P-values were adjusted using Holm's method to determine a family-wise error rate (FWER), and the presences of more than one gene differentially expressed with a FWER tolerance of 10^-2 was considered sufficient evidence that a cluster was different than its neighbours.
+Cluster resolution is assessed by testing for differential expression between each cluster and all other clusters using a likelihood-ratio test designed for single-cell qPCR assays (https://doi.org/10.1093/bioinformatics/bts714).  Cluster distributions are modelled as mixture models, with a discrete component modelling the likelihood of detecting a gene, and a log-normal component representing gene expression of detected genes.  The number of uniquely differentially expressed genes (at a false discovery rate of 5% vs all other clusters) was used to determine the optimal cluster resolution.
 
 ``` {r seurat_clustering, include=F}
 if (!file.exists(paste0("../",dataName,"/output/",dataName,"_eb1S.RData"))) {
@@ -579,9 +574,8 @@ if (!file.exists(paste0("../",dataName,"/output/",dataName,"_eb1S.RData"))) {
   
   minDEgenes <- uniqDE <- list()
   k <- 0; minUniqDE <- 100
-  k <- 0; minDEgenesToNeighbour <- 100
-  while (minDEgenesToNeighbour > 1) {
-    if (minDEgenesToNeighbour <= 30) {
+  while (minUniqDE > 1) {
+    if (minUniqDE <= 30) {
       k <- k + 0.2
     } else {
       k <- k + 0.4
@@ -627,20 +621,9 @@ if (!file.exists(paste0("../",dataName,"/output/",dataName,"_eb1S.RData"))) {
     uniqDE[[res]] <- tapply(deGvs$gene,deGvs$posClust,function(X) 
       names(table(X))[table(X) == length(levels(deGvs$posClust))-1])
     
-    tempDist <- dist(eb1S@pca.rot[,seq(1,maxPCt)],method="euclidean")
-    tempSil <- silhouette(as.integer(eb1S@ident),dist=tempDist)
-    pw <- list()
-    cc <- t(apply(tempSil[,1:2],1,sort))
-    for (x in sort(unique(cc[,1]))) {
-      for (y in sort(unique(cc[cc[,1] == x,2]))) {
-        pw[[length(pw)+1]] <- c(x,y)
-      }
-    }
-    pw <- sapply(pw,function(X) paste(X,collapse="~"))
-    minDEgenesToNeighbour <- with(deGvs,tapply(fwer,clustPair,function(X) sum(X <= 1e-2)))
     print("Number of DE genes to neighbouring clusters:")
-    print(summary(minDEgenesToNeighbour[pw]))
-    minDEgenes[[res]] <- minDEgenesToNeighbour <- min(minDEgenesToNeighbour[pw])
+    print(summary(sapply(uniqDE[[res]],length)))
+    minDEgenes[[res]] <- minUniqDE <- min(sapply(uniqDE[[res]],length))
     
     DR <- apply(eb1S@data,1,function(X) tapply(X,eb1S@ident,function(Y) sum(Y>0)/length(Y)))
     MDTC <- apply(eb1S@data,1,
