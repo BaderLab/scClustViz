@@ -4,6 +4,8 @@ author:
 - Multi-line comments
 - can be added here
 output:
+  md_document:
+    toc: yes
   html_notebook:
     highlight: tango
     theme: flatly
