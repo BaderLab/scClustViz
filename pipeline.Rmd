@@ -4,6 +4,8 @@ author:
 - Multi-line comments
 - can be added here
 output:
+  md_document:
+    toc: true
   html_notebook:
     highlight: tango
     theme: flatly
@@ -21,6 +23,7 @@ dataName <- "yourData" #replace with appropriate data name (see expected directo
 ### Load libraries
 library(MASS)
 library(Matrix)
+library(cluster)
 library(RColorBrewer)
 library(scales)
 library(viridis)
@@ -535,7 +538,7 @@ text(c(1,50,100),rep(-1,3),labels=c(round(min(geneStatsN$cellMax),2),
 Cells that fail to normalize are generally due to poor information content (small library size, weak gene expression relative to other cells).
 
 ```{r, include=F}
-rm(list=ls()[!(ls() %in% c("cycScores","eb1F") | grepl("forText",ls()))])
+rm(list=ls()[!(ls() %in% c("cycScores","eb1F","dataName") | grepl("forText",ls()))])
 gc()
 ```
 
@@ -574,7 +577,6 @@ if (!file.exists(paste0("../",dataName,"/output/",dataName,"_eb1S.RData"))) {
   k <- 0; minUniqDE <- 100
   k <- 0; minDEgenesToNeighbour <- 100
   while (minDEgenesToNeighbour > 1) {
-    if (minDEgenesToNeighbour <= 30) {
     if (minDEgenesToNeighbour <= 30) {
       k <- k + 0.2
     } else {
