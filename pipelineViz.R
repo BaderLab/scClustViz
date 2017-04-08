@@ -130,14 +130,20 @@ shinyApp(
     
     #### cqPlot ####
     numClust <- apply(eb1S@data.info[,grepl("res",colnames(eb1S@data.info))],2,function(Y) length(unique(Y)))
+    numDEgenes <- lapply(uniqDE,function(X) sapply(X,length))
     output$cqPlot <- renderPlot({
+      x <- which(names(numClust) == input$res)
       par(mar=c(3,3,1,1),mgp=2:0)
-      plot(x=numClust,y=unlist(minDEgenes),type="b",cex=1.2,
+      plot(x=numClust,y=sapply(numDEgenes,median),type="l",
+           xlim=range(numClust),ylim=range(unlist(numDEgenes)),
            xlab="Number of clusters",
-           ylab="DE genes (@FWER <= 1e-2) b/w most similar clusters")
-      abline(h=seq(0,max(unlist(minDEgenes)),10),lty=3,col=alpha(1,0.3))
-      points(x=numClust[input$res],y=unlist(minDEgenes)[input$res],
-             pch=16,cex=1.5,col="red")
+           ylab="DE genes (@ 1% FDR) per cluster to all other clusters")
+      abline(h=seq(0,max(unlist(numDEgenes)),10),lty=3,col=alpha(1,0.3))
+      for (i in names(numDEgenes)[-x]) {
+        boxplot(numDEgenes[[i]],add=T,at=numClust[[i]])
+      }
+      boxplot(numDEgenes[[x]],add=T,at=numClust[[x]],
+              border="red")
     })
     
     #### res buttons ####
