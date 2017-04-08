@@ -5,7 +5,7 @@ author:
 - can be added here
 output:
   md_document:
-    toc: true
+    toc: yes
   html_notebook:
     highlight: tango
     theme: flatly
@@ -544,7 +544,7 @@ gc()
 
 # Clustering by SNN-cliq  
 Seurat implements an interpretation of SNN-Cliq (https://doi.org/10.1093/bioinformatics/btv088) for clustering of single-cell expression data.  They use PCs to define the distance metric, then embed the cells in a graph where edges between cells (nodes) are weighted based on their similarity (euclidean distance in PCA space).  These edge weights are refined based on Jaccard distance (overlap in local neighbourhoods), and then communities ("quasi-cliques") are identified in the graph using a smart local moving algorithm (SLM, http://dx.doi.org/10.1088/1742-5468/2008/10/P10008) to optimize the modularity measure of the defined communities in the graph.  
-Cluster resolution is assessed by testing for differential expression between each cluster and all other clusters using a likelihood-ratio test designed for single-cell qPCR assays (https://doi.org/10.1093/bioinformatics/bts714).  Cluster distributions are modelled as mixture models, with a discrete component modelling the likelihood of detecting a gene, and a log-normal component representing gene expression of detected genes.  The number of uniquely differentially expressed genes (at a false discovery rate of 5% vs all other clusters) was used to determine the optimal cluster resolution.
+Cluster resolution is assessed by testing for differential expression between each cluster and all other clusters using a likelihood-ratio test designed for single-cell qPCR assays (https://doi.org/10.1093/bioinformatics/bts714).  Cluster distributions are modelled as mixture models, with a discrete component modelling the likelihood of detecting a gene, and a log-normal component representing gene expression of detected genes.  The number of uniquely differentially expressed genes (at a false discovery rate of 1% vs all other clusters, tested pairwise) was used to determine the optimal cluster resolution.
 
 ``` {r seurat_clustering, include=F}
 if (!file.exists(paste0("../",dataName,"/output/",dataName,"_eb1S.RData"))) {
@@ -597,8 +597,8 @@ if (!file.exists(paste0("../",dataName,"/output/",dataName,"_eb1S.RData"))) {
       FindMarkers(eb1Ssm,X,test.use="bimod",thresh.use=0.25,min.pct=0.1)
     })
     for (i in seq_along(deGall)) {
-      deGall[[i]]$fwer <- p.adjust(deGall[[i]]$p_val,"holm")
-      deGall[[i]] <- deGall[[i]][deGall[[i]]$fwer <= 1e-2 & deGall[[i]]$avg_diff > 0,] # postive DE at FWER of 1%
+      deGall[[i]]$fdr <- p.adjust(deGall[[i]]$p_val,"fdr")
+      deGall[[i]] <- deGall[[i]][deGall[[i]]$fdr <= 1e-2 & deGall[[i]]$avg_diff > 0,] # postive DE at FDR of 1%
     }
     print("DE vs tissue calculated")
     
@@ -607,10 +607,10 @@ if (!file.exists(paste0("../",dataName,"/output/",dataName,"_eb1S.RData"))) {
       FindMarkers(eb1Ssm,ident.1=X[1],ident.2=X[2],test.use="bimod",thresh.use=0.25,min.pct=0.1)
     })
     for (i in seq_along(deGvs)) {
-      deGvs[[i]]$fwer <- p.adjust(deGvs[[i]]$p_val,"holm")
+      deGvs[[i]]$fdr <- p.adjust(deGvs[[i]]$p_val,"fdr")
       deGvs[[i]]$clustPair <- factor(compClust[i])
       deGvs[[i]]$gene <- rownames(deGvs[[i]])
-      deGvs[[i]] <- deGvs[[i]][deGvs[[i]]$fwer <= 5e-2,] # FWER at 5%
+      deGvs[[i]] <- deGvs[[i]][deGvs[[i]]$fdr <= 1e-2,] # FDR at 1%
     }
     print("DE vs other clusters calculated")
     

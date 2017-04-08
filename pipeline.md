@@ -47,7 +47,7 @@ Cell cycle annotation
 ![](pipeline_files/figure-markdown_strict/cell_cycle_annotation-1.png)
 
     ##                   G1   G2M     S
-    ## CellCyclePhase 73.3% 20.9% 5.82%
+    ## CellCyclePhase 73.1% 21.2% 5.68%
 
 Cell cycle prediction performed by Cyclone (Scialdone *et al.*, Methods
 2015. <http://dx.doi.org/10.1016/j.ymeth.2015.06.021>)
@@ -116,5 +116,5 @@ test designed for single-cell qPCR assays
 are modelled as mixture models, with a discrete component modelling the
 likelihood of detecting a gene, and a log-normal component representing
 gene expression of detected genes. The number of uniquely differentially
-expressed genes (at a false discovery rate of 5% vs all other clusters)
-was used to determine the optimal cluster resolution.
+expressed genes (at a false discovery rate of 1% vs all other clusters,
+tested pairwise) was used to determine the optimal cluster resolution.
