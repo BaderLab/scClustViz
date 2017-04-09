@@ -1,6 +1,10 @@
 dataName <- "yourData"
 setwd(paste0("../",dataName,"/output")) # point to output directory
 
+### Set species of data
+#species <- "human"
+species <- "mouse"
+
 library(shiny)
 library(cluster)
 library(gplots)
@@ -9,6 +13,13 @@ library(RColorBrewer)
 library(scales)
 library(TeachingDemos)
 library(vioplot)
+if (species == "human") {
+  library(org.Hs.eg.db) # from Bioconductor (for human data)
+  egDB <- "org.Hs.eg.db"
+} else if (species == "mouse") {
+  library(org.Mm.eg.db) # from Bioconductor (for mouse data)
+  egDB <- "org.Mm.eg.db"
+} else { } #Gene name lookup won't work.
 library(Seurat) #see http://satijalab.org/seurat/install.html
 
 if (!exists("eb1S")) {
@@ -20,7 +31,8 @@ if (!exists("cycScores")) {
 }
 
 ### Generate list of cell-type markers. 
-## List should be character vectors of gene symbols (check to see that you're using the right symbol - HGNC/MGI symbols),
+## List should be character vectors of gene symbols 
+## (check to see that you're using the right symbol - HGNC/MGI symbols),
 ## with list names representing the cell type.  The list below is an example:
 cellMarkers <- list("Cortical precursors"=c("Mki67","Sox2","Pax6","Pcna","Nes","Cux1","Cux2"),
                     "Interneurons"=c("Gad1","Gad2","Npy","Sst","Lhx6","Tubb3","Rbfox3","Dcx"),
@@ -34,7 +46,8 @@ cellMarkers <- list("Cortical precursors"=c("Mki67","Sox2","Pax6","Pcna","Nes","
                     "Microglia"="Cx3cr1")
 
 ### Handling of non-unique markers - visualizations exist for genes that mark up to two different cell types.
-## Genes marking three or more cell types may break this or the gene visualization (although I may be able to bump it to 4 cell types).
+## Genes marking three or more cell types may break this or the gene visualization
+## (although I may be able to bump it to 4 cell types if necessary).
 cellMarkersS <- apply(combn(seq_along(cellMarkers),2),2,function(X) do.call(intersect,unname(cellMarkers[X])))
 names(cellMarkersS) <- apply(combn(seq_along(cellMarkers),2),2,function(X) paste(X,collapse="&"))
 cellMarkersS <- cellMarkersS[sapply(cellMarkersS,length) > 0]
@@ -340,12 +353,12 @@ shinyApp(
     heatGenes <- reactive({
       n <- input$DEgeneCount
       if (heatType()){
-        return(lapply(deG(),function(X) rownames(X[order(X$fwer),])[1:n]))
+        return(lapply(deG(),function(X) rownames(X[order(X$fdr),])[1:n]))
       } else {
         temp <- lapply(names(uniqDE[[res()]])[order(as.integer(names(uniqDE[[res()]])))],
                        function(cl) sapply(uniqDE[[res()]][[cl]], 
-                                           function(X) max(deG()[deG()$posClust == cl & deG()$gene == X,"fwer"])))
-        temp2 <- sapply(temp,function(X) if(length(X)>0) {names(sort(X))[1:n]})
+                                           function(X) max(deG()[deG()$posClust == cl & deG()$gene == X,"fdr"])))
+        temp2 <- lapply(temp,function(X) if(length(X)>0) {names(sort(X))[1:n]})
         return(lapply(temp2,function(X) X[!is.na(X)]))
       }
     })
@@ -506,6 +519,9 @@ shinyApp(
            ylim=range(eb1S@data[input$cgGene,]),
            ylab=paste(input$cgGene,"gene expression"),xlab=NA,xaxt="n")
       mtext(hC()$order,side=1,line=0,at=seq_along(temp))
+      mtext("Clusters, ordered by heatmap dendrogram",side=1,line=1)
+      try(tempGeneName <- select(get(egDB),keys=input$cgGene,keytype="SYMBOL",column="GENENAME")$GENENAME,silent=T)
+      if (exists("tempGeneName")) { mtext(paste("Gene name:",tempGeneName),side=1,line=2,font=2) }
       for (i in hC()$order) {
         vioplot(eb1S@data[input$cgGene,clusts() == i],
                 at=which(hC()$order == i),add=T,col=clustCols()[i])

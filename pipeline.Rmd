@@ -29,8 +29,10 @@ library(viridis)
 library(scran) # from Bioconductor
 if (species == "human") {
   library(org.Hs.eg.db) # from Bioconductor (for human data)
+  egDB <- "org.Hs.eg.db"
 } else if (species == "mouse") {
   library(org.Mm.eg.db) # from Bioconductor (for mouse data)
+  egDB <- "org.Mm.eg.db"
 } else { } #Mito gene IDs and cell cycle prediction might need your attention.
 library(Seurat) #see http://satijalab.org/seurat/install.html
 
@@ -202,7 +204,7 @@ The majority of cells have less than `r forText_mitoPct`% of transcripts from mi
 ## Cell cycle annotation
 ```{r cell_cycle_annotation, echo=F,fig.height=4.2,fig.width=8.4}
 if (!file.exists(paste0("../",dataName,"/output/",dataName,"_cycScores.RData"))) {
-  anno <- select(org.Mm.eg.db, keys=rownames(eb1), keytype="SYMBOL", column="ENSEMBL") 
+  anno <- select(get(egDB), keys=rownames(eb1), keytype="SYMBOL", column="ENSEMBL") 
   cycScores <- cyclone(eb1,gene.names=anno$ENSEMBL[match(rownames(eb1), anno$SYMBOL)],
                        pairs=readRDS(system.file("exdata", "mouse_cycle_markers.rds", package="scran")))
   cycScores$phases <- as.factor(cycScores$phases)
