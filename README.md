@@ -1,3 +1,5 @@
+*As you may have noticed from the update history, this hasn't received much attention from me recently.  If you're interested in applying the workflow or visualization tool to your data, please get in touch with me (www.baderlab.org/BrendanInnes).*
+
 # scRNAseqPipeline
 A pipeline and data visualization tool for Dropseq data  
 
