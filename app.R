@@ -24,10 +24,10 @@ ui <- fixedPage(
   fixedRow(
     titlePanel("Cell-type Clusters"),
     column(6,align="right",
-           fluidRow(downloadButton("libSizeSave","Save as PDF"),
+           fixedRow(downloadButton("libSizeSave","Save as PDF"),
                     plotOutput("libSize",height="600px"),align="right")),
     column(6,align="right",
-           fluidRow(downloadButton("libSizeSave","Save as PDF"),
+           fixedRow(downloadButton("libSizeSave","Save as PDF"),
                     plotOutput("libSize",height="600px"),align="right"))
   ),
   
