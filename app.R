@@ -5,14 +5,13 @@ ui <- fixedPage(
     titlePanel(dataTitle)),
   hr(),
   
-  fixedRow(
-    column(6,titlePanel("Cluster Resolution Selection"),
-           radioButtons("res","Resolution:",choices=names(deMarker),inline=T,selected=savedRes),
-           fixedRow(column(3,actionButton("go","View clusters at this resolution")),
-                    column(3,actionButton("save","Save this resolution as default"))),
+  fixedRow(titlePanel("Cluster Resolution Selection"),
+    column(6,radioButtons("res","Resolution:",choices=names(deMarker),inline=T,selected=savedRes),
+           fixedRow(column(6,actionButton("go","View clusters at this resolution"),align="left"),
+                    column(6,actionButton("save","Save this resolution as default"),align="right")),
            radioButtons("deType",NULL,list("# of marker genes per cluster"="deMarker",
                                            "# of DE genes to nearest neighbouring cluster"="deNeighb"),inline=T),
-           plotOutput("cqPlot",height="400px")),
+           plotOutput("cqPlot",height="500px")),
     column(6,plotOutput("sil",height="600px"))
   ),
   fixedRow(
@@ -20,15 +19,13 @@ ui <- fixedPage(
     column(6,downloadButton("silSave","Save as PDF"),align="right")
   ),
   hr(),
-  
+    
   fixedRow(
     titlePanel("Cell-type Clusters"),
-    column(6,align="right",
-           fixedRow(downloadButton("libSizeSave","Save as PDF"),
-                    plotOutput("libSize",height="600px"),align="right")),
-    column(6,align="right",
-           fixedRow(downloadButton("libSizeSave","Save as PDF"),
-                    plotOutput("libSize",height="600px"),align="right"))
+    column(6,downloadButton("libSizeSave","Save as PDF"),
+           plotOutput("libSize",height="550px"),align="right")#,
+#    column(6,downloadButton("libSizeSave","Save as PDF"),
+#           plotOutput("libSize",height="550px"),align="right")
   ),
   
   fixedRow(
@@ -48,7 +45,7 @@ ui <- fixedPage(
                     plotOutput("cellCycle",height="600px"),align="right"))
   ),
   hr(),
-  
+
   fixedRow(
     titlePanel("Cluster-wise Gene Stats"),
     column(5,fixedRow(
