@@ -6,8 +6,7 @@ ui <- fixedPage(
   hr(),
   
   fixedRow(
-    column(6,
-           titlePanel("Cluster Resolution Selection"),
+    column(6,titlePanel("Cluster Resolution Selection"),
            radioButtons("res","Resolution:",choices=names(deMarker),inline=T,selected=savedRes),
            fixedRow(column(3,actionButton("go","View clusters at this resolution")),
                     column(3,actionButton("save","Save this resolution as default"))),
@@ -33,18 +32,17 @@ ui <- fixedPage(
   ),
   
   fixedRow(
-    column(6,
-           fixedRow(
-             if (length(cellMarkers) > 0) {
-               column(4,radioButtons("tsneLabels","Labels:",inline=T,
-                                     choices=list("Cluster numbers"="cn","Cluster annotations"="ca")))
-             } else {
-               column(4,radioButtons("tsneLabels","Labels:",inline=T,
-                                     choices=list("Cluster numbers"="cn")))
-             },
-             column(2,downloadButton("tsneSave","Save as PDF"),align="right")
-           ),
-           plotOutput("tsne",height="600px",click="tsneClick")),
+    column(6,fixedRow(
+      if (length(cellMarkers) > 0) {
+        column(4,radioButtons("tsneLabels","Labels:",inline=T,
+                              choices=list("Cluster numbers"="cn","Cluster annotations"="ca")))
+      } else {
+        column(4,radioButtons("tsneLabels","Labels:",inline=T,
+                              choices=list("Cluster numbers"="cn")))
+      },
+      column(2,downloadButton("tsneSave","Save as PDF"),align="right")
+    ),
+    plotOutput("tsne",height="600px",click="tsneClick")),
     column(6,align="right",
            fixedRow(downloadButton("cellCycleSave","Save as PDF"),
                     plotOutput("cellCycle",height="600px"),align="right"))
