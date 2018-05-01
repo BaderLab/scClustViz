@@ -1,97 +1,86 @@
 
 #### UI ####
-ui <- fluidPage(
-  fluidRow(
-    tags$head(tags$script('
-                            var dimension = [0, 0];
-                          $(document).on("shiny:connected", function(e) {
-                          dimension[0] = window.innerWidth;
-                          dimension[1] = window.innerHeight;
-                          Shiny.onInputChange("dimension", dimension);
-                          });
-                          $(window).resize(function(e) {
-                          dimension[0] = window.innerWidth;
-                          dimension[1] = window.innerHeight;
-                          Shiny.onInputChange("dimension", dimension);
-                          });
-                          ')),
+ui <- fixedPage(
+  fixedRow(
     titlePanel(dataTitle)),
   hr(),
   
-  fluidRow(
+  fixedRow(
     column(6,
            titlePanel("Cluster Resolution Selection"),
            radioButtons("res","Resolution:",choices=names(deMarker),inline=T,selected=savedRes),
-           fluidRow(column(6,actionButton("go","View clusters at this resolution")),
-                    column(6,actionButton("save","Save this resolution as default"))),
+           fixedRow(column(3,actionButton("go","View clusters at this resolution")),
+                    column(3,actionButton("save","Save this resolution as default"))),
            radioButtons("deType",NULL,list("# of marker genes per cluster"="deMarker",
                                            "# of DE genes to nearest neighbouring cluster"="deNeighb"),inline=T),
            plotOutput("cqPlot",height="400px")),
     column(6,plotOutput("sil",height="600px"))
   ),
-  fluidRow(
+  fixedRow(
     column(6,downloadButton("cqPlotSave","Save as PDF"),align="left"),
     column(6,downloadButton("silSave","Save as PDF"),align="right")
   ),
   hr(),
   
-  fluidRow(verbatimTextOutput("dimension_display")),
-  hr(),
-  
-  fluidRow(
+  fixedRow(
     titlePanel("Cell-type Clusters"),
-    column(4,
-           fluidRow(
-             if (length(cellMarkers) > 0) {
-               column(8,radioButtons("tsneLabels","Labels:",inline=T,
-                                     choices=list("Cluster numbers"="cn","Cluster annotations"="ca")))
-             } else {
-               column(8,radioButtons("tsneLabels","Labels:",inline=T,
-                                     choices=list("Cluster numbers"="cn")))
-             },
-             column(4,downloadButton("tsneSave","Save as PDF"),align="right")
-           ),
-           plotOutput("tsne",height="600px",click="tsneClick")),
-    column(4,align="right",
-           fluidRow(downloadButton("cellCycleSave","Save as PDF"),
-                    plotOutput("cellCycle",height="600px"),align="right")),
-    column(4,align="right",
+    column(6,align="right",
+           fluidRow(downloadButton("libSizeSave","Save as PDF"),
+                    plotOutput("libSize",height="600px"),align="right")),
+    column(6,align="right",
            fluidRow(downloadButton("libSizeSave","Save as PDF"),
                     plotOutput("libSize",height="600px"),align="right"))
   ),
+  fixedRow(
+    column(6,
+           fixedRow(
+             if (length(cellMarkers) > 0) {
+               column(4,radioButtons("tsneLabels","Labels:",inline=T,
+                                     choices=list("Cluster numbers"="cn","Cluster annotations"="ca")))
+             } else {
+               column(4,radioButtons("tsneLabels","Labels:",inline=T,
+                                     choices=list("Cluster numbers"="cn")))
+             },
+             column(2,downloadButton("tsneSave","Save as PDF"),align="right")
+           ),
+           plotOutput("tsne",height="600px",click="tsneClick")),
+    column(6,align="right",
+           fixedRow(downloadButton("cellCycleSave","Save as PDF"),
+                    plotOutput("cellCycle",height="600px"),align="right"))
+  ),
   hr(),
   
-  fluidRow(
+  fixedRow(
     titlePanel("Cluster-wise Gene Stats"),
-    column(5,fluidRow(
+    column(5,fixedRow(
       if (length(cellMarkers) > 0) {
-        column(6,radioButtons("cgLegend",label="Highlighted genes:",
+        column(2,radioButtons("cgLegend",label="Highlighted genes:",
                               choices=c("Cell-type markers"="markers",
                                         "Top DE genes (from heatmap)"="heatmap",
                                         "Gene symbol (regex)"="regex")))
       } else {
-        column(6,radioButtons("cgLegend",label="Highlighted genes:",
+        column(2,radioButtons("cgLegend",label="Highlighted genes:",
                               choices=c("Top DE genes (from heatmap)"="heatmap",
                                         "Gene symbol (regex)"="regex")))
       },
-      column(6,align="right",
+      column(3,align="right",
              textInput("GOI","Gene symbol (regex)"),
              downloadButton("clusterGenesSave","Save as PDF"))
     ),
     plotOutput("clusterGenes",height="500px",click="cgClick")
     ),
-    column(7,fluidRow(
-      column(4,radioButtons("boxplotGene",label="Gene of interest:",
+    column(7,fixedRow(
+      column(2,radioButtons("boxplotGene",label="Gene of interest:",
                             choices=c("Click from plot on left"="click",
                                       "Gene symbol (regex)"="regex")),
              downloadButton("geneTestSave","Save as PDF")),
-      column(8,uiOutput("cgRadio"))
+      column(5,uiOutput("cgRadio"))
     ),
     plotOutput("geneTest",height="500px"))
   ),
   hr(),
   
-  fluidRow(
+  fixedRow(
     column(2,radioButtons("heatG","Heapmap Genes:",
                           choices=list("DE vs tissue average"="deTissue",
                                        "Marker genes"="deMarker"))),
@@ -100,33 +89,33 @@ ui <- fluidPage(
            downloadButton("heatmapSave","Save as PDF"),align="right"), 
     column(6,uiOutput("DEgeneSlider"))
   ),
-  fluidRow(plotOutput("heatmap",height="600px")),
+  fixedRow(plotOutput("heatmap",height="600px")),
   hr(),
   
-  fluidRow(
+  fixedRow(
     titlePanel("Genes of Interest"),
-    column(6,
-           fluidRow(
-             column(4,align="left",
-                    checkboxInput("plotClust1",label="Plot gene expression overlay",value=F),
-                    checkboxInput("plotLabel1",label="Include labels from tSNE plot above",value=T),
-                    downloadButton("goiPlot1Save","Save as PDF")),
-             column(8,textInput("GOI1",label="Gene symbol (regex):"),align="right")
-           ),
-           plotOutput("goiPlot1",height="700px")
+    fixedRow(6,fixedRow(
+      column(2,align="left",
+             checkboxInput("plotClust1",label="Plot gene expression overlay",value=F),
+             checkboxInput("plotLabel1",label="Include labels from tSNE plot above",value=T),
+             downloadButton("goiPlot1Save","Save as PDF")),
+      column(4,textInput("GOI1",label="Gene symbol (regex):"),align="right")
     ),
-    column(6,
-           fluidRow(
-             column(4,align="left",
-                    checkboxInput("plotClust2",label="Plot gene expression overlay",value=F),
-                    checkboxInput("plotLabel2",label="Include labels from tSNE plot above",value=T),
-                    downloadButton("goiPlot2Save","Save as PDF")),
-             column(8,textInput("GOI2",label="Gene symbol (regex):"),align="right")
-           ),
-           plotOutput("goiPlot2",height="700px")
+    plotOutput("goiPlot1",height="700px")
+    ),
+    column(6,fixedRow(
+      column(2,align="left",
+             checkboxInput("plotClust2",label="Plot gene expression overlay",value=F),
+             checkboxInput("plotLabel2",label="Include labels from tSNE plot above",value=T),
+             downloadButton("goiPlot2Save","Save as PDF")),
+      column(4,textInput("GOI2",label="Gene symbol (regex):"),align="right")
+    ),
+    plotOutput("goiPlot2",height="700px")
     )
   )
 )
+
+
 #### Server ####
 server <- function(input,output,session) {
   output$dimension_display <- renderText({
