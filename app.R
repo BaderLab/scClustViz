@@ -31,6 +31,7 @@ ui <- fixedPage(
            fluidRow(downloadButton("libSizeSave","Save as PDF"),
                     plotOutput("libSize",height="600px"),align="right"))
   ),
+  
   fixedRow(
     column(6,
            fixedRow(
