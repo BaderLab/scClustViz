@@ -1,0 +1,224 @@
+---
+title: "Clust"
+output:
+  md_document:
+    toc: yes
+---
+# Clustering using *Seurat*
+
+```{r Setup, include=F}
+dataName <- "testData" # name your data
+dataPath <- "../scClustViz_files/" # path to analysis output directory
+
+library(scales)
+library(viridis)
+library(cluster)
+library(Seurat) #see http://satijalab.org/seurat/install.html
+
+rainbow2 <- function(n,a=1) {
+  require(scales)
+  hues = seq(15, 375, length = n + 1)
+  alpha(hcl(h = hues, l = 60, c = 100)[1:n],a)
+}
+
+load(paste0(dataPath,"clustInputs.RData"))
+```
+
+# Clustering by SNN-cliq  
+
+Seurat implements an interpretation of SNN-Cliq (https://doi.org/10.1093/bioinformatics/btv088) for clustering of single-cell expression data.  They use PCs to define the distance metric, then embed the cells in a graph where edges between cells (nodes) are weighted based on their similarity (euclidean distance in PCA space).  These edge weights are refined based on Jaccard distance (overlap in local neighbourhoods), and then communities ("quasi-cliques") are identified in the graph using a smart local moving algorithm (SLM, http://dx.doi.org/10.1088/1742-5468/2008/10/P10008) to optimize the modularity measure of the defined communities in the graph.  
+
+## PCA and Spectral tSNE
+
+```{r viz_fx, include=F}
+plotPCloadings <- function(eb1S,highlight=NULL,components="PCA",nPC=20,
+                           comparison=c("Timepoint","LibrarySize","GeneDetect","CCcyclone","CCseurat")) {
+  if (nPC %% 5 != 0) {
+    warning("nPC argument should be multiple of 5")
+  }
+  if (components == "PCA") { 
+    input <- eb1S@dr$pca@cell.embeddings 
+  } else if (components == "ICA") {
+    input <- eb1S@dr$ica@cell.embeddings
+  } else {
+    warning("components argument should be in c(\"PCA\",\"ICA\")")
+  }
+  if (comparison == "Timepoint") {
+    compInput <- eb1S@meta.data$orig.ident
+  } else if (comparison == "LibrarySize") {
+    compInput <- log10(eb1S@meta.data$total_counts)
+    comparison <- expression(log[10]~"Library size")
+  } else if (comparison == "GeneDetect") {
+    compInput <- log10(eb1S@meta.data$total_features)
+    comparison <- expression(log[10]~"Genes Detected")
+  } else if (comparison == "CCcyclone") {
+    compInput <- eb1S@meta.data$cycPhase
+  } else if (comparison == "CCseurat") {
+    compInput <- eb1S@meta.data$Phase
+  } else {
+    warning("comparison argument should be in c(\"Timepoint\",\"LibrarySize\",\"CCcyclone\",\"CCseurat\")")
+  }
+  .parDef <- par(no.readonly=T)
+  layout(rbind(c(0,rep(nPC+1,5)),
+               cbind(rep(nPC+3,nPC/5),
+                     matrix(seq(1,nPC),ncol=5,byrow=T)),
+               c(0,rep(nPC+2,5))),
+         widths=c(0.2,rep(1,nPC/5)),
+         heights=c(0.2,rep(1,nPC/5),0.2))
+  par(mar=c(1,1,1,1),mgp=c(1,0,0),tck=0.02)
+  for (i in 1:nPC) {
+    if (is.factor(compInput)) {
+      temp_density <- tapply(input[,i],compInput,density)
+      plot(x=NULL,y=NULL,main=paste0(components," #",i),ylab=NA,xlab=NA,
+           xlim=range(sapply(temp_density,function(X) range(X$x))),
+           ylim=range(sapply(temp_density,function(X) range(X$y))))
+      rect(par("usr")[1],par("usr")[3],par("usr")[2],par("usr")[4],col="grey70")
+      for (l in seq_along(temp_density)) {
+        lines(temp_density[[l]],lwd=3,col=viridis(length(temp_density),.6,1,0)[l])
+      }
+    } else {
+      plot(x=compInput,y=input[,i],pch=16,col=alpha("black",0.3),
+           main=paste0(components," #",i," (r=",round(cor(eb1S@meta.data$total_counts,input[,i]),2),")"))
+    }
+    if (i %in% highlight) { box(lwd=2,col="red") }
+  }
+  par(mar=c(0,0,0,0))
+  if (is.factor(compInput)) {
+    plot.new()
+    legend(col=viridis(length(temp_density),1,1,0),lwd=3,
+           legend=names(temp_density),x="center",horiz=T,bty="n")
+    plot.new()
+    mtext("Principal component projection",1,line=-1.5)
+    plot.new()
+    mtext("Density",2,line=-1.5)
+  } else {
+    plot.new()
+    plot.new()
+    mtext(comparison,1,line=-1.5)
+    plot.new()
+    mtext("Principal component projection",2,line=-1.5)
+  }
+  par(.parDef)
+}
+
+plotTSNEbatch <- function(eb1S,colour=c("Timepoint","LibrarySize","GeneDetect","CCcyclone","CCseurat")) {
+  if (colour == "Timepoint") {
+    colourVector <- eb1S@meta.data$orig.ident
+    colourLength <- length(levels(eb1S@meta.data$orig.ident))
+    rnd <- sample(1:nrow(eb1S@dr$tsne@cell.embeddings),
+                  size=nrow(eb1S@dr$tsne@cell.embeddings))
+
+  } else if (colour == "LibrarySize") {
+    colourVector <- cut(log10(eb1S@meta.data$total_counts),breaks=100,labels=F)
+    colourLength <- 100
+    rnd <- 1:nrow(eb1S@dr$tsne@cell.embeddings)
+  } else if (colour == "GeneDetect") {
+    colourVector <- cut(log10(eb1S@meta.data$total_features),breaks=100,labels=F)
+    colourLength <- 100
+    rnd <- 1:nrow(eb1S@dr$tsne@cell.embeddings)
+  } else if (colour == "CCcyclone") {
+    colourVector <- eb1S@meta.data$cycPhase
+    colourLength <- length(levels(eb1S@meta.data$cycPhase))
+    rnd <- 1:nrow(eb1S@dr$tsne@cell.embeddings)
+  } else if (colour == "CCseurat") {
+    colourVector <- eb1S@meta.data$Phase
+    colourLength <- length(levels(eb1S@meta.data$Phase))
+    rnd <- 1:nrow(eb1S@dr$tsne@cell.embeddings)
+  } else {
+    warning("colour argument should be in c(\"Timepoint\",\"LibrarySize\",\"CCcyclone\",\"CCseurat\")")
+  }
+  plot(eb1S@dr$tsne@cell.embeddings[rnd,],pch=21,xlab="tSNE_1",ylab="tSNE_2",
+       col=viridis(colourLength,.7,d=-1)[colourVector[rnd]],
+       bg=viridis(colourLength,.3,d=-1)[colourVector[rnd]])
+  if (is.factor(colourVector)) {
+    title(main=colour,adj=0.01)
+    if (length(levels(colourVector)) <= 3) {
+      legend("topright",xpd=NA,inset=c(0,-.12),bty="n",horiz=T,
+             legend=levels(colourVector),pch=16,
+             col=viridis(colourLength,.7,d=-1)[seq_along(levels(colourVector))])
+    } else {
+      legend("topright",xpd=NA,inset=c(0,-.12),bty="n",
+             ncol=ceiling(length(levels(colourVector))/2),
+             legend=levels(colourVector),pch=16,
+             col=viridis(colourLength,.7,d=-1)[seq_along(levels(colourVector))])
+    }
+  } else {
+    title(main=colour,adj=0.01)
+    segments(x0=seq(quantile(range(eb1S@dr$tsne@cell.embeddings[,1]),.5),
+                    quantile(range(eb1S@dr$tsne@cell.embeddings[,1]),.9),length.out=1000),
+             y0=max(eb1S@dr$tsne@cell.embeddings[,2]) * 1.1,
+             y1=max(eb1S@dr$tsne@cell.embeddings[,2]) * 1.16,
+             col=viridis(1000,d=-1),xpd=NA)
+    text(x=c(quantile(range(eb1S@dr$tsne@cell.embeddings[,1]),.5),
+             quantile(range(eb1S@dr$tsne@cell.embeddings[,1]),.7),
+             quantile(range(eb1S@dr$tsne@cell.embeddings[,1]),.9)),
+         y=rep(max(eb1S@dr$tsne@cell.embeddings[,2]) * 1.13,3),
+         labels=c(min(eb1S@meta.data$total_counts),
+                  "(log scale)",
+                  max(eb1S@meta.data$total_counts)),
+         pos=2:4,xpd=NA)
+  }
+}
+```
+
+It is important to assess the impact of technical factors on downstream clustering.  Here we determine whether there are tecnical effects represented in the principal component projections, and the subsequent spectral tSNE projection.  
+Technical confounders assessed:  
+- Library size
+- Gene detection rate (strongly correlated with library size)
+- Cell cycle stage as predicted by *Seurat*
+
+```{r PCA, include=F}
+if (!file.exists(paste0(dataPath,"postPCA.RData"))) {
+  eb1S <- CreateSeuratObject(ebNorm,dataName,meta.data=as.data.frame(pDat),
+                             min.cells=0,min.genes=0,save.raw=F)
+  data("cc.genes")  
+  eb1S <- CellCycleScoring(inD,g2m.genes=cc.genes$g2m.genes,s.genes=cc.genes$s.genes)
+  if (exists("hvg")) {
+    eb1S@var.genes <- rownames(hvg)  # Should I consider using HVGs?
+  } else {
+    eb1S@var.genes <- rownames(ebN)
+  }
+  eb1S <- ScaleData(eb1S,display.progress=F,check.for.norm=F)
+  eb1S <- RunPCA(eb1S,pc.genes=eb1S@var.genes,do.print=F)
+  save(eb1S,file=paste0(dataPath,"postPCA.RData"))
+} else {
+  load(paste0(dataPath,"postPCA.RData"))
+}
+```
+
+```{r cleanup5, include=F}
+rm(list=ls()[!ls() %in% c("eb1S","pDat","timePoints","dataPath","plotPCloadings","plotTSNEbatch")])
+gc()
+```
+
+```{r plotPCs, echo=F,fig.height=6.3,fig.width=8.4,fig.show="hold"}
+plotPCloadings(eb1S,comparison="LibrarySize")
+plotPCloadings(eb1S,comparison="GeneDetect")
+plotPCloadings(eb1S,comparison="CCseurat")
+```
+
+```{r PCA_select, echo=F,fig.height=4.2,fig.width=4.2,fig.show="hold"}
+# Selecting number of PCs to use.  Run this code block once, then set maxPCt.
+maxPCt <- 15 #from elbow plot and spread of PCs.
+PCuse <- seq(1,maxPCt) 
+
+
+par(mar=c(3,3,1,1),mgp=2:0)
+plot(1:20,eb1S@dr$pca@sdev,xlab="Principal Component",ylab="Standard Deviation of PC")
+Hmisc::minor.tick(nx=5,ny=1)
+
+points(maxPCt,eb1S@dr$pca@sdev[maxPCt],type="h",col="darkred")
+arrows(x0=0.5,y0=eb1S@dr$pca@sdev[maxPCt]-.2,
+       x1=maxPCt-.1,y1=eb1S@dr$pca@sdev[maxPCt]-.2,
+       col="darkred",code=3,length=.1)
+text(x=maxPCt/2,y=eb1S@dr$pca@sdev[maxPCt]-.2,pos=1,
+     labels="PCs used",col="darkred")
+```
+
+```{r tSNE, echo=F,fig.height=6.3,fig.width=6.3,fig.show="hold"}
+eb1S <- RunTSNE(eb1S,dims.use=PCuse,do.fast=T)
+par(mar=c(3,3,2,1),mgp=2:0)
+plotTSNEbatch(eb1S,colour="LibrarySize")
+plotTSNEbatch(eb1S,colour="GeneDetect")
+plotTSNEbatch(eb1S,colour="CCseurat")
+```
