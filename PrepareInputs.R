@@ -13,9 +13,9 @@ pseudocount <- 1
 logFCthresh <- 1 # magnitude of mean log-expression fold change to use as a minimum threshold for DE testing
 WRSTalpha <- 0.01 # significance level for DE testing using Wilcoxon rank sum test
 
-dataRDS <- "../scClustViz_files/testData.rds" 
+#dataRDS <- "../scClustViz_files/testData.rds" 
 ##  ^ path to input data object, saved as RDS (use saveRDS() to generate).
-#dataRData <- "testData.RData" 
+dataRData <- "../scClustViz_files/e13_Cortical_Only.RData" 
 ##  ^ path to input data, saved as RData (use save() to generate )
 outputDirectory <- "." 
 ##  ^ path to output directory (for loading into the R Shiny visualization script)
@@ -39,12 +39,13 @@ if (exists("dataRDS")) {
   inD <- readRDS(dataRDS) 
 } else if (exists("dataRData")) {
   temp <- load(dataRData)
-  inD <- get(temp)
+  inD <- get(temp) ## If you have multiple objects saved in this file, set inD to your Seurat object.
   rm(list=c(temp,"temp"))
 } else { warning("Set path to input data as dataRDS or dataRData") }
 
 if (class(inD) == "seurat") {
   require(Seurat)
+  inD <- UpdateSeuratObject(inD) ## In case your Seurat object is from an older version of Seurat
   
   nge <- inD@data  
   ##  ^ normalized gene expression matrix (matrix: genes x cells)
@@ -86,11 +87,23 @@ See code above for details."
 }
 
 CGS <- deTissue <- deVS <- deMarker <- deNeighb <- list()
+
+#### Gene-wise summary stats for whole dataset ####
+print(paste("Calculating pan-cluster gene summary statistics"))
+CGS$all <- data.frame(DR=pbapply(nge,1,function(Y) sum(Y>0)/length(Y)),
+                      MDTC=pbapply(nge,1,
+                                 function(Y) {
+                                   temp <- mean.logX(Y[Y>0])
+                                   if (is.na(temp)) { temp <- 0 }
+                                   return(temp)
+                                 }),
+                      MTC=pbapply(nge,1,mean.logX))
+
 for (res in colnames(cl)) {
   #### Precalculate stats for viz tool ####
   print("")
   print("")
-  print(paste("Calculating cluster summary statistics for",res))
+  print(paste("Calculating cluster gene summary statistics for",res))
   print("-- Gene detection rate per cluster --")
   DR <- pbapply(nge,1,function(X) tapply(X,cl[,res],function(Y) sum(Y>0)/length(Y)))
   print("-- Mean detected gene expression per cluster --")
@@ -192,5 +205,5 @@ for (res in colnames(cl)) {
 #### Save outputs for visualization ####
 save(nge,md,cl,dr_clust,dr_viz,
      CGS,deTissue,deVS,deMarker,deNeighb,
-     file=paste0(sub("\\..+$","",get(grep("^dataRD",ls(),value=T))),"_forViz.RData"))
+     file=paste0(sub("\\.[A-Za-z0-9]+$","",get(grep("^dataRD",ls(),value=T))),"_forViz.RData"))
 ##  ^ Saved objects for use in visualization script (RunVizScript.R).
