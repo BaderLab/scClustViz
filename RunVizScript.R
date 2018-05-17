@@ -1,6 +1,6 @@
 ######## User-defined variables ########
 
-dataPath <- "./testData_forViz.RData"
+dataPath <- "../scClustViz_files/e13_Cortical_Only_forViz.RData"
 ##  ^ Point this to the output file from PrepareInputs.R
 ##  If you set a default resolution in the Shiny app, it will save to the same directory.
 
@@ -65,8 +65,10 @@ if (length(cellMarkers) < 1) {
 
 load(dataPath)
 temp_dataPath <- strsplit(dataPath,"/|\\\\")
+#### FIX ME ####
 dataPath <- sub(temp_dataPath[[1]][length(temp_dataPath)+1],"",dataPath)
 dataTitle <- sub("\\..+$|_forViz\\..+$","",temp_dataPath[[1]][length(temp_dataPath)+1])
+########
 rm(temp_dataPath)
 
 if (file.exists(paste0(dataPath,dataTitle,"_savedRes.RData"))) {
