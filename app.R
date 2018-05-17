@@ -5,6 +5,7 @@ ui <- fixedPage(
     titlePanel(dataTitle)),
   hr(),
   
+  #### Cluster Resolution Selection ####
   fixedRow(titlePanel("Cluster Resolution Selection"),
     column(6,radioButtons("res","Resolution:",choices=names(deMarker),inline=T,selected=savedRes),
            fixedRow(column(6,actionButton("go","View clusters at this resolution"),align="left"),
@@ -19,60 +20,80 @@ ui <- fixedPage(
     column(6,downloadButton("silSave","Save as PDF"),align="right")
   ),
   hr(),
-    
+  
+  #### Cell-type Clusters ####
+  fixedRow(titlePanel("Cell-type Clusters")),
   fixedRow(
-    titlePanel("Cell-type Clusters"),
-    column(6,downloadButton("libSizeSave","Save as PDF"),
-           plotOutput("libSize",height="550px"),align="right")#,
-#    column(6,downloadButton("libSizeSave","Save as PDF"),
-#           plotOutput("libSize",height="550px"),align="right")
+    column(6,
+           if (length(cellMarkers) > 0) {
+             radioButtons("tsneLabels","Labels:",inline=T,
+                          choices=list("Cluster numbers"="cn","Cluster annotations"="ca"))
+           } else {
+             radioButtons("tsneLabels","Labels:",inline=T,
+                          choices=list("Cluster numbers"="cn"))
+           },
+           strong("Click point on plot below to select cluster")),
+    column(3,selectInput("mdScatterX","x axis:",
+                         choices=colnames(md)[!sapply(md,function(X) is.factor(X) | is.character(X))],
+                         selected="total_counts"),align="left"),
+    column(3,selectInput("mdScatterY","y axis:",
+                         choices=colnames(md)[!sapply(md,function(X) is.factor(X) | is.character(X))],
+                         selected="total_features"),align="left")
   ),
+  fixedRow(
+    column(6,plotOutput("tsne",height="570px",click="tsneClick")),
+    column(6,plotOutput("mdScatter",height="570px"))
+  ),
+  fixedRow(
+    column(6,align="left",downloadButton("tsneSave","Save as PDF")),
+    column(6,align="right",downloadButton("mdScatterSave","Save as PDF"))
+  ),
+  h1(),
   
   fixedRow(
-    column(6,fixedRow(
-      if (length(cellMarkers) > 0) {
-        column(4,radioButtons("tsneLabels","Labels:",inline=T,
-                              choices=list("Cluster numbers"="cn","Cluster annotations"="ca")))
-      } else {
-        column(4,radioButtons("tsneLabels","Labels:",inline=T,
-                              choices=list("Cluster numbers"="cn")))
-      },
-      column(2,downloadButton("tsneSave","Save as PDF"),align="right")
-    ),
-    plotOutput("tsne",height="600px",click="tsneClick")),
-    column(6,align="right",
-           fixedRow(downloadButton("cellCycleSave","Save as PDF"),
-                    plotOutput("cellCycle",height="600px"),align="right"))
+    column(6,selectInput("tsneMDcol","Metadata:",choices=colnames(md),selected="Phase")),
+    column(3,selectInput("mdFactorData","Metadata (factor):",
+                         choices=colnames(md)[sapply(md,function(X) is.factor(X) | is.character(X))],
+                         selected="Phase")),
+    column(3,radioButtons("mdFactorRA","Factor counts per cluster:",inline=T,
+                          choices=list("Absolute"="absolute","Relative"="relative")))
+  ),
+  fixedRow(
+    column(6,plotOutput("tsneMD",height="570px")),
+    column(6,plotOutput("mdFactor",height="570px"))
+  ),
+  fixedRow(
+    column(6,align="left",downloadButton("tsneMDSave","Save as PDF")),
+    column(6,align="right",downloadButton("mdFactorSave","Save as PDF"))
   ),
   hr(),
 
+  #### Cluster-wise Gene Stats ####
+  fixedRow(titlePanel("Cluster-wise Gene Stats")),
   fixedRow(
-    titlePanel("Cluster-wise Gene Stats"),
-    column(5,fixedRow(
-      if (length(cellMarkers) > 0) {
-        column(2,radioButtons("cgLegend",label="Highlighted genes:",
-                              choices=c("Cell-type markers"="markers",
-                                        "Top DE genes (from heatmap)"="heatmap",
-                                        "Gene symbol (regex)"="regex")))
-      } else {
-        column(2,radioButtons("cgLegend",label="Highlighted genes:",
-                              choices=c("Top DE genes (from heatmap)"="heatmap",
-                                        "Gene symbol (regex)"="regex")))
-      },
-      column(3,align="right",
-             textInput("GOI","Gene symbol (regex)"),
-             downloadButton("clusterGenesSave","Save as PDF"))
-    ),
-    plotOutput("clusterGenes",height="500px",click="cgClick")
-    ),
-    column(7,fixedRow(
-      column(2,radioButtons("boxplotGene",label="Gene of interest:",
-                            choices=c("Click from plot on left"="click",
-                                      "Gene symbol (regex)"="regex")),
-             downloadButton("geneTestSave","Save as PDF")),
-      column(5,uiOutput("cgRadio"))
-    ),
-    plotOutput("geneTest",height="500px"))
+    column(3,if (length(cellMarkers) > 0) {
+      radioButtons("cgLegend",inline=F,label="Highlighted genes:",
+                   choices=c("Cell-type markers"="markers",
+                             "Top DE genes (from heatmap)"="heatmap",
+                             "Gene symbol (regex)"="regex"))
+    } else {
+      radioButtons("cgLegend",inline=T,label="Highlighted genes:",
+                   choices=c("Top DE genes (from heatmap)"="heatmap",
+                             "Gene symbol (regex)"="regex"))
+    }),
+    column(2,textInput("GOI","Gene symbol (regex)")),
+    column(3,radioButtons("boxplotGene",label="Gene of interest:",
+                          choices=c("Click from plot on left"="click",
+                                    "Gene symbol (regex)"="regex"))),
+    column(4,uiOutput("cgRadio"))
+  ),
+  fixedRow(
+    column(5,plotOutput("clusterGenes",height="500px",click="cgClick")),
+    column(7,plotOutput("geneTest",height="500px"))
+  ),
+  fixedRow(
+    column(6,align="left",downloadButton("clusterGenesSave","Save as PDF")),
+    column(6,align="right",downloadButton("geneTestSave","Save as PDF"))
   ),
   hr(),
   
@@ -280,108 +301,133 @@ server <- function(input,output,session) {
     }
   })
   
-  #### Cell cycle tSNE ####
-  plot_cellCycle <- function() {
-    layout(cbind(2:1),heights=c(1,7))
-    par(mar=c(3,3,0,1),mgp=2:0)
-    plot(x=NULL,y=NULL,xlab="tSNE_1",ylab="tSNE_2",
-         xlim=range(dr_viz[,1]),ylim=range(dr_viz[,2]))
-    if (any(ci())) {
-      points(dr_viz[!ci(),],pch=21,
-             col=viridis(3,.1)[c(3,1,2)][cycScores$phases[!ci()]],
-             bg=viridis(3,0.05)[c(3,1,2)][cycScores$phases[!ci()]])
-      points(dr_viz[ci(),],pch=21,
-             col=viridis(3,.8)[c(3,1,2)][cycScores$phases[ci()]],
-             bg=viridis(3,0.4)[c(3,1,2)][cycScores$phases[ci()]])
-    } else {
-      points(dr_viz,pch=21,
-             col=viridis(3,.8)[c(3,1,2)][cycScores$phases],
-             bg=viridis(3,0.4)[c(3,1,2)][cycScores$phases])
-    }
-    par(mar=c(0,0,0,0))
-    plot.new()
-    legend("top",bty="n",horiz=T,pch=c(NA,21,21,21),
-           legend=c("Cell cycle\nphase:",levels(cycScores$phases)),
-           col=c(NA,viridis(3)[c(3,1,2)]),pt.bg=c(NA,viridis(3,0.5)[c(3,1,2)]))
-  }
-  
-  output$cellCycle <- renderPlot({
-    print(plot_cellCycle())
-  })
-  
-  output$cellCycleSave <- downloadHandler(
-    filename="cellCycle.pdf",
-    content=function(file) {
-      pdf(file,width=10,height=10)
-      print(plot_cellCycle())
-      dev.off()
-    }
-  )
-  
-  #### Library Size Plot ####
-  densGene <- reactive({
-    if (any(ci())) {
-      list(density(md[!ci(),"total_features"]),
-           density(md[ci(),"total_features"]))
-    } else {
-      list(density(md$total_features))
-    }
-  })
-  
-  densUMI <- reactive({
-    if (any(ci())) {
-      list(density(md[!ci(),"total_counts"]),
-           density(md[ci(),"total_counts"]))
-    } else {
-      list(density(md$total_counts))
-    }
-  })
-  
-  plot_libSize <- function() {
-    layout(matrix(c(2,1,0,3),2),c(6,2),c(2,6))
-    par(mar=c(3,3,0,0),mgp=2:0)
-    plot(total_features~total_counts,data=md[!ci(),],
-         pch=21,col=alpha("black",0.2),bg=alpha("black",0.1),cex=1.2,
-         xlab="Library Size",ylab="Genes Detected")
-    points(total_features~total_counts,data=md[ci(),],
-           pch=21,col=alpha("red",0.4),bg=alpha("red",0.2),cex=1.2)
+  #### Metadata Scatterplot ####
+  plot_mdScatter <- function() {
+    layout(matrix(c(2,1,0,3),2),c(5,1),c(1,5))
+    par(mar=c(3,3,0,0),mgp=2:0,cex=1.1)
+    plot(md[!ci(),input$mdScatterX],md[!ci(),input$mdScatterY],
+         pch=21,col=alpha("black",0.2),bg=alpha("black",0.1),
+         xlab=input$mdScatterX,ylab=input$mdScatterY)
+    points(md[ci(),input$mdScatterX],md[ci(),input$mdScatterY],
+           pch=21,col=alpha("red",0.4),bg=alpha("red",0.2))
     if (any(ci())) {
       legend("topleft",bty="n",pch=21,col="red",pt.bg=alpha("red",0.5),
              legend=paste("Cluster",hiC(),"-",clusterID[[res()]][hiC()]))
     }
     par(mar=c(0,3,1,0))
-    plot(x=NULL,y=NULL,ylab="Density",xaxt="n",
-         xlim=range(md$total_counts),
-         ylim=c(min(sapply(densUMI(),function(X) min(X$y))),
-                max(sapply(densUMI(),function(X) max(X$y)))))
-    for (x in 1:length(densUMI())) {
-      lines(densUMI()[[x]],col=c("black","red")[x],lwd=3)
-    }
+    boxplot(tapply(md[,input$mdScatterX],ci(),c),
+            horizontal=T,xaxt="n",yaxt="n",border=c("black","red"))
     par(mar=c(3,0,0,1))
-    plot(x=NULL,y=NULL,xlab="Density",yaxt="n",
-         xlim=c(min(sapply(densGene(),function(X) min(X$y))),
-                max(sapply(densGene(),function(X) max(X$y)))),
-         ylim=range(md$total_features))
-    for (x in 1:length(densGene())) {
-      lines(x=densGene()[[x]]$y,y=densGene()[[x]]$x,col=c("black","red")[x],lwd=3)
+    boxplot(tapply(md[,input$mdScatterY],ci(),c),
+            horizontal=F,xaxt="n",yaxt="n",border=c("black","red"))
+  }
+  
+  output$mdScatter <- renderPlot({
+    print(plot_mdScatter())
+  })
+  
+  output$mdScatterSave <- downloadHandler(
+    filename="mdScatter.pdf",
+    content=function(file) {
+      pdf(file,width=10,height=10)
+      print(plot_mdScatter())
+      dev.off()
+    }
+  )
+  
+  #### Metadata tSNE overlay ####
+  plot_tsneMD <- function() {
+    if (is.factor(md[,input$tsneMDcol]) | is.character(md[,input$tsneMDcol])) {
+      id <- as.factor(md[,input$tsneMDcol])
+      if (length(levels(md[,input$tsneMDcol])) <= 8) {
+        idcol <- brewer.pal(length(levels(md[,input$tsneMDcol])),
+                            "Dark2")[1:length(levels(md[,input$tsneMDcol]))]
+      } else {
+        idcol <- rainbow2(length(levels(md[,input$tsneMDcol])))
+      }
+    } else {
+      id <- cut(md[,input$tsneMDcol],100)
+      idcol <- viridis(100,d=-1)
+    }
+    layout(cbind(2:1),heights=c(1,9))
+    par(mar=c(3,3,0,1),mgp=2:0)
+    plot(x=NULL,y=NULL,xlab="tSNE_1",ylab="tSNE_2",
+         xlim=range(dr_viz[,1]),ylim=range(dr_viz[,2]))
+    if (any(ci())) {
+      points(dr_viz[!ci(),],pch=21,
+             col=alpha(idcol,.1)[id[!ci()]],
+             bg=alpha(idcol,0.05)[id[!ci()]])
+      points(dr_viz[ci(),],pch=21,
+             col=alpha(idcol,.8)[id[ci()]],
+             bg=alpha(idcol,0.4)[id[ci()]])
+    } else {
+      points(dr_viz,pch=21,
+             col=alpha(idcol,.8)[id],
+             bg=alpha(idcol,0.4)[id])
+    }
+    if (is.factor(md[,input$tsneMDcol]) | is.character(md[,input$tsneMDcol])) {
+      par(mar=c(0,0,0,0))
+      plot.new()
+      legend("bottom",bty="n",horiz=T,pch=c(NA,rep(21,length(levels(md[,input$tsneMDcol])))),
+             legend=c(paste0(input$tsneMDcol,":"),levels(md[,input$tsneMDcol])),
+             col=c(NA,idcol),pt.bg=c(NA,alpha(idcol,0.5)))
+    } else {
+      par(mar=c(0,5,3,3))
+      barplot(rep(1,100),space=0,col=idcol,xaxt="n",yaxt="n",border=NA,main=input$tsneMDcol)
+      text(x=c(1,100),y=1,pos=c(2,4),xpd=NA,labels=round(range(md[,input$tsneMDcol]),2))
     }
   }
   
-  output$libSize <- renderPlot({
-    print(plot_libSize())
+  output$tsneMD <- renderPlot({
+    print(plot_tsneMD())
   })
   
-  output$libSizeSave <- downloadHandler(
-    filename="libSize.pdf",
+  output$tsneMDSave <- downloadHandler(
+    filename="tsneMD.pdf",
     content=function(file) {
       pdf(file,width=10,height=10)
-      print(plot_libSize())
+      print(plot_tsneMD())
+      dev.off()
+    }
+  )
+  
+  #### Metadata Factor Barplot ####
+  plot_mdFactor <- function() {
+    id <- switch(input$mdFactorRA,
+                 "relative"=do.call(cbind,tapply(md[,input$mdFactorData],clusts(),
+                                                 function(X) table(X) / length(X))),
+                 "absolute"=do.call(cbind,tapply(md[,input$mdFactorData],clusts(),table)))
+    idylab <- switch(input$mdFactorRA,
+                     "relative"="Proportion per cell type",
+                     "absolute"="Counts per cell type")
+    if (length(levels(md[,input$mdFactorData])) <= 8) {
+      idcol <- brewer.pal(length(levels(md[,input$mdFactorData])),
+                          "Dark2")[1:length(levels(md[,input$mdFactorData]))]
+    } else {
+      idcol <- rainbow2(length(levels(md[,input$mdFactorData])))
+    }
+    par(mar=c(3,3,4,1),mgp=2:0)
+    barplot(id,col=idcol,ylab=idylab,
+            legend.text=levels(md[,input$mdFactorData]),
+            args.legend=list(x="topright",horiz=T,inset=c(0,-.08),bty="n"))
+    mtext(input$mdFactorData,side=3,adj=0,font=2,line=1,cex=1.2)
+  }
+  
+  output$mdFactor <- renderPlot({
+    print(plot_mdFactor())
+  })
+  
+  output$mdFactorSave <- downloadHandler(
+    filename="mdFactor.pdf",
+    content=function(file) {
+      pdf(file,width=10,height=10)
+      print(plot_mdFactor())
       dev.off()
     }
   )
   
   #### clusterGenes ####
-  cellMarkCols <- reactive(gg_colour_hue(length(cellMarkers)))
+  cellMarkCols <- reactive(rainbow2(length(cellMarkers)))
   
   plot_clusterGenes <- function() {
     doubleDot <- function(col1,col2) {
@@ -408,87 +454,83 @@ server <- function(input,output,session) {
       yc <- 0+sin(rs) 
       polygon(xc,yc,col=col1,border="white")
     } 
-    with(CGS()[[hiC()]],{
-      plot(x=DR[!((cMu | cMs) & overCut)],
-           y=MDTC[!((cMu | cMs) & overCut)],
-           col=alpha("black",0.3),
-           xlab="Proportion of cells detecting gene",
-           ylab="Mean normalized gene expression of detected genes")
-      title(paste0("Cluster ", hiC(),": ",clusterID[[res()]][hiC()]),cex=1.2)
-      mtext(paste("Cells:",sum(clusts()==hiC()),
-                  "   Genes detected:",length(CGS()[[hiC()]]$DR)),side=3,line=0,cex=0.9)
-      box(col=clustCols()[hiC()],lwd=2)
-      lines(x=mean(MTC)/seq(min(MDTC),max(MDTC)*.75,by=.01),
-            y=seq(min(MDTC),max(MDTC)*.75,by=.01),
-            lty=2,lwd=2,col=alpha("red",0.5))
+    plot(MDTC~DR,
+         data=CGS[[res()]][[hiC()]][
+           !((CGS[[res()]][[hiC()]]$cMu | CGS[[res()]][[hiC()]]$cMs) & CGS[[res()]][[hiC()]]$overCut),],
+         col=alpha("black",0.3),
+         xlab="Proportion of cells detecting gene",
+         ylab="Mean normalized gene expression of detected genes")
+    title(paste0("Cluster ", hiC(),": ",clusterID[[res()]][hiC()]),cex=1.2)
+    mtext(paste("Cells:",sum(clusts()==hiC()),
+                "   Genes detected:",length(CGS[[res()]][[hiC()]]$DR)),side=3,line=0,cex=0.9)
+    box(col=clustCols()[hiC()],lwd=2)
+    #lines(x=mean(MTC)/seq(min(MDTC),max(MDTC)*.75,by=.01),
+    #      y=seq(min(MDTC),max(MDTC)*.75,by=.01),
+    #      lty=2,lwd=2,col=alpha("red",0.5))
       
-      if (input$cgLegend == "markers") {
-        for (x in which(cMu)) {
-          my.symbols(x=DR[x],y=MDTC[x],symb=singleDot,inches=0.1,
-                     MoreArgs=list(col1=cellMarkCols()[which(sapply(cellMarkersU,function(X) genes[x] %in% X))]))
-        }
-        for (x in which(cMs)) {
-          temp <- unlist(strsplit(names(which(sapply(cellMarkersS,function(X) genes[x] %in% X))),"&"))
-          my.symbols(x=DR[x],y=MDTC[x],symb=doubleDot,inches=0.1,
-                     MoreArgs=list(col1=cellMarkCols()[as.integer(temp[1])],
-                                   col2=cellMarkCols()[as.integer(temp[2])]))
-        }
-        for (x in which(cMu & overCut)) {
-          text(x=DR[x],y=MDTC[x],labels=genes[x],
-               srt=315,cex=1.5,font=2,adj=c(1.1,-.1),
-               col=cellMarkCols()[which(sapply(cellMarkersU,function(X) genes[x] %in% X))])
-        }
-        for (x in which(cMs & overCut)) {
-          text(x=DR[x],y=MDTC[x],labels=genes[x],
-               srt=315,cex=1.5,font=2,adj=c(1.1,-.1),
-               col=cellMarkCols()[as.integer(temp[2])])
-        }
-        legend("top",inset=.05,bty="n",ncol=2,#floor((length(cellMarkCols())+3)/4),
-               pch=c(rep(19,times=length(cellMarkCols())),NA,NA),
-               lty=c(rep(NA,times=length(cellMarkCols())),2,NA),
-               lwd=c(rep(NA,times=length(cellMarkCols())),2,NA),
-               col=c(cellMarkCols(),"red",NA),
-               legend=c(names(cellMarkersU),"Mean of mean expression",
-                        paste(sum(CGS()[[hiC()]]$overCut),"over threshold")))
-      } 
-      
-      else if (input$cgLegend == "heatmap") {
-        degl <- rownames(CGS()[[hiC()]]) %in% 
-          switch(input$heatG,
-                 deTissue=if (ncol(deTissue()[[hiC()]]) == 0) { NA } else { 
-                   deTissue()[[hiC()]][1:input$DEgeneCount,"gene"] },
-                 deMarker=if (ncol(deMarker()[[hiC()]]) == 0) { NA } else { 
-                   deMarker()[[hiC()]][1:input$DEgeneCount,"gene"] })
-        if (any(degl)) {
-          points(x=DR[degl],y=MDTC[degl],
-                 pch=16,cex=1.2,col="darkred")
-          text(x=DR[degl],y=MDTC[degl],
-               srt=315,cex=1.5,font=2,adj=c(1.1,-.1),
-               col="darkred",labels=genes[degl])
-        }
-        legend("top",inset=.05,bty="n",horiz=T,
-               lty=c(2,NA),lwd=c(2,NA),col=c("red",NA),
-               legend=c("Mean of mean expression",
-                        paste(sum(CGS()[[hiC()]]$overCut),"over threshold")))
-      } 
-      
-      else if (input$cgLegend == "regex"){
-        degl <- grep(input$GOI,genes)
-        points(x=DR[degl],y=MDTC[degl],
-               pch=16,cex=1.2,col="darkred")
-        text(x=DR[degl],y=MDTC[degl],
-             srt=315,cex=1.5,font=2,adj=c(1.1,-.1),
-             col="darkred",labels=genes[degl])
-        legend("top",inset=.05,bty="n",horiz=T,
-               lty=c(2,NA),lwd=c(2,NA),col=c("red",NA),
-               legend=c("Mean of mean expression",
-                        paste(sum(CGS()[[hiC()]]$overCut),"over threshold")))
-      } 
-      
-      else {
-        legend("center",legend="You changed the choice names...")
+    if (input$cgLegend == "markers") {
+      for (x in which(CGS[[res()]][[hiC()]]$cMu)) {
+        my.symbols(x=CGS[[res()]][[hiC()]]$DR[x],y=CGS[[res()]][[hiC()]]$MDTC[x],symb=singleDot,inches=0.1,
+                   MoreArgs=list(col1=cellMarkCols()[which(sapply(cellMarkersU,function(X) genes[x] %in% X))]))
       }
-    })
+      for (x in which(CGS[[res()]][[hiC()]]$cMs)) {
+        temp <- unlist(strsplit(names(which(sapply(cellMarkersS,function(X) genes[x] %in% X))),"&"))
+        my.symbols(x=CGS[[res()]][[hiC()]]$DR[x],y=CGS[[res()]][[hiC()]]$MDTC[x],symb=doubleDot,inches=0.1,
+                   MoreArgs=list(col1=cellMarkCols()[as.integer(temp[1])],
+                                 col2=cellMarkCols()[as.integer(temp[2])]))
+      }
+      for (x in which(CGS[[res()]][[hiC()]]$cMu & CGS[[res()]][[hiC()]]$overCut)) {
+        text(x=CGS[[res()]][[hiC()]]$DR[x],y=CGS[[res()]][[hiC()]]$MDTC[x],labels=genes[x],
+             srt=315,cex=1.5,font=2,adj=c(1.1,-.1),
+             col=cellMarkCols()[which(sapply(cellMarkersU,function(X) genes[x] %in% X))])
+      }
+      for (x in which(CGS[[res()]][[hiC()]]$cMs & CGS[[res()]][[hiC()]]$overCut)) {
+        text(x=CGS[[res()]][[hiC()]]$DR[x],y=CGS[[res()]][[hiC()]]$MDTC[x],labels=genes[x],
+             srt=315,cex=1.5,font=2,adj=c(1.1,-.1),
+             col=cellMarkCols()[as.integer(temp[2])])
+      }
+      legend("top",inset=.05,bty="n",ncol=2,#floor((length(cellMarkCols())+3)/4),
+             pch=c(rep(19,times=length(cellMarkCols())),NA,NA),
+             lty=c(rep(NA,times=length(cellMarkCols())),2,NA),
+             lwd=c(rep(NA,times=length(cellMarkCols())),2,NA),
+             col=c(cellMarkCols(),"red",NA),
+             legend=c(names(cellMarkersU),"Mean of mean expression",
+                      paste(sum(CGS[[res()]][[hiC()]]$overCut),"over threshold")))
+    }
+    
+    else if (input$cgLegend == "heatmap") {
+      degl <- rownames(CGS[[res()]][[hiC()]]) %in% 
+        switch(input$heatG,
+               deTissue=if (ncol(deTissue()[[hiC()]]) == 0) { NA } else { 
+                 deTissue()[[hiC()]][1:input$DEgeneCount,"gene"] },
+               deMarker=if (ncol(deMarker()[[hiC()]]) == 0) { NA } else { 
+                 deMarker()[[hiC()]][1:input$DEgeneCount,"gene"] })
+      if (any(degl)) {
+        points(x=CGS[[res()]][[hiC()]]$DR[degl],y=CGS[[res()]][[hiC()]]$MDTC[degl],
+               pch=16,cex=1.2,col="darkred")
+        text(x=CGS[[res()]][[hiC()]]$DR[degl],y=CGS[[res()]][[hiC()]]$MDTC[degl],
+             srt=315,cex=1.5,font=2,adj=c(1.1,-.1),col="darkred",labels=genes[degl])
+      }
+      legend("top",inset=.05,bty="n",horiz=T,
+             lty=c(2,NA),lwd=c(2,NA),col=c("red",NA),
+             legend=c("Mean of mean expression",
+                      paste(sum(CGS[[res()]][[hiC()]]$overCut),"over threshold")))
+    } 
+    
+    else if (input$cgLegend == "regex"){
+      degl <- grep(input$GOI,genes)
+      points(x=CGS[[res()]][[hiC()]]$DR[degl],y=CGS[[res()]][[hiC()]]$MDTC[degl],
+             pch=16,cex=1.2,col="darkred")
+      text(x=CGS[[res()]][[hiC()]]$DR[degl],y=CGS[[res()]][[hiC()]]$MDTC[degl],
+           srt=315,cex=1.5,font=2,adj=c(1.1,-.1),col="darkred",labels=CGS[[res()]][[hiC()]]$genes[degl])
+      legend("top",inset=.05,bty="n",horiz=T,lty=c(2,NA),lwd=c(2,NA),col=c("red",NA),
+             legend=c("Mean of mean expression",
+                      paste(sum(CGS()[[res()]][[hiC()]]$overCut),"over threshold")))
+    } 
+    
+    else {
+      legend("center",legend="You changed the choice names...")
+    }
   }
   
   output$clusterGenes <- renderPlot({
@@ -506,7 +548,7 @@ server <- function(input,output,session) {
   
   #### Gene Stats Plot ####
   cgGeneOpts <- reactive({
-    t <- nearPoints(CGS()[[hiC()]],input$cgClick,xvar="DR",yvar="MDTC")
+    t <- nearPoints(CGS()[[res()]][[hiC()]],input$cgClick,xvar="DR",yvar="MDTC")
     return(t$genes)
   })
   
@@ -524,7 +566,7 @@ server <- function(input,output,session) {
     }
     if (length(goi) > 5) { goiL <- 5 } else { goiL <- length(goi) }
     
-    temp <- sapply(CGS(), function(X) {
+    temp <- sapply(CGS()[[res()]], function(X) {
       if (goi %in% X$genes) {
         which(X[order(X$MTC,decreasing=T),]$genes == goi)
       } else {
@@ -562,7 +604,7 @@ server <- function(input,output,session) {
       }
     }
     par(new=T)
-    plot(x=seq_along(CGS()),y=sapply(CGS()[hC()$order],function(X) max(X[goi,"MTCrank"])),
+    plot(x=seq_along(CGS()[[res()]]),y=sapply(CGS()[[res()]][hC()$order],function(X) max(X[goi,"MTCrank"])),
          axes=F,xlab=NA,ylab=NA,ylim=0:1,pch=25,cex=1.2,col="darkred",bg="coral")
     axis(side=4,col.ticks="darkred",col.axis="darkred")
     mtext(side=4,line=2,text="Gene expression quantile per cluster",col="darkred")
@@ -614,7 +656,7 @@ server <- function(input,output,session) {
   })
   
   clustMeans <- reactive({ #This only works if input is in ascending order of adjusted p value.
-    temp <- sapply(CGS(),function(X) X[heatGenes(),"MTC"])
+    temp <- sapply(CGS()[[res()]],function(X) X[heatGenes(),"MTC"])
     rownames(temp) <- heatGenes()
     return(t(temp))
   })
