@@ -8,7 +8,7 @@ output:
 
 ```{r Setup, include=F}
 input_dataPath <- "../meCortex/171116_Michael/" # path to 10X output directory (containing .mtx file)
-dataPath <- "../scClustViz_files/" # path to analysis output directory
+dataPath <- "../scClustViz_files/test_mecortex171116michael/" # path to analysis output directory
 dataSpecies <- "mouse" #set species
 dataName <- "testData" # name your data
 
@@ -16,18 +16,20 @@ dataName <- "testData" # name your data
 library(Matrix)
 library(scales)
 library(viridis)
+library(biomaRt)
 library(scran) # from Bioconductor
+library(DropletUtils) # from Bioconductor
 
 
 if (Sys.info()["sysname"] == "Windows") { sys <- "D:/" } else { sys <- "~/" }
 if (dataSpecies == "mouse") {
-  library(org.Mm.eg.db) # from Bioconductor
-  egDB <- "org.Mm.eg.db"
+  mart <- useMart("ensembl","mmusculus_gene_ensembl")
+  speciesSymbol <- "mgi_symbol"
   speciesMito <- "^mt-"
   #cycloneSpeciesMarkers <- "mouse_cycle_markers.rds" # Going to use Seurat's cell cycle annotations instead.
 } else if (dataSpecies == "human") {
-  library(org.Hs.eg.db) # from Bioconductor
-  egDB <- "org.Hs.eg.db"
+  mart <- useMart("ensembl","hsapiens_gene_ensembl")
+  speciesSymbol <- "hgnc_symbol"
   speciesMito <- "^MT-"
   #cycloneSpeciesMarkers <- "human_cycle_markers.rds"
 } else { print("Set species please!") }
@@ -53,23 +55,47 @@ rainbow2 <- function(n,a=1) {
 # Cell filtering
 
 ```{r load_data, include=F}
-ebRaw <- counts(scater::read10xResults(input_dataPath))
+ebRaw <- counts(read10xCounts(input_dataPath))
 ebRaw <- ebRaw[Matrix::rowSums(ebRaw) > 0,]
 ebRaw <- ebRaw[,Matrix::colSums(ebRaw) > 0]
 
-# Check rownames at this point.  This workflow expects MGI or HGNC gene symbols as the rownames.
-# If the data was aligned to a reference genome that used ensembl gene IDs or another annotation
-# you will have to either convert them to gene symbols, or identify which ensembl IDs correspond
-# to the mitochondrial genome for the mitoFilt step.
+##  Check rownames at this point.  This workflow expects MGI or HGNC gene symbols as the rownames.
+##  If the data was aligned to a reference genome that used ensembl gene IDs or another annotation
+##  you will have to either convert them to gene symbols, or identify which ensembl IDs correspond
+##  to the mitochondrial genome for the mitoFilt step.
 
+geneRowNames <- "ensembl_gene_id" # Set to this if rownames are ensemble gene IDs
+# geneRowNames <- speciesSymbol   # Set to this if rownames are official gene symbols (don't need converting).
 
-# Consolidate duplicated gene names (a couple genes are in under their MGI and HGNC symbols)
+if (geneRowNames != speciesSymbol) {
+  e2g <- getBM(attributes=c(geneRowNames,speciesSymbol),
+               mart=mart,filters=geneRowNames,
+               values=rownames(ebRaw))
+  e2g <- e2g[e2g[,speciesSymbol] != "",] # removing unmapped gene symbols from conversion table
+  print(paste(sum(duplicated(e2g[,geneRowNames])),geneRowNames,"mapped to multiple",speciesSymbol))
+  ##  Arbitrarily picking one mapping for the above duplicates, since these generally map to predicted genes anyway.
+  e2g <- e2g[!duplicated(e2g[,geneRowNames]),] 
+  rownames(e2g) <- e2g[,geneRowNames]
+  ebRaw <- ebRaw[e2g[,geneRowNames],] # removing unmapped genes from data
+  print(paste(sum(duplicated(e2g[,speciesSymbol])),speciesSymbol,"mapped to multiple",geneRowNames))
+  ##  Going to collapse these by summing UMI counts between duplicated rows.
+  temp_r <- ebRaw[e2g[,speciesSymbol] %in% e2g[,speciesSymbol][duplicated(e2g[,speciesSymbol])],]
+  ebRaw <- ebRaw[!e2g[,speciesSymbol] %in% e2g[,speciesSymbol][duplicated(e2g[,speciesSymbol])],]
+  ##  Removed duplicated rows from data, saved as separate object
+  rownames(ebRaw) <- e2g[rownames(ebRaw),speciesSymbol] # renamed rows in data as gene symbols
+  temp_r <- Matrix(t(sapply(e2g[,speciesSymbol][duplicated(e2g[,speciesSymbol])],function(X) 
+    Matrix::colSums(temp_r[e2g[,geneRowNames][e2g[,speciesSymbol] == X],]))),sparse=T)
+  ##  Collapsed by summing each duplicated gene symbol's row
+  ebRaw <- rbind(ebRaw,temp_r)  # added those data back to matrix
+}
+
+# Consolidate duplicated gene names (if genes are in under their MGI and HGNC symbols)
 if (any(duplicated(toupper(rownames(ebRaw))))) {
   print(paste(dataName,"-",sum(duplicated(toupper(rownames(ebRaw)))),"duplicated gene names."))
   temp_r <- which(as.logical(Matrix::rowSums(
     sapply(rownames(ebRaw)[duplicated(toupper(rownames(ebRaw)))],
            function(X) grepl(paste0("^",X,"$"),rownames(ebRaw),ignore.case=T)))))
-  temp_r2 <- rownames(ebRaw[temp_r,])[rownames(ebRaw[temp_r,]) %in% keys(org.Mm.eg.db,"SYMBOL")]
+  temp_r2 <- rownames(ebRaw[temp_r,])[rownames(ebRaw[temp_r,]) %in% keys(get(egDB),"SYMBOL")]
   temp_reps <- t(sapply(lapply(unique(temp_r2),function(X) 
     grep(paste0("^",X,"$"),rownames(ebRaw),ignore.case=T)),
     function(Y) colSums(ebRaw[Y,])))
@@ -562,6 +588,6 @@ ebNorm <- exprs(ebN)
 pDat <- colData(ebN)[,c("total_features","total_counts")]
 save(ebNorm,pDat,hvg,file=paste0(dataPath,"clustInputs.RData"))
 
-write.csv(exprs(ebN),file=paste0(dataPath,"ebNorm.csv"),quote=F)
+write.csv(as.matrix(exprs(ebN)),file=paste0(dataPath,"ebNorm.csv"),quote=F)
 ```
 
