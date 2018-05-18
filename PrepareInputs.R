@@ -17,8 +17,17 @@ WRSTalpha <- 0.01 # significance level for DE testing using Wilcoxon rank sum te
 ##  ^ path to input data object, saved as RDS (use saveRDS() to generate).
 dataRData <- "../scClustViz_files/e13_Cortical_Only.RData" 
 ##  ^ path to input data, saved as RData (use save() to generate )
-outputDirectory <- "." 
-##  ^ path to output directory (for loading into the R Shiny visualization script)
+outputDirectory <- "../scClustViz_files/" 
+##  ^ path to output directory with trailing slash (for loading into the R Shiny visualization script)
+
+convertGeneIDs <- FALSE ##  Set to TRUE if your gene names aren't official gene symbols.
+##  If converting gene IDs, set the following:
+geneRowNames <- "ensembl_gene_id" 
+##  ^ Set to the biomaRt descriptor for the current gene name IDs.  
+##  Run listAttri
+speciesSymbol <- "mgi_symbol" ##  Gene IDs will be converted to MGI symbols if input is mouse data
+#speciesSymbol <- "hgnc_symbol" ##  Gene IDs will be converted to HGNC symbols if input is human data
+
 
 ######## Functions ########
 mean.logX <- function(data,ex=exponent,pc=pseudocount) { log(mean(ex^data - pc) + 1/ncol(nge),base=ex) }
@@ -49,6 +58,30 @@ if (class(inD) == "seurat") {
   
   nge <- inD@data  
   ##  ^ normalized gene expression matrix (matrix: genes x cells)
+  
+  if (convertGeneIDs) {
+    require(biomaRt)
+    e2g <- getBM(attributes=c(geneRowNames,speciesSymbol),
+                 mart=mart,filters=geneRowNames,
+                 values=rownames(nge))
+    e2g <- e2g[e2g[,speciesSymbol] != "",] # removing unmapped gene symbols from conversion table
+    print(paste(sum(duplicated(e2g[,geneRowNames])),geneRowNames,"mapped to multiple",speciesSymbol))
+    ##  Arbitrarily picking one mapping for the above duplicates, since these generally map to predicted genes anyway.
+    e2g <- e2g[!duplicated(e2g[,geneRowNames]),] 
+    rownames(e2g) <- e2g[,geneRowNames]
+    nge <- nge[e2g[,geneRowNames],] # removing unmapped genes from data
+    print(paste(sum(duplicated(e2g[,speciesSymbol])),speciesSymbol,"mapped to multiple",geneRowNames))
+    ##  Going to collapse these by summing UMI counts between duplicated rows.
+    temp_r <- nge[e2g[,speciesSymbol] %in% e2g[,speciesSymbol][duplicated(e2g[,speciesSymbol])],]
+    nge <- nge[!e2g[,speciesSymbol] %in% e2g[,speciesSymbol][duplicated(e2g[,speciesSymbol])],]
+    ##  Removed duplicated rows from data, saved as separate object
+    rownames(nge) <- e2g[rownames(nge),speciesSymbol] # renamed rows in data as gene symbols
+    temp_r <- t(sapply(e2g[,speciesSymbol][duplicated(e2g[,speciesSymbol])],function(X) 
+      colSums(temp_r[e2g[,geneRowNames][e2g[,speciesSymbol] == X],])))
+    ##  Collapsed by summing each duplicated gene symbol's row
+    nge <- rbind(nge,temp_r)  # added those data back to matrix
+  }
+  
   
   if (!any(grepl("cycle|phase|G2M",colnames(inD@meta.data),ignore.case=T))) {
     data("cc.genes")  
@@ -205,5 +238,9 @@ for (res in colnames(cl)) {
 #### Save outputs for visualization ####
 save(nge,md,cl,dr_clust,dr_viz,
      CGS,deTissue,deVS,deMarker,deNeighb,
-     file=paste0(sub("\\.[A-Za-z0-9]+$","",get(grep("^dataRD",ls(),value=T))),"_forViz.RData"))
+     file=paste0(outputDirectory,
+                 sub("^.*/","",sub("\\.[A-Za-z0-9]+$","",get(grep("^dataRD",ls(),value=T)))),
+                 "_forViz.RData"))
 ##  ^ Saved objects for use in visualization script (RunVizScript.R).
+
+
