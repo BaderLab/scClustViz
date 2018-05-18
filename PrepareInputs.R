@@ -48,7 +48,7 @@ if (exists("dataRDS")) {
   inD <- readRDS(dataRDS) 
 } else if (exists("dataRData")) {
   temp <- load(dataRData)
-  inD <- get(temp) ## If you have multiple objects saved in this file, set inD to your Seurat object.
+  inD <- get(temp) ## If you have multiple objects saved in this file, set inD to your data object.
   rm(list=c(temp,"temp"))
 } else { warning("Set path to input data as dataRDS or dataRData") }
 
@@ -103,9 +103,14 @@ if (class(inD) == "seurat") {
   rownames(cl) <- rownames(md) 
   ##  ^ cluster assignments per clustering resolution (dataframe: cells x cluster labels as factors)
   
-  dr_clust <- inD@dr$pca@cell.embeddings[,inD@calc.params$RunTSNE$dims.use]  
+  if (length(inD@calc.params) == 0) {
+    dr_clust <- inD@dr$pca@cell.embeddings
+  } else {
+    dr_clust <- inD@dr$pca@cell.embeddings[,inD@calc.params$RunTSNE$dims.use]  
+  }
   ##  ^ cell embeddings in low-dimensional space used for clustering distances (matrix: cells x dimensions)
   ##  Only including those dimensions used in downstream analysis (ie. those passed to RunTSNE and FindClusters)
+  ##  if that information is present (in calc.params).  Else, using all lower dimensions available.
   
   dr_viz <- inD@dr$tsne@cell.embeddings  
   ##  ^ cell embeddings in 2D space for visualization (usually tSNE) (matrix: cells x coordinates)
