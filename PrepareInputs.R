@@ -126,17 +126,6 @@ See code above for details."
 
 CGS <- deTissue <- deVS <- deMarker <- deNeighb <- list()
 
-#### Gene-wise summary stats for whole dataset ####
-print(paste("Calculating pan-cluster gene summary statistics"))
-CGS$all <- data.frame(DR=pbapply(nge,1,function(Y) sum(Y>0)/length(Y)),
-                      MDTC=pbapply(nge,1,
-                                 function(Y) {
-                                   temp <- mean.logX(Y[Y>0])
-                                   if (is.na(temp)) { temp <- 0 }
-                                   return(temp)
-                                 }),
-                      MTC=pbapply(nge,1,mean.logX))
-
 for (res in colnames(cl)) {
   #### Precalculate stats for viz tool ####
   print("")
