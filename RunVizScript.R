@@ -65,10 +65,9 @@ if (length(cellMarkers) < 1) {
 
 load(dataPath)
 temp_dataPath <- strsplit(dataPath,"/|\\\\")
-#### FIX ME ####
-dataPath <- sub(temp_dataPath[[1]][length(temp_dataPath)+1],"",dataPath)
-dataTitle <- sub("\\..+$|_forViz\\..+$","",temp_dataPath[[1]][length(temp_dataPath)+1])
-########
+dataPath <- sub(temp_dataPath[[1]][length(temp_dataPath[[1]])],"",dataPath)
+if (dataPath == "") { dataPath <- "./" }
+dataTitle <- sub("\\..+$|_forViz\\..+$","",temp_dataPath[[1]][length(temp_dataPath[[1]])])
 rm(temp_dataPath)
 
 if (file.exists(paste0(dataPath,dataTitle,"_savedRes.RData"))) {
