@@ -796,7 +796,7 @@ server <- function(input,output,session) {
     filename="goi2.pdf",
     content=function(file) {
       pdf(file,width=10,height=10)
-      print(plot_goi2())
+      print(plot_goi2()) #### FIX ME ####
       dev.off()
     }
   )

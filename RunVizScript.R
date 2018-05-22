@@ -1,6 +1,6 @@
 ######## User-defined variables ########
 
-dataPath <- "../scClustViz_files/e13_Cortical_Only_forViz.RData"
+dataPath <- "./testData_1clust_forViz.RData"
 ##  ^ Point this to the output file from PrepareInputs.R
 ##  If you set a default resolution in the Shiny app, it will save to the same directory.
 
@@ -88,12 +88,16 @@ for (l in names(CGS)) {
   }
 }
 
-clusterID <- sapply(CGS,function(Z) {
-  temp <- names(cellMarkers)[sapply(Z,function(Y) 
-    which.max(sapply(cellMarkers,function(X) median(Y$MTC[rownames(Y) %in% X]))))]
-  names(temp) <- names(Z)
-  return(temp)
-},simplify=F)
+if (length(cellMarkers) < 1) {
+  clusterID <- sapply(colnames(cl),function(X) rep("",nrow(cl)),simplify=F)
+} else {
+  clusterID <- sapply(CGS,function(Z) {
+    temp <- names(cellMarkers)[sapply(Z,function(Y) 
+      which.max(sapply(cellMarkers,function(X) median(Y$MTC[rownames(Y) %in% X]))))]
+    names(temp) <- names(Z)
+    return(temp)
+  },simplify=F)
+}
 
 #### Run the Shiny App!  ####
 runApp(vizScriptPath)
