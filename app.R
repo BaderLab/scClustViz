@@ -6,9 +6,11 @@ ui <- fixedPage(
   
   ######## Cluster Resolution Selection ########
   fixedRow(titlePanel("Cluster Resolution Selection"),
-    column(6,radioButtons("res","Resolution:",choices=names(deMarker),inline=T,selected=savedRes),
-           fixedRow(column(6,actionButton("go","View clusters at this resolution"),align="left"),
-                    column(6,actionButton("save","Save this resolution as default"),align="right")),
+    column(6,
+           fixedRow(column(6,uiOutput("resSelect"),align="left"),
+                    column(6,align="right",
+                           actionButton("go","View clusters at this resolution"),
+                           actionButton("save","Save this resolution as default"))),
            radioButtons("deType",NULL,list("# of marker genes per cluster"="deMarker",
                                            "# of DE genes to nearest neighbouring cluster"="deNeighb"),inline=T),
            plotOutput("cqPlot",height="500px")),
@@ -102,7 +104,7 @@ ui <- fixedPage(
                           choices=list("DE vs tissue average"="deTissue",
                                        "Marker genes"="deMarker",
                                        "DE vs neighbour"="deNeighb"))),
-    column(2,uiOutput("DEclustSelect"),align="right"),
+    column(2,uiOutput("DEclustSelect")),
     column(2,downloadButton("deGeneSave","Download gene list"),
            downloadButton("heatmapSave","Save as PDF"),align="right"), 
     column(6,uiOutput("DEgeneSlider"))
@@ -148,10 +150,6 @@ ui <- fixedPage(
 
 ########## Server ##########
 server <- function(input,output,session) {
-  output$dimension_display <- renderText({
-    paste(input$dimension[1], input$dimension[2], input$dimension[2]/input$dimension[1])
-  })
-  
   clustCols <- reactive({      
     if (length(levels(cl[,input$res])) <= 8) {
       brewer.pal(length(levels(cl[,input$res])),"Dark2")[1:length(levels(cl[,input$res]))]
@@ -163,10 +161,16 @@ server <- function(input,output,session) {
   
   ######## Cluster Resolution Selection ########
   #### Inter-cluster DE boxplots ####
+  numClust <- sapply(cl,function(X) length(levels(X)))
+  clustList <- as.list(colnames(cl))
+  names(clustList) <- paste0(unlist(clustList),": ",numClust," clusters")
+  output$resSelect <- renderUI({
+    selectInput("res","Resolution:",choices=clustList,selected=savedRes)
+  })
+  numClust <- numClust[numClust > 1]
+  
   plot_cqPlot <- function() {
-    numClust <- sapply(cl,function(X) length(levels(X)))
     numDEgenes <- lapply(get(input$deType),function(X) sapply(X,nrow))
-    x <- which(names(numClust) == input$res)
     toplim <- c(21,max(unlist(numDEgenes)) + 20)
     botlim <- c(-1,21)
     
@@ -175,21 +179,23 @@ server <- function(input,output,session) {
     plot(x=numClust,y=sapply(numDEgenes,median),type="l",
          xlim=range(numClust)+c(-.5,.5),ylim=toplim,yaxs="i",xaxt="n",ylab=NA)
     abline(h=seq(0,max(unlist(numDEgenes)),10),lty=3,col=alpha(1,0.3))
-    for (i in names(numDEgenes)[-x]) {
-      boxplot(numDEgenes[[i]],add=T,at=numClust[[i]])
+    for (i in names(numDEgenes)[names(numDEgenes) != input$res]) {
+      boxplot(numDEgenes[[i]],add=T,at=numClust[i])
     }
-    boxplot(numDEgenes[[x]],add=T,at=numClust[[x]],
-            border="red")
+    if (any(names(numDEgenes) == input$res)) {
+      boxplot(numDEgenes[[input$res]],add=T,at=numClust[input$res],border="red")
+    }
     
     par(mar=c(3,2,0.2,1),mgp=2:0)
     plot(x=numClust,y=sapply(numDEgenes,median),type="l",
          xlim=range(numClust)+c(-.5,.5),ylim=botlim,yaxs="i",xlab="Number of clusters",ylab=NA)
     abline(h=seq(0,max(unlist(numDEgenes)),10),lty=3,col=alpha(1,0.3))
-    for (i in names(numDEgenes)[-x]) {
-      boxplot(numDEgenes[[i]],add=T,at=numClust[[i]])
+    for (i in names(numDEgenes)[names(numDEgenes) != input$res]) {
+      boxplot(numDEgenes[[i]],add=T,at=numClust[i])
     }
-    boxplot(numDEgenes[[x]],add=T,at=numClust[[x]],
-            border="red")
+    if (any(names(numDEgenes) == input$res)) {
+      boxplot(numDEgenes[[input$res]],add=T,at=numClust[input$res],border="red")
+    }
     
     par(mar=c(3,0,1,0))
     plot.new()
@@ -216,7 +222,13 @@ server <- function(input,output,session) {
   plot_sil <- function() {
     tempSil <- silhouette(as.integer(cl[,input$res]),dist=silDist)
     par(mar=c(4,0,2,1),mgp=2:0)
-    plot(tempSil,beside=T,border=NA,main=NA,col=clustCols(),do.n.k=T)
+    if (is.na(tempSil)) {
+      plot(x=NA,y=NA,xlim=0:1,ylim=0:1,xaxt="n",yaxt="n",xlab=NA,ylab=NA)
+      text(.5,.5,paste("Silhouette plot cannot be computed",
+                       "with less than two clusters.",sep="\n"))
+    } else {
+      plot(tempSil,beside=T,border=NA,main=NA,col=clustCols(),do.n.k=T)
+    }
   }
   
   output$sil <- renderPlot({
@@ -243,6 +255,83 @@ server <- function(input,output,session) {
   
   ######## Cell-type Clusters ########
   clusts <- reactive(cl[,res()])
+  
+  #### Cell-type tSNE ####
+  transp <- reactiveValues(bg=rep(0.5,ncol(nge)),col=rep(1,ncol(nge)))
+  
+  plot_tsne_labels <- function() {
+    if (input$tsneLabels == "ca") {
+      temp_labelNames <- sapply(unique(clusterID[[res()]]),function(X) 
+        names(which(clusterID[[res()]] == X)),simplify=F)
+      temp_labels <- apply(dr_viz,2,function(Y) 
+        tapply(Y,apply(sapply(temp_labelNames,function(X) clusts() %in% X),1,which),mean))
+      if (!is.matrix(temp_labels)) { temp_labels <- rbind(temp_labels) }
+      text(temp_labels,labels=names(temp_labelNames),font=2,cex=1.5)
+    } else if (input$tsneLabels == "cn") {
+      temp_labels <- apply(dr_viz,2,function(X) tapply(X,clusts(),mean))
+      if (!is.matrix(temp_labels)) { temp_labels <- rbind(temp_labels) }
+      text(temp_labels,labels=levels(clusts()),font=2,cex=1.5)
+    } else {
+      legend("center",legend="You changed the label choice names...")
+    }
+  }
+  
+  plot_tsne <- function() {
+    par(mar=c(4,3,3,1),mgp=2:0)
+    plot(x=NULL,y=NULL,xlab="tSNE_1",ylab="tSNE_2",
+         main=paste("tSNE at",res(),"using",ncol(dr_clust),"PCs"),
+         xlim=range(dr_viz[,1]),ylim=range(dr_viz[,2]))
+    points(dr_viz,pch=21,
+           col=alpha(clustCols()[clusts()],transp$col),
+           bg=alpha(clustCols()[clusts()],transp$bg))
+    if (!is.na(hiC())) {
+      mtext(side=3,line=-1,text=paste("Cluster",hiC(),"-",
+                                      clusterID[[res()]][hiC()],"-",
+                                      sum(clusts() == hiC()),"cells"))
+    }
+  }
+  
+  output$tsne <- renderPlot({
+    print(plot_tsne())
+    print(plot_tsne_labels())
+  })
+  
+  output$tsneSave <- downloadHandler(
+    filename="tsne.pdf",
+    content=function(file) {
+      pdf(file,width=10,height=10)
+      print(plot_tsne())
+      dev.off()
+    }
+  )
+  
+  #### tsneClick ####
+  tsneClick <- reactiveValues(cl=NULL)
+  
+  observeEvent(input$tsneClick,{ tsneClick$cl <- input$tsneClick })
+  
+  hiC <- reactive({
+    t <- nearPoints(as.data.frame(dr_viz),tsneClick$cl,xvar="tSNE_1",yvar="tSNE_2",threshold=5)
+    t2 <- cl[rownames(t)[1],res()]
+    return(t2)
+  })
+  
+  ci <- reactive({
+    if (is.na(hiC())) {
+      rep(F,length(clusts()))
+    } else {
+      clusts() == hiC()
+    }
+  })
+  
+  observeEvent(input$tsneClick,{
+    transp$bg <- 0.5
+    transp$cl <- 1
+    if (any(ci())) {
+      transp$bg[!ci()] <- 0.1
+      transp$col[!ci()] <- 0.2
+    }
+  })
   
   #### Metadata tSNE overlay ####
   plot_tsneMD <- function() {
@@ -274,8 +363,7 @@ server <- function(input,output,session) {
              col=alpha(idcol,.8)[id],
              bg=alpha(idcol,0.4)[id])
     }
-    text(apply(dr_viz,2,function(X) tapply(X,clusts(),mean)),
-         labels=levels(clusts()),font=2,cex=1.5)
+    plot_tsne_labels()
     if (is.factor(md[,input$tsneMDcol]) | is.character(md[,input$tsneMDcol])) {
       par(mar=c(0,0,0,0))
       plot.new()
@@ -337,88 +425,21 @@ server <- function(input,output,session) {
     }
   )
   
-  #### Cell-type tSNE ####
-  transp <- reactiveValues(bg=rep(0.5,ncol(nge)),col=rep(1,ncol(nge)))
-  
-  plot_tsne_labels <- function() {
-    if (input$tsneLabels == "ca") {
-      temp <- sapply(unique(clusterID[[res()]]),function(X) names(which(clusterID[[res()]] == X)))
-      text(apply(dr_viz,2,function(Y) tapply(Y,apply(sapply(temp,function(X) clusts() %in% X),1,which),mean)),
-        labels=names(temp),font=2,cex=1.5)
-    } else if (input$tsneLabels == "cn") {
-      text(apply(dr_viz,2,function(X) tapply(X,clusts(),mean)),
-           labels=levels(clusts()),font=2,cex=1.5)
-    } else {
-      legend("center",legend="You changed the label choice names...")
-    }
-  }
-  
-  plot_tsne <- function() {
-    par(mar=c(4,3,3,1),mgp=2:0)
-    plot(x=NULL,y=NULL,xlab="tSNE_1",ylab="tSNE_2",
-         main=paste("tSNE at",res(),"using",ncol(dr_clust),"PCs"),
-         xlim=range(dr_viz[,1]),ylim=range(dr_viz[,2]))
-    points(dr_viz,pch=21,
-           col=alpha(clustCols()[clusts()],transp$col),
-           bg=alpha(clustCols()[clusts()],transp$bg))
-    plot_tsne_labels()
-    if (!is.na(hiC())) {
-      mtext(side=3,line=-1,text=paste("Cluster",hiC(),"-",
-                                      clusterID[[res()]][hiC()],"-",
-                                      sum(clusts() == hiC()),"cells"))
-    }
-  }
-  
-  output$tsne <- renderPlot({
-    print(plot_tsne())
-  })
-  
-  output$tsneSave <- downloadHandler(
-    filename="tsne.pdf",
-    content=function(file) {
-      pdf(file,width=10,height=10)
-      print(plot_tsne())
-      dev.off()
-    }
-  )
-  
-  #### tsneClick ####
-  tsneClick <- reactiveValues(cl=NULL)
-  
-  observeEvent(input$tsneClick,{ tsneClick$cl <- input$tsneClick })
-  
-  hiC <- reactive({
-    t <- nearPoints(as.data.frame(dr_viz),tsneClick$cl,xvar="tSNE_1",yvar="tSNE_2",threshold=5)
-    t2 <- cl[rownames(t)[1],res()]
-    return(t2)
-  })
-  
-  ci <- reactive({
-    if (is.na(hiC())) {
-      rep(F,length(clusts()))
-    } else {
-      clusts() == hiC()
-    }
-  })
-  
-  observeEvent(input$tsneClick,{
-    transp$bg <- 0.5
-    transp$cl <- 1
-    if (any(ci())) {
-      transp$bg[!ci()] <- 0.1
-      transp$col[!ci()] <- 0.2
-    }
-  })
-  
   #### Metadata Scatterplot ####
   plot_mdScatter <- function() {
     layout(matrix(c(2,1,0,3),2),c(5,1),c(1,5))
     par(mar=c(3,3,0,0),mgp=2:0,cex=1.1)
-    plot(md[!ci(),input$mdScatterX],md[!ci(),input$mdScatterY],
-         pch=21,col=alpha("black",0.2),bg=alpha("black",0.1),
-         xlab=input$mdScatterX,ylab=input$mdScatterY)
-    points(md[ci(),input$mdScatterX],md[ci(),input$mdScatterY],
-           pch=21,col=alpha("red",0.4),bg=alpha("red",0.2))
+    if (all(ci())) {
+      plot(md[,input$mdScatterX],md[,input$mdScatterY],
+           pch=21,col=alpha("red",0.4),bg=alpha("red",0.2),
+           xlab=input$mdScatterX,ylab=input$mdScatterY)
+    } else {
+      plot(md[!ci(),input$mdScatterX],md[!ci(),input$mdScatterY],
+           pch=21,col=alpha("black",0.2),bg=alpha("black",0.1),
+           xlab=input$mdScatterX,ylab=input$mdScatterY)
+      points(md[ci(),input$mdScatterX],md[ci(),input$mdScatterY],
+             pch=21,col=alpha("red",0.4),bg=alpha("red",0.2))
+    }
     if (any(ci())) {
       legend("topleft",bty="n",pch=21,col="red",pt.bg=alpha("red",0.5),
              legend=paste("Cluster",hiC(),"-",clusterID[[res()]][hiC()]))
@@ -580,21 +601,14 @@ server <- function(input,output,session) {
                        "then pick the gene from the list just above this figure",
                        "to see a comparison of that gene's expression across all clusters.",sep="\n"))
     } else {
-      temp <- sapply(CGS[[res()]], function(X) {
-        if (input$cgGene %in% X$genes) {
-          which(X[order(X$MTC,decreasing=T),]$genes == input$cgGene)
-        } else {
-          nrow(X)
-        }
-      })
-      names(temp) <- levels(clusts())
-      
+      temp_pos <- switch(as.character(length(levels(clusts())) > 1),"TRUE"=hC()$order,"FALSE"=1)
       layout(matrix(2:1,nrow=2),heights=c(1,4))
       par(mar=c(3,3,0,3),mgp=2:0)
-      plot(x=NULL,y=NULL,xlim=c(1,length(temp)),
-           ylim=range(nge[input$cgGene,]),
-           ylab=paste(input$cgGene,"gene expression (log2)"),xlab=NA,xaxt="n")
-      mtext(levels(clusts())[hC()$order],side=1,line=0,at=seq_along(temp))
+      suppressWarnings(boxplot(vector("list",length(levels(clusts()))),
+                               ylim=range(nge[input$cgGene,]),
+                               ylab=paste(input$cgGene,"gene expression (log2)"),
+                               xlab=NA,xaxt="n"))
+      mtext(levels(clusts())[temp_pos],side=1,line=0,at=seq_along(temp_pos))
       mtext("Clusters, ordered by heatmap dendrogram",side=1,line=1)
       try(tempGeneName <- select(get(egDB),keys=input$cgGene,
                                  keytype="SYMBOL",column="GENENAME")$GENENAME,silent=T)
@@ -602,19 +616,23 @@ server <- function(input,output,session) {
         mtext(paste(paste("Gene name:",tempGeneName),collapse="\n"),
               side=1,line=2,font=2) 
       }
-      for (i in hC()$order) {
+      if (length(CGS))
+      for (i in temp_pos) {
         boxplot(nge[input$cgGene,clusts() == levels(clusts())[i]],
-                at=which(hC()$order == i),add=T,col=clustCols()[i])
+                at=which(temp_pos == i),add=T,col=clustCols()[i])
       }
-      par(new=T)
-      plot(x=seq_along(CGS[[res()]]),y=sapply(CGS[[res()]][hC()$order],
-                                              function(X) max(X[input$cgGene,"MTCrank"])),
+      points(x=seq_along(CGS[[res()]]),
+             y=sapply(CGS[[res()]][temp_pos],function(X) X[input$cgGene,"MTCrank"]) * 
+               max(nge[input$cgGene,]) + min(nge[input$cgGene,]),
            axes=F,xlab=NA,ylab=NA,ylim=0:1,pch=25,cex=1.2,col="darkred",bg="coral")
-      axis(side=4,col.ticks="darkred",col.axis="darkred")
-      mtext(side=4,line=2,text="Gene expression quantile per cluster",col="darkred")
+      axis(side=4,at=seq(0,1,.25) * max(nge[input$cgGene,]) + min(nge[input$cgGene,]),
+           labels=percent(seq(0,1,.25)),col.ticks="darkred",col.axis="darkred")
+      mtext(side=4,line=2,text="Quantile of gene expression per cluster",col="darkred")
       
-      par(new=F,mar=c(0,3,1,3))
-      plot(as.dendrogram(hC()),leaflab="none",xaxs="i")
+      if (length(temp_pos) > 1) { 
+        par(new=F,mar=c(0,3,1,3))
+        plot(as.dendrogram(hC()),leaflab="none") 
+      }
     }
   }
   
@@ -650,7 +668,7 @@ server <- function(input,output,session) {
   })
   
   output$DEclustSelect <- renderUI({
-    selectInput("DEclustNum","Cluster # for gene list",choices=levels(clusts()),selectize=F)
+    selectInput("DEclustNum","Cluster # for gene list",choices=levels(clusts()))
   })
   
   heatGenes <- reactive({
@@ -684,16 +702,22 @@ server <- function(input,output,session) {
   })
   
   plot_heatmap <- function() {
-    tempLabRow <- paste(paste0("Cluster ",levels(clusts())),
-                        paste(sapply(switch(input$heatG,
-                                            deTissue=deTissue[[res()]],
-                                            deMarker=deMarker[[res()]],
-                                            deNeighb=deNeighb[[res()]]),nrow),"DE"),
-                        sep=": ")
-    heatmap.2(clustMeans(),Rowv=as.dendrogram(hC()),Colv=as.dendrogram(hG()),scale="column",
-              col=viridis(100,d=-1),trace="none",margins=c(9,12),keysize=1,lhei=c(2,10),lwid=c(1,11),
-              cexCol=1 + 1/log2(nrow(clustMeans())),cexRow=1 + 1/log2(ncol(clustMeans())),
-              RowSideColors=clustCols(),labRow=tempLabRow,rowsep=sepClust())
+    if (length(levels(clusts())) <= 1) {
+      plot(x=NA,y=NA,xlim=0:1,ylim=0:1,xaxt="n",yaxt="n",xlab=NA,ylab=NA)
+      text(.5,.5,paste("Heatmap cannot be computed",
+                       "with less than two clusters.",sep="\n"))
+    } else {
+      tempLabRow <- paste(paste0("Cluster ",levels(clusts())),
+                          paste(sapply(switch(input$heatG,
+                                              deTissue=deTissue[[res()]],
+                                              deMarker=deMarker[[res()]],
+                                              deNeighb=deNeighb[[res()]]),nrow),"DE"),
+                          sep=": ")
+      heatmap.2(clustMeans(),Rowv=as.dendrogram(hC()),Colv=as.dendrogram(hG()),scale="column",
+                col=viridis(100,d=-1),trace="none",margins=c(9,12),keysize=1,lhei=c(2,10),lwid=c(1,11),
+                cexCol=1 + 1/log2(nrow(clustMeans())),cexRow=1 + 1/log2(ncol(clustMeans())),
+                RowSideColors=clustCols(),labRow=tempLabRow,rowsep=sepClust())
+    }
   }
   
   output$heatmap <- renderPlot({
@@ -768,17 +792,24 @@ server <- function(input,output,session) {
   output$goiPlot1 <- renderPlot({
     if (input$plotClust1 == "clust") {
       print(plot_tsne())
+      if (input$plotLabel1) { print(plot_tsne_labels()) }
     } else if (input$plotClust1 == "goi") {
       print(plot_goi(input$goi1))
+      if (input$plotLabel1 & length(input$goi1) > 0) { print(plot_tsne_labels()) }
     }
-    if (input$plotLabel1) { print(plot_tsne_labels()) }
   })
   
   output$goiPlot1Save <- downloadHandler(
     filename="goi1.pdf",
     content=function(file) {
       pdf(file,width=10,height=10)
-      print(plot_goi1())
+      if (input$plotClust1 == "clust") {
+        print(plot_tsne())
+        if (input$plotLabel1) { print(plot_tsne_labels()) }
+      } else if (input$plotClust1 == "goi") {
+        print(plot_goi(input$goi1))
+        if (input$plotLabel1 & length(input$goi1) > 0) { print(plot_tsne_labels()) }
+      }
       dev.off()
     }
   )
@@ -786,17 +817,24 @@ server <- function(input,output,session) {
   output$goiPlot2 <- renderPlot({
     if (input$plotClust2 == "clust") {
       print(plot_tsne())
+      if (input$plotLabel2) { print(plot_tsne_labels()) }
     } else if (input$plotClust2 == "goi") {
       print(plot_goi(input$goi2))
+      if (input$plotLabel1 & length(input$goi2) > 0) { print(plot_tsne_labels()) }
     }
-    if (input$plotLabel2) { print(plot_tsne_labels()) }
   })
   
   output$goiPlot2Save <- downloadHandler(
     filename="goi2.pdf",
     content=function(file) {
       pdf(file,width=10,height=10)
-      print(plot_goi2()) #### FIX ME ####
+      if (input$plotClust2 == "clust") {
+        print(plot_tsne())
+        if (input$plotLabel2) { print(plot_tsne_labels()) }
+      } else if (input$plotClust2 == "goi") {
+        print(plot_goi(input$goi2))
+        if (input$plotLabel1 & length(input$goi2) > 0) { print(plot_tsne_labels()) }
+      }
       dev.off()
     }
   )
