@@ -41,11 +41,13 @@ library(RColorBrewer)
 library(TeachingDemos)
 
 egDB <- switch(species,
-               mouse={ require(org.Mm.eg.db); "org.Mm.eg.db" },
-               human={ require(org.Hs.eg.db); "org.Hs.eg.db" },
+               mouse={ library(org.Mm.eg.db); "org.Mm.eg.db" },
+               human={ library(org.Hs.eg.db); "org.Hs.eg.db" },
                stop("
 Set species please!  
-If not mouse/human, add your species' annotation database from Bioconductor.
+If not mouse/human, add your species' annotation database from Bioconductor:  
+source('https://bioconductor.org/biocLite.R')
+biocLite('org.Xx.eg.db')
 "))
 
 rainbow2 <- function(n,a=1) {
