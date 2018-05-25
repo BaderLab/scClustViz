@@ -8,7 +8,7 @@ output:
 
 ```{r Setup, include=F}
 dataName <- "MouseRetina" # name your data
-dataPath <- "../../BrendaRetina/code_outputs/" # path to analysis output directory
+dataPath <- "../BrendaRetina/code_outputs/" # path to analysis output directory
 
 library(scales)
 library(viridis)
@@ -175,6 +175,7 @@ if (!file.exists(paste0(dataPath,"postPCA.RData"))) {
                              min.cells=0,min.genes=0,save.raw=F)
   data("cc.genes")  
   eb1S <- CellCycleScoring(eb1S,g2m.genes=cc.genes$g2m.genes,s.genes=cc.genes$s.genes)
+  eb1S@meta.data$Phase <- factor(eb1S@meta.data$Phase,levels=c("G1","S","G2M"))
   if (exists("hvg")) {
     eb1S@var.genes <- rownames(hvg)  # Should I consider using HVGs?
   } else {
@@ -394,7 +395,12 @@ if (!file.exists(paste0(dataPath,eb1S@project.name,"_forViz.RData"))) {
   ##  ^ normalized gene expression matrix (matrix: genes x cells)
   md <- eb1S@meta.data[,!grepl("^res",colnames(eb1S@meta.data))]  
   ##  ^ metadata for cells (dataframe of cells)
-  cl <- data.frame(lapply(eb1S@meta.data[,grepl("^res",colnames(eb1S@meta.data))],as.factor))
+  if (is.data.frame(eb1S@meta.data[,grepl("^res",colnames(eb1S@meta.data))])) {
+    cl <- data.frame(lapply(eb1S@meta.data[,grepl("^res",colnames(eb1S@meta.data))],as.factor))
+  } else {
+    cl <- data.frame(eb1S@meta.data[,grepl("^res",colnames(eb1S@meta.data))])
+    colnames(cl) <- grep("^res",colnames(eb1S@meta.data),value=T)
+  }
   rownames(cl) <- rownames(md) 
   ##  ^ cluster assignments per clustering resolution (dataframe: cells x cluster labels as factors)
   dr_clust <- eb1S@dr$pca@cell.embeddings[,eb1S@calc.params$RunTSNE$dims.use]  

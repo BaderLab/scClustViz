@@ -86,6 +86,7 @@ if (class(inD) == "seurat") {
   if (!any(grepl("cycle|phase|G2M",colnames(inD@meta.data),ignore.case=T))) {
     data("cc.genes")  
     inD <- CellCycleScoring(inD,g2m.genes=cc.genes$g2m.genes,s.genes=cc.genes$s.genes)
+    inD@meta.data$Phase <- factor(inD@meta.data$Phase,levels=c("G1","S","G2M")) # So that the phases are in order.
   }
   ##  ^ If necessary, Seurat has a function to predict cell cycle phase from expression of canonical marker genes.
   ##  These are stored as HGNC symbols, but if your data is mouse it will try case-insensitive matches to homologues

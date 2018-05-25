@@ -58,7 +58,7 @@ if (length(cellMarkers) < 1) {
   cellMarkersS <- cellMarkersU <- list()
 } else {
   cellMarkersS <- apply(combn(seq_along(cellMarkers),2),2,function(X) do.call(intersect,unname(cellMarkers[X])))
-  names(cellMarkersS) <- apply(combn(seq_along(cellMarkers),2),2,function(X) paste(X,collapse="&"))
+  try(names(cellMarkersS) <- apply(combn(seq_along(cellMarkers),2),2,function(X) paste(X,collapse="&")),silent=T)
   cellMarkersS <- cellMarkersS[sapply(cellMarkersS,length) > 0]
   cellMarkersU <- lapply(cellMarkers,function(X) X[!X %in% unlist(cellMarkersS)])
 }
@@ -78,6 +78,7 @@ if (file.exists(paste0(dataPath,dataTitle,"_savedRes.RData"))) {
 
 silDist <- dist(dr_clust,method="euclidean")  
 ##  ^ precalculating distances in reduced dimensionality space for the silhouette plot.
+
 for (l in names(CGS)) {
   for (i in names(CGS[[l]])) {
     CGS[[l]][[i]]$MTCrank <- rank(CGS[[l]][[i]]$MTC,ties.method="min")/nrow(CGS[[l]][[i]])
