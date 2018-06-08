@@ -1,6 +1,6 @@
 ######## User-defined variables ########
 
-dataPath <- "./testData_1clust_forViz.RData"
+dataPath <- "../scClustViz/testData_forViz.RData"
 ##  ^ Point this to the output file from PrepareInputs.R
 ##  If you set a default resolution in the Shiny app, it will save to the same directory.
 
