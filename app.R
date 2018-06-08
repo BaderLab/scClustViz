@@ -556,8 +556,8 @@ server <- function(input,output,session) {
       return(c(NA,NA))
     } else {
       return(nrow(clustMeans()) - 
-               c(which(hC()$order == hiC()) - 1,
-                 which(hC()$order == hiC())))
+               c(which(levels(clusts())[hC()$order] == hiC()) - 1,
+                 which(levels(clusts())[hC()$order] == hiC())))
     }
   })
   
