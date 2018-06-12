@@ -3,21 +3,30 @@ title: "QCN"
 output:
   md_document:
     toc: yes
+  pdf_document:
+    toc: yes
 ---
 # Quality control and normalization
 
-```{r Setup, include=F}
-input_dataPath <- "../meCortex/171116_Michael/" # path to 10X output directory (containing .mtx file)
-dataPath <- "../scClustViz_files/test_mecortex171116michael/" # path to analysis output directory
-dataSpecies <- "mouse" #set species
-dataName <- "testData" # name your data
+```{r Setup, echo=T}
+input_dataPath <- "../scClustViz_files/neurons_900_filtered_gene_bc_matrices/filtered_gene_bc_matrices/mm10/" 
+##  Path to 10X output directory (containing .mtx file)
+##  i.e. http://cf.10xgenomics.com/samples/cell-exp/2.1.0/neurons_900/neurons_900_filtered_gene_bc_matrices.tar.gz
+dataPath <- "../scClustViz_files/demo_10Xneurons900/" 
+##  Path to analysis output directory
+##  Will be created if it doesn't already exist
+dataSpecies <- "mouse" 
+##  Set species ("mouse"/"human" or add your own - see below)
+dataName <- "10Xneurons" 
+##  Name your analysis results
 
 
 library(Matrix)
 library(scales)
 library(viridis)
-library(biomaRt)
-library(scran) # from Bioconductor
+library(RColorBrewer)
+library(biomaRt)      # from Bioconductor
+library(scran)        # from Bioconductor
 library(DropletUtils) # from Bioconductor
 
 
@@ -26,12 +35,12 @@ if (dataSpecies == "mouse") {
   mart <- useMart("ensembl","mmusculus_gene_ensembl")
   speciesSymbol <- "mgi_symbol"
   speciesMito <- "^mt-"
-  #cycloneSpeciesMarkers <- "mouse_cycle_markers.rds" # Going to use Seurat's cell cycle annotations instead.
+  cycloneSpeciesMarkers <- "mouse_cycle_markers.rds"
 } else if (dataSpecies == "human") {
   mart <- useMart("ensembl","hsapiens_gene_ensembl")
   speciesSymbol <- "hgnc_symbol"
   speciesMito <- "^MT-"
-  #cycloneSpeciesMarkers <- "human_cycle_markers.rds"
+  cycloneSpeciesMarkers <- "human_cycle_markers.rds"
 } else { print("Set species please!") }
 dir.create(dataPath,recursive=T,showWarnings=F)
 
@@ -54,61 +63,79 @@ rainbow2 <- function(n,a=1) {
 
 # Cell filtering
 
-```{r load_data, include=F}
-ebRaw <- counts(read10xCounts(input_dataPath))
-ebRaw <- ebRaw[Matrix::rowSums(ebRaw) > 0,]
+```{r load_data, echo=T}
+ebRaw <- counts(read10xCounts(input_dataPath,col.names=T))
 ebRaw <- ebRaw[,Matrix::colSums(ebRaw) > 0]
+ebRaw <- ebRaw[Matrix::rowSums(ebRaw) > 0,]
 
-##  Check rownames at this point.  This workflow expects MGI or HGNC gene symbols as the rownames.
-##  If the data was aligned to a reference genome that used ensembl gene IDs or another annotation
-##  you will have to either convert them to gene symbols, or identify which ensembl IDs correspond
-##  to the mitochondrial genome for the mitoFilt step.
+##  Check rownames at this point.  This workflow expects MGI or HGNC gene symbols as the 
+##  rownames.  If the data was aligned to a reference genome that used ensembl gene IDs or
+##  another annotation you will have to either convert them to gene symbols, or identify 
+##  which ensembl IDs correspond to the mitochondrial genome for the mitoFilt step.
 
-geneRowNames <- "ensembl_gene_id" # Set to this if rownames are ensemble gene IDs
-# geneRowNames <- speciesSymbol   # Set to this if rownames are official gene symbols (don't need converting).
+geneRowNames <- "ensembl_gene_id" # Set if rownames are ensemble gene IDs
+#geneRowNames <- speciesSymbol   # Set if rownames are gene symbols (no conversion).
+
+####
 
 if (geneRowNames != speciesSymbol) {
   e2g <- getBM(attributes=c(geneRowNames,speciesSymbol),
                mart=mart,filters=geneRowNames,
                values=rownames(ebRaw))
-  e2g <- e2g[e2g[,speciesSymbol] != "",] # removing unmapped gene symbols from conversion table
-  print(paste(sum(duplicated(e2g[,geneRowNames])),geneRowNames,"mapped to multiple",speciesSymbol))
-  ##  Arbitrarily picking one mapping for the above duplicates, since these generally map to predicted genes anyway.
+  if (nrow(e2g) < 10) { 
+    stop("Check row names and select appropriate rowname identifier!") 
+  }
+  ##  Removing unmapped gene symbols from conversion table
+  e2g <- e2g[e2g[,speciesSymbol] != "",] 
+  print(paste(sum(duplicated(e2g[,geneRowNames])),
+              geneRowNames,"mapped to multiple",speciesSymbol))
+  ##  Arbitrarily picking one mapping for the above duplicates, 
+  ##  since these generally map to predicted genes anyway.
   e2g <- e2g[!duplicated(e2g[,geneRowNames]),] 
   rownames(e2g) <- e2g[,geneRowNames]
   ebRaw <- ebRaw[e2g[,geneRowNames],] # removing unmapped genes from data
-  print(paste(sum(duplicated(e2g[,speciesSymbol])),speciesSymbol,"mapped to multiple",geneRowNames))
+  temp_repName <- unique(e2g[,speciesSymbol][duplicated(e2g[,speciesSymbol])])
+  print(paste(length(temp_repName),speciesSymbol,"mapped to multiple",geneRowNames))
   ##  Going to collapse these by summing UMI counts between duplicated rows.
-  temp_r <- ebRaw[e2g[,speciesSymbol] %in% e2g[,speciesSymbol][duplicated(e2g[,speciesSymbol])],]
-  ebRaw <- ebRaw[!e2g[,speciesSymbol] %in% e2g[,speciesSymbol][duplicated(e2g[,speciesSymbol])],]
+  temp_repRow <- ebRaw[e2g[,speciesSymbol] %in% temp_repName,]
+  ebRaw <- ebRaw[!e2g[,speciesSymbol] %in% temp_repName,]
   ##  Removed duplicated rows from data, saved as separate object
-  rownames(ebRaw) <- e2g[rownames(ebRaw),speciesSymbol] # renamed rows in data as gene symbols
-  temp_r <- Matrix(t(sapply(e2g[,speciesSymbol][duplicated(e2g[,speciesSymbol])],function(X) 
-    Matrix::colSums(temp_r[e2g[,geneRowNames][e2g[,speciesSymbol] == X],]))),sparse=T)
+  rownames(ebRaw) <- e2g[rownames(ebRaw),speciesSymbol] # renamed rows in data as symbols
+  temp_repRow <- Matrix(t(sapply(temp_repName,function(X) 
+    Matrix::colSums(temp_repRow[e2g[,geneRowNames][e2g[,speciesSymbol] == X],]))),sparse=T)
   ##  Collapsed by summing each duplicated gene symbol's row
-  ebRaw <- rbind(ebRaw,temp_r)  # added those data back to matrix
+  ebRaw <- rbind(ebRaw,temp_repRow)  # added those data back to matrix
 }
 
-# Consolidate duplicated gene names (if genes are in under their MGI and HGNC symbols)
+##  Consolidating duplicated gene names 
+##  (if genes are in under their MGI and HGNC symbols, or some other annotation mixup)
 if (any(duplicated(toupper(rownames(ebRaw))))) {
-  print(paste(dataName,"-",sum(duplicated(toupper(rownames(ebRaw)))),"duplicated gene names."))
-  temp_r <- which(as.logical(Matrix::rowSums(
-    sapply(rownames(ebRaw)[duplicated(toupper(rownames(ebRaw)))],
-           function(X) grepl(paste0("^",X,"$"),rownames(ebRaw),ignore.case=T)))))
-  temp_r2 <- rownames(ebRaw[temp_r,])[rownames(ebRaw[temp_r,]) %in% keys(get(egDB),"SYMBOL")]
-  temp_reps <- t(sapply(lapply(unique(temp_r2),function(X) 
-    grep(paste0("^",X,"$"),rownames(ebRaw),ignore.case=T)),
-    function(Y) colSums(ebRaw[Y,])))
-  rownames(temp_reps) <- temp_r2
-  ebRaw <- ebRaw[-temp_r,]
-  ebRaw <- rbind(ebRaw,temp_reps)
-  ebRaw <- ebRaw[Matrix::rowSums(ebRaw) > 0,]
-  ebRaw <- ebRaw[,Matrix::colSums(ebRaw) > 0]
+  temp_repName <- unique(toupper(rownames(ebRaw)[duplicated(toupper(rownames(ebRaw)))]))
+  print(paste(dataName,"-",length(temp_repName),"duplicated gene names."))
+  ##  Going to collapse these by summing UMI counts between duplicated rows.
+  temp_repRow <- ebRaw[toupper(rownames(ebRaw)) %in% temp_repName,]
+  ebRaw <- ebRaw[!toupper(rownames(ebRaw)) %in% temp_repName,]
+  if (!exists("e2g")) {
+    e2g <- getBM(attributes=speciesSymbol,
+                 mart=mart,filters=speciesSymbol,
+                 values=rownames(temp_repRow))
+  }
+  rownames(e2g) <- toupper(e2g$mgi_symbol)
+  if (any(!temp_repName %in% rownames(e2g))) { 
+    warning(paste("Some of your duplicated rownames aren't",
+                  speciesSymbol,"and are being removed."))
+    temp_repName <- temp_repName[temp_repName %in% rownames(e2g)]
+  }
+  temp_repRow <- Matrix(t(sapply(temp_repName,function(X) 
+    Matrix::colSums(temp_repRow[toupper(rownames(temp_repRow)) == X,]))),sparse=T)
+  rownames(temp_repRow) <- e2g[rownames(temp_repRow),"mgi_symbol"]
+  ebRaw <- rbind(ebRaw,temp_repRow)  # added those data back to matrix
+  rm(temp_repName,temp_repRow)
 }
 rm(list=ls()[grepl("temp",ls())])
 ```
 
-```{r plot_knee2, echo=F,fig.height=4.2,fig.width=8.4}
+```{r plot_knee2, echo=T,fig.height=4.2,fig.width=8.4}
 libSize <- Matrix::colSums(ebRaw)
 cumCounts <- cumsum(libSize[order(libSize,decreasing=T)])
 maxCount <- 10^ceiling(log10(max(libSize)))
@@ -127,18 +154,23 @@ par(mar=c(3,1,2,1))
 barplot(rep(1,max(countCols)),col=viridis(max(countCols),d=-1),
         space=0,border=NA,axes=F,xlab="UMIs per cell")
 axis(side=1,at=0:max(countCols),
-     labels=sapply(floor(log10(min(libSize))):ceiling(log10(max(libSize))),function(X) 10^X))
+     labels=sapply(floor(log10(min(libSize))):ceiling(log10(max(libSize))),
+                   function(X) 10^X))
 title(main="STAMPs from cells by UMIs per STAMP")
 ```
 
+This is to check the cell filtering done in CellRanger.  If you have cells with small library sizes, or a fairly horizontal line in the knee plot, you might consider revisiting the filtering for "cells" vs empty droplets.  
+
+
 ## Mitochondrial gene content  
 
-Filtering cells based on the proportion of mitochondrial gene transcripts per cell.  A high proportion of mitochondrial gene transcripts are indicative of poor quality cells, probably due to compromised cell membranes.  Removal of these cells shouldn't decrease the complexity of the overall dataName (measured by number of genes detected), while removing a source of noise.  
+Filtering cells based on the proportion of mitochondrial gene transcripts per cell.  A high proportion of mitochondrial gene transcripts are indicative of poor quality cells, probably due to compromised cell membranes.  Removal of these cells should not decrease the complexity of the overall dataName (measured by number of genes detected), while removing a source of noise.  
 
-```{r mitoFilt, echo=F,fig.height=4.2,fig.width=8.4}
+```{r mitoFilt, echo=T,fig.height=4.2,fig.width=8.4}
 ### Parameters you could edit ###
 drop_mitoMads <- 4 
-# ^ Median absolute deviations from the median to use as threshold for mitochondrial transcript proprotion
+##  ^ Median absolute deviations from the median to use as 
+##  threshold for mitochondrial transcript proprotion.
 hard_mitoCut <- 0.4 
 # ^ Hard threshold for mitochondrial transcript proportion
 
@@ -152,10 +184,12 @@ temp_geneDetectFx <- function(ebRaw) {
     as.vector(table(rep(seq_along(diff(ebRaw@p)),diff(ebRaw@p))))
   }
 }
-cellStats <- data.frame(libSize=Matrix::colSums(ebRaw),
-                        geneDetect=temp_geneDetectFx(ebRaw),
-                        mitoPct=Matrix::colSums(ebRaw[grepl(speciesMito,rownames(ebRaw)),]) / 
-                          Matrix::colSums(ebRaw))
+cellStats <- data.frame(
+  libSize=Matrix::colSums(ebRaw),
+  geneDetect=temp_geneDetectFx(ebRaw),
+  mitoPct=Matrix::colSums(ebRaw[grepl(speciesMito,rownames(ebRaw)),]) / 
+    Matrix::colSums(ebRaw)
+)
 
 drop_mitoCut <- median(cellStats$mitoPct) + mad(cellStats$mitoPct) * drop_mitoMads
 if (drop_mitoCut > hard_mitoCut) { drop_mitoCut <- hard_mitoCut }
@@ -210,24 +244,32 @@ plotHistHoriz(cellStats$mitoPct)
 
 ## Outlier filtering  
 
-While it isn't possible to explicitly filter for doublets at this stage (see [doublet filtering assessment](doubletFilterTest)), it is important to manually inspect the relationship between library size and gene detection rates per cell to identify obvious outliers.  Outliers can be identified systematically using a sufficiently extreme number of median absolute deviations from the median, assuming a moderately normal distribution.  Since library sizes tend to be log-normal, we use log-transformed library size to identify outliers.  We used 4 MADs above the median of the log-transformed library size as a threshold to define outliers.
+Doublet rate is best controlled experimentally, by reducing the concentration of the cells in the input suspension.  Filtering for doublets by library size doesn't really work, since the dispersion of library sizes means that doublets containing two "small" cells will still have a smaller library size than one "large" cell.  However, it is important to manually inspect the relationship between library size and gene detection rates per cell to identify obvious outliers.  Outliers can be identified systematically using a sufficiently extreme number of median absolute deviations from the median, assuming a moderately normal distribution.  Since library sizes tend to be log-normal, we use log-transformed library size to identify outliers.
 
-```{r doubFilt, echo=F,fig.height=4.2,fig.width=8.4,fig.show="hold"}
+```{r doubFilt, echo=T,fig.height=4.2,fig.width=8.4,fig.show="hold"}
 ### Parameters you could edit ###
-outToInspect <- rep(F,nrow(cellStatsF)) # None
+#outToInspect <- rep(F,nrow(cellStatsF)) # None
+outToInspect <- with(cellStatsF,geneDetect < (libSize * 0.08 + 50)) 
+##  Defining a line below which the curious cells lie
+
 # outToRemove <- rep(F,nrow(cellStatsF)) # None
-numMADs <- 3 # Median absolute deviations from the median to consider as an outlier.
-outToRemove <- log10(cellStatsF$libSize) > median(log10(cellStatsF$libSize)) + 
+numMADs <- 4 # Median absolute deviations from the median to consider as an outlier.
+outToRemoveHi <- log10(cellStatsF$libSize) > median(log10(cellStatsF$libSize)) + 
   mad(log10(cellStats$libSize)) * numMADs
-# Assuming an approximately log-normal distribution of library sizes, this removes obvious outliers. 
-# (>3 MADs from the median of the log-transformed library size)
+outToRemoveLo <- log10(cellStatsF$libSize) < median(log10(cellStatsF$libSize)) - 
+  mad(log10(cellStats$libSize)) * numMADs
+outToRemove <- outToRemoveHi | outToRemoveLo
+##  Assuming an approximately log-normal distribution of library sizes, this removes 
+##  obvious outliers. (4 MADs from the median of the log-transformed library size)
+
 
 ### Calculations and filtering ###
 ebRawF2 <- ebRawF[,!outToRemove]
 ebRawF2 <- ebRawF2[Matrix::rowSums(ebRawF2) > 0,]
 
 ### Plotting ###
-layout(cbind(matrix(c(2,1,0,3),2),matrix(c(5,4,0,6),2)),widths=c(3.5,.7,3.5,.7),heights=c(.7,3.5))
+layout(cbind(matrix(c(2,1,0,3),2),matrix(c(5,4,0,6),2)),
+       widths=c(3.5,.7,3.5,.7),heights=c(.7,3.5))
 par(mar=c(3,3,0,0),mgp=2:0)
 plot(geneDetect~libSize,data=cellStatsF[!outToInspect,],
      xlim=range(cellStatsF$libSize),ylim=range(cellStatsF$geneDetect),
@@ -301,25 +343,32 @@ if (any(outToRemove)) {
   plotHistHoriz(log10(cellStatsF$geneDetect[outToRemove]),col=alpha("red",.5),add=T)
 }
 ```
-While filtering out abnormally large libraries won't capture all doublets, these libraries are likely the result of capturing multiple cells in a droplet.  Removing these cells did not significantly affect the complexity of the dataName (minimal genes unique to these cells).
+
+It's never a bad idea to inspect libraries before removing them, or at least ensuring that by removing them you are not losing genes from the analysis (which might imply that those cells were a unique population/cell-type).  
 
 
 ## Outlier inspection 
 
-```{r what_are_those_cells, echo=FALSE,fig.height=4.2,fig.width=8.4}
+```{r what_are_those_cells, echo=T,fig.height=4.2,fig.width=8.4}
 if (any(outToInspect)) {
   ### Parameters you could edit ###
-  topNum <- 3 # Number of highly expressed genes in outlier population to highlight
-  removeOutlierPopulation <- T # Do you want to remove this outlier population from the analysis?
+  topNum <- 4 
+  ##  Number of highly expressed genes in outlier population to highlight
+  removeOutlierPopulation <- T 
+  ##  Do you want to remove this outlier population from the analysis?
   
   ### Calculations ###
-  gsOut <- data.frame(DR=apply(ebRawF2[,outToInspect[!outToRemove]],1,function(X) sum(X > 0)/length(X)),
-                      MDTC=apply(ebRawF2[,outToInspect[!outToRemove]],1,function(X) mean(X[X>0])),
-                      MTC=Matrix::rowMeans(ebRawF2[,outToInspect[!outToRemove]]))
+  gsOut <- data.frame(
+    DR=apply(ebRawF2[,outToInspect[!outToRemove]],1,function(X) sum(X > 0)/length(X)),
+    MDTC=apply(ebRawF2[,outToInspect[!outToRemove]],1,function(X) mean(X[X>0])),
+    MTC=Matrix::rowMeans(ebRawF2[,outToInspect[!outToRemove]])
+  )
   rownames(gsOut) <- rownames(ebRawF2)
-  gsIn <- data.frame(DR=apply(ebRawF2[,!outToInspect[!outToRemove]],1,function(X) sum(X > 0)/length(X)),
-                     MDTC=apply(ebRawF2[,!outToInspect[!outToRemove]],1,function(X) mean(X[X>0])),
-                     MTC=Matrix::rowMeans(ebRawF2[,!outToInspect[!outToRemove]]))
+  gsIn <- data.frame(
+    DR=apply(ebRawF2[,!outToInspect[!outToRemove]],1,function(X) sum(X > 0)/length(X)),
+    MDTC=apply(ebRawF2[,!outToInspect[!outToRemove]],1,function(X) mean(X[X>0])),
+    MTC=Matrix::rowMeans(ebRawF2[,!outToInspect[!outToRemove]])
+  )
   rownames(gsIn) <- rownames(ebRawF2)
   if (removeOutlierPopulation) {
     ebRawF3 <- ebRawF2[,!outToInspect[!outToRemove]]
@@ -347,7 +396,8 @@ if (any(outToInspect)) {
     legend("topleft",inset=c(-.06,-.02),bty="n",cex=0.9,
            legend=c(paste(sum(outToInspect[!outToRemove]),"outlier cells"),
                 paste(sum(!outToInspect[!outToRemove]),"cells in main population"),
-                paste(nrow(ebRawF3)-sum(Matrix::rowSums(ebRawF3[,!outToInspect[!outToRemove]]) > 0),
+                paste(nrow(ebRawF3) - 
+                        sum(Matrix::rowSums(ebRawF3[,!outToInspect[!outToRemove]]) > 0),
                       "genes unique to outliers"),
                 paste(sum(Matrix::rowSums(ebRawF2[,!outToInspect[!outToRemove]]) > 0),
                       "genes in main population")))
@@ -364,33 +414,94 @@ if (any(outToInspect)) {
 } else { ebRawF3 <- ebRawF2 }
 ```
 
+This outlier population looks to be a red blood cell or progenitor (based on the very high expression of haemoglobin, and low genetic complexity), which seems to be a common contaminant in brain single-cell data.  We removed this population from downstream analysis.  
 
-```{r cleanup1, include=F}
-rm(list=ls()[!ls() %in% c("ebRawF3","dataName","dataPath","plotHistHoriz","rainbow2",
-                          "egDB","dataSpecies","cycloneSpeciesMarkers","geneLengthPath")])
-gc()
-```
 
-```{r SCEset, include=F}
-if (!file.exists(paste0(dataPath,"ebRawS.RData"))) {
-  ebRawS <- SingleCellExperiment(list(counts=ebRawF3))
-  ebRawS <- scater::calculateQCMetrics(ebRawS)
-  save(ebRawS,file=paste0(dataPath,"ebRawS.RData"))
-} else {
-  load(paste0(dataPath,"ebRawS.RData"))
-}
-rm(ebRawF3)
+```{r cleanup1, echo=T}
+cellStatsF3 <- cellStats[colnames(ebRawF3),]
+rm(list=ls()[!ls() %in% c("ebRawF3","cellStatsF3","dataName","dataPath","plotHistHoriz",
+                          "rainbow2","mart","speciesSymbol","cycloneSpeciesMarkers",
+                          "geneLengthPath")])
 gc()
 ```
 
 Data processing will now be performed based on a workflow published by the Marioni group (Lun et al., F1000Research 2016; http://dx.doi.org/10.12688/f1000research.9501.2).  
 
+```{r SCEset, echo=T}
+ebRawS <- SingleCellExperiment(list(counts=ebRawF3))
+ebRawS <- scater::calculateQCMetrics(ebRawS)
+colData(ebRawS)$mitoPct <- cellStatsF3$mitoPct
+rm(ebRawF3,cellStatsF3)
+gc()
+```
+
+
+## Cell cycle prediction using *Cyclone*
+
+```{r cell_cycle_annotation, echo=T,fig.height=4.2,fig.width=8.4}
+if (!file.exists(paste0(dataPath,"ebRawS.RData"))) {
+  g2e <- getBM(attributes=c(speciesSymbol,"ensembl_gene_id"),
+               mart=mart,filters=speciesSymbol,
+               values=rownames(ebRawS))
+  cycPairs <- readRDS(system.file("exdata",cycloneSpeciesMarkers,package="scran"))
+  g2e <- g2e[g2e$ensembl_gene_id %in% unique((unlist(cycPairs))),]
+  tempCyc <- cyclone(ebRawS[g2e$mgi_symbol,],
+                     gene.names=g2e$ensembl_gene_id,pairs=cycPairs)
+  tempCyc$confidence <- sapply(seq_along(tempCyc$phases),function(i)
+    tempCyc$normalized.scores[i,tempCyc$phases[i]])
+  colnames(tempCyc$scores) <- paste0("cycScore.",colnames(tempCyc$scores))
+  colnames(tempCyc$normalized.scores) <- paste0("cycScoreNorm.",
+                                                colnames(tempCyc$normalized.scores))
+  colData(ebRawS) <- cbind(colData(ebRawS),tempCyc$scores,tempCyc$normalized.scores)
+  colData(ebRawS)$cycPhase <- factor(tempCyc$phases,levels=c("G1","S","G2M"))
+  colData(ebRawS)$cycConfidence <- tempCyc$confidence
+
+  save(ebRawS,file=paste0(dataPath,"ebRawS.RData"))
+} else {
+  load(paste0(dataPath,"ebRawS.RData"))
+  print(paste("Data loaded from",paste0(dataPath,"ebRawS.RData")))
+}
+
+layout(matrix(c(1,2,1,3,1,4),2),widths=c(2,5,1),heights=c(1,9))
+par(mar=rep(0,4),mgp=2:0)
+plot.new()
+title("Cell cycle phase assignment confidence, library sizes, and distribution per sample",
+      line=-2,cex.main=1.5)
+
+par(mar=c(3,3,1,1),bty="n")
+boxplot(tapply(colData(ebRawS)$cycConfidence,colData(ebRawS)$cycPhase,c),
+        col=alpha(brewer.pal(3,"Dark2"),0.7),
+        ylab="Normalized score of assigned cell cycle phase")
+
+par(mar=c(3,3,1,1))
+cycDlibSize <- tapply(log10(colData(ebRawS)$total_counts),colData(ebRawS)$cycPhase,
+                      function(X) density(X))
+plot(x=NULL,y=NULL,ylab="Density",xlab=expression(Log[10]~"Library Size"),
+     xlim=range(log10(colData(ebRawS)$total_counts)),
+     ylim=c(min(sapply(cycDlibSize,function(X) min(X$y))),
+            max(sapply(cycDlibSize,function(X) max(X$y)))))
+for (x in 1:length(cycDlibSize)) {
+  lines(cycDlibSize[[x]],col=alpha(brewer.pal(3,"Dark2"),0.7)[x],lwd=3)
+}
+legend("topright",bty="n",horiz=T,lwd=rep(3,3),
+       col=alpha(brewer.pal(3,"Dark2"),0.7),legend=levels(colData(ebRawS)$cycPhase))
+
+par(mar=c(5,3,1,1))
+barplot(cbind(table(colData(ebRawS)$cycPhase)),
+        col=alpha(brewer.pal(3,"Dark2"),0.7),
+        ylab="Proportion of cells",las=2)
+
+```
+
+Cyclone generates individual scores for each cell cycle phase.  G1 and G2/M are assigned based on these scores, and any cells not strongly scoring for either phase are assigned to S phase.  
+Later in the pipeline we will also attempt to predict cell cycle using the method from *Seurat*.  
+
 
 ## Filter out low abundance genes
 
-Noisy genes must be removed to prevent them from skewing normalization.  The filtering method in *Seurat* removes only genes detected in very few cells, which is sufficient for normalization while removing as few genes as possible. 
+Noisy genes must be removed to prevent them from skewing normalization.  The filtering method in *Seurat* removes only genes detected in very few cells, which is sufficient for normalization while removing as few genes as possible.
 
-```{r geneFilt, echo=F,fig.height=6.3,fig.width=6.3,fig.show="hold"}
+```{r geneFilt, echo=T,fig.height=6.3,fig.width=6.3,fig.show="hold"}
 geneStats <- data.frame(DR=apply(counts(ebRawS),1,function(X) sum(X > 0)/length(X)),
                         MDTC=apply(counts(ebRawS),1,function(X) mean(X[X > 0])),
                         cellMax=apply(counts(ebRawS),1,max))
@@ -399,7 +510,8 @@ ebRawSF <- ebRawS[!drop_g,]
 
 layout(matrix(c(2,1,0,3),2),widths=c(6,1),heights=c(1,6))
 par(mar=c(3,3,0,0),mgp=2:0)
-temp_H <- cut(log10(geneStats[order(geneStats$cellMax,decreasing=F),"cellMax"]),breaks=100,labels=F)
+temp_H <- cut(log10(geneStats[order(geneStats$cellMax,decreasing=F),"cellMax"]),
+              breaks=100,labels=F)
 plot(log10(MDTC)~log10(DR),data=geneStats[order(geneStats$cellMax,decreasing=F),],
      pch=21,col=viridis(100,0.5,1,0)[temp_H],bg=viridis(100,0.3,1,0)[temp_H],
      xlab=expression(Log[10]~"Proportion of cells detecting gene"),
@@ -430,7 +542,7 @@ barplot(hist(log10(geneStats$MDTC),breaks=100,plot=F)$counts,
         horiz=T,space=0,col="grey80",main=NULL,xlab="Frequency")
 ```
 
-```{r cleanup2, include=F}
+```{r cleanup2, echo=T}
 rm(list=ls()[!ls() %in% c("ebRawSF","dataName","dataPath","plotHistHoriz","rainbow2")])
 gc()
 ```
@@ -443,9 +555,11 @@ Normalization is carried out by assigning size factors per gene by the pooling a
 
 Following this, it is suggested to investigate sources of technical variance, but without spike-ins or any annotated possible sources of variation, this step is impossible with this data.  
 
-```{r normalize_by_deconvolution_quickCluster, include=F}
+```{r normalize_by_deconvolution_quickCluster, echo=T}
 if (!file.exists(paste0(dataPath,"ebNorm.RData"))) {
-  qClust <- quickCluster(ebRawSF,min.size=200) #default
+  qClust <- quickCluster(ebRawSF,min.size=200) 
+  ##  Clustering of heterogenous data is suggested prior to normalization, 
+  ##  but if you have few cells or homogenous data, it may not be necessary.
   names(qClust) <- colnames(ebRawSF)
   ebRawSF <- computeSumFactors(ebRawSF,clusters=qClust)
   ebN <- ebRawSF[,!sizeFactors(ebRawSF) <= 0]
@@ -457,18 +571,22 @@ if (!file.exists(paste0(dataPath,"ebNorm.RData"))) {
   save(qClust,ebN,file=paste0(dataPath,"ebNorm.RData"))
 } else {
   load(paste0(dataPath,"ebNorm.RData"))
+  print(paste("Data loaded from",paste0(dataPath,"ebNorm.RData")))
 }
 
-geneStatsN <- data.frame(DR=apply(exprs(ebN),1,function(X) sum(X > 0))/ncol(ebN),
-                         MDTC=apply(exprs(ebN),1,function(X) mean(X[X > 0])),
-                         MTC=Matrix::rowMeans(exprs(ebN)),sumTC=Matrix::rowSums(exprs(ebN)),
-                         cellMax=apply(exprs(ebN),1,max))
+geneStatsN <- data.frame(
+  DR=apply(exprs(ebN),1,function(X) sum(X > 0))/ncol(ebN),
+  MDTC=apply(exprs(ebN),1,function(X) mean(X[X > 0])),
+  MTC=Matrix::rowMeans(exprs(ebN)),
+  sumTC=Matrix::rowSums(exprs(ebN)),
+  cellMax=apply(exprs(ebN),1,max)
+)
 
 clustCols <- rainbow2(length(levels(qClust)))
 temp_randcells <- sample.int(ncol(ebN))
 ```
 
-```{r normalize_fig1, echo=F,fig.height=4.2,fig.width=8.4,fig.show="hold"}
+```{r normalize_fig1, echo=T,fig.height=4.2,fig.width=8.4,fig.show="hold"}
 temp_times <- as.factor(sub("_.+$","",colnames(ebRawSF)))
 layout(matrix(c(2,1,0,3,5,4,0,6),2),
        widths=c(3.5,.7,3.5,.7),heights=c(.7,3.5))
@@ -492,7 +610,8 @@ legend("bottomright",bty="n",pch=4,col="red",
        legend=paste(ncol(ebRawSF) - ncol(ebN),"cells could not be normalized"))
 
 par(mar=c(0,3,.1,0))
-temp_density <- tapply(log10(colData(ebRawSF)$total_counts),qClust,function(X) density(X))
+temp_density <- tapply(log10(colData(ebRawSF)$total_counts),qClust,
+                       function(X) density(X))
 plot(x=NULL,y=NULL,xlim=range(log10(colData(ebRawSF)$total_counts)),
      ylim=range(unlist(lapply(temp_density,function(X) range(X$y)))),
      xlab=NULL,ylab="Frequency",xaxt="n")
@@ -501,7 +620,8 @@ for (x in seq_along(levels(qClust))) {
 }
 
 par(mar=c(3,0,0,.1))
-temp_density <- tapply(log10(colData(ebRawSF)$total_features),qClust,function(X) density(X))
+temp_density <- tapply(log10(colData(ebRawSF)$total_features),qClust,
+                       function(X) density(X))
 plot(x=NULL,y=NULL,ylim=range(log10(colData(ebRawSF)$total_features)),
      xlim=range(unlist(lapply(temp_density,function(X) range(X$y)))),
      ylab=NULL,xlab="Frequency",yaxt="n")
@@ -527,7 +647,8 @@ mtext(paste(ncol(ebRawSF) - ncol(ebN),"cells were not normalized"),
       side=1,line=-1.1,adj=.99,cex=.8)
 
 par(mar=c(0,3,.1,0))
-temp_density <- tapply(log10(colData(ebN)$total_counts),qClustF,function(X) density(X))
+temp_density <- tapply(log10(colData(ebN)$total_counts),qClustF,
+                       function(X) density(X))
 plot(x=NULL,y=NULL,xlim=range(log10(colData(ebN)$total_counts)),
      ylim=range(unlist(lapply(temp_density,function(X) range(X$y)))),
      xlab=NULL,ylab="Frequency",xaxt="n")
@@ -536,7 +657,8 @@ for (x in seq_along(levels(qClustF))) {
 }
 
 par(mar=c(3,0,0,.1))
-temp_density <- tapply(log10(sizeFactors(ebN)),qClustF,function(X) density(X))
+temp_density <- tapply(log10(sizeFactors(ebN)),qClustF,
+                       function(X) density(X))
 plot(x=NULL,y=NULL,ylim=range(log10(sizeFactors(ebN))),
      xlim=range(unlist(lapply(temp_density,function(X) range(X$y)))),
      ylab=NULL,xlab="Frequency",yaxt="n")
@@ -549,7 +671,7 @@ for(x in seq_along(levels(qClustF))) {
 
 Cells that fail to normalize are generally due to poor information content (small library size, weak gene expression relative to other cells).
 
-```{r cleanup3, include=F}
+```{r cleanup3, echo=T}
 rm(list=ls()[!ls() %in% c("ebN","dataPath")])
 gc()
 ```
@@ -557,7 +679,7 @@ gc()
 # Highly variable genes  
 Identification of highly variable genes is done by assuming most endogenous genes are not variably expressed, and fitting a curve to these genes when comparing variance to mean. This curve is presumed to represent technical variation, and thus highly variable genes are those with variance significantly greater than this curve. The method used here from *scran* isn’t that different in logic to the *Seurat* method, but fitting a spline is just a little more refined way of going about it than Seurat’s binning method.
 
-```{r HVG2, echo=F,fig.height=6.3,fig.width=8.4}
+```{r HVG2, echo=T,fig.height=6.3,fig.width=8.4}
 var.fit <- trendVar(exprs(ebN),method="loess",parametric=T)
 var.out <- decomposeVar(exprs(ebN),var.fit)
 bioCut <- 0
@@ -576,18 +698,22 @@ lines(var.out$mean[order(var.out$mean)],var.out$tech[order(var.out$mean)],
       col=alpha("red",0.5),lwd=2)
 text(total~mean,data=var.out[rownames(hvg[1:10,]),],
      labels=rownames(hvg[1:10,]),pos=4,col=alpha("red",0.5))
-legend("top",bty="n",inset=c(0,-.12),ncol=2,xpd=NA,
-       lwd=c(2,NA,NA),pch=c(NA,21,NA),col=alpha(c("red","red",NA),0.5),pt.bg=alpha(c(NA,"red",NA),0.3),
+legend("top",bty="n",inset=c(0,-.12),ncol=2,xpd=NA,lwd=c(2,NA,NA),pch=c(NA,21,NA),
+       col=alpha(c("red","red",NA),0.5),pt.bg=alpha(c(NA,"red",NA),0.3),
        legend=c("Predicted technical variance",
                 paste("Biological variance > 0 at FDR <=",bioCutFDR),
                 paste(nrow(hvg),"/",nrow(ebN),"highly variable genes")))
 ```
 
-```{r output_for_clustering, include=F}
+```{r output_for_clustering, echo=T}
 ebNorm <- exprs(ebN)
-pDat <- colData(ebN)[,c("total_features","total_counts")]
+pDat <- cbind(
+  colData(ebN)[,c("total_features","total_counts")],
+  colData(ebN)[,which(colnames(colData(ebN)) == "mitoPct"):ncol(colData(ebN))]
+)
 save(ebNorm,pDat,hvg,file=paste0(dataPath,"clustInputs.RData"))
 
+##  Writing the normalized matrix as a .csv in case you want to use it for other things 
+##  (ie. loading in Python)
 write.csv(as.matrix(exprs(ebN)),file=paste0(dataPath,"ebNorm.csv"),quote=F)
 ```
-
