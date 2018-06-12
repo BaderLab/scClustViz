@@ -562,8 +562,8 @@ data. We removed this population from downstream analysis.
     gc()
 
     ##            used  (Mb) gc trigger  (Mb) max used  (Mb)
-    ## Ncells  5491638 293.3    8442490 450.9  8442490 450.9
-    ## Vcells 13870705 105.9   65656212 501.0 82069933 626.2
+    ## Ncells  5491585 293.3    8442490 450.9  8442490 450.9
+    ## Vcells 13870612 105.9   65656106 501.0 82069840 626.2
 
 Data processing will now be performed based on a workflow published by
 the Marioni group (Lun et al., F1000Research 2016;
@@ -580,8 +580,8 @@ the Marioni group (Lun et al., F1000Research 2016;
     gc()
 
     ##            used  (Mb) gc trigger  (Mb) max used  (Mb)
-    ## Ncells  5497957 293.7    8442490 450.9  8442490 450.9
-    ## Vcells 13994167 106.8   52524969 400.8 82069933 626.2
+    ## Ncells  5497910 293.7    8442490 450.9  8442490 450.9
+    ## Vcells 13994074 106.8   52524884 400.8 82069840 626.2
 
 Cell cycle prediction using *Cyclone*
 -------------------------------------
@@ -701,8 +701,8 @@ as possible.
     gc()
 
     ##            used  (Mb) gc trigger  (Mb) max used  (Mb)
-    ## Ncells  5524882 295.1    8442490 450.9  8442490 450.9
-    ## Vcells 14015718 107.0   60649563 462.8 82069933 626.2
+    ## Ncells  5524835 295.1    8442490 450.9  8442490 450.9
+    ## Vcells 14015625 107.0   60649465 462.8 82069840 626.2
 
 Normalization
 =============
@@ -852,8 +852,8 @@ cells).
     gc()
 
     ##            used  (Mb) gc trigger  (Mb) max used  (Mb)
-    ## Ncells  5534148 295.6    8442490 450.9  8442490 450.9
-    ## Vcells 18254158 139.3   58287580 444.7 82069933 626.2
+    ## Ncells  5534101 295.6    8442490 450.9  8442490 450.9
+    ## Vcells 18254065 139.3   58287486 444.7 82069840 626.2
 
 Highly variable genes
 =====================
