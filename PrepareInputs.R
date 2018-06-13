@@ -15,9 +15,9 @@ WRSTalpha <- 0.01 # significance level for DE testing using Wilcoxon rank sum te
 
 #dataRDS <- "../scClustViz_files/testData.rds" 
 ##  ^ path to input data object, saved as RDS (use saveRDS() to generate).
-dataRData <- "../scClustViz_files/e13_Cortical_Only.RData" 
+dataRData <- "../scClustViz_files/e15_Cortical_Only.RData" 
 ##  ^ path to input data, saved as RData (use save() to generate )
-outputDirectory <- "../scClustViz_files/" 
+outputDirectory <- "./" 
 ##  ^ path to output directory with trailing slash (for loading into the R Shiny visualization script)
 
 convertGeneIDs <- FALSE ##  Set to TRUE if your gene names aren't official gene symbols.
@@ -232,7 +232,7 @@ for (res in colnames(cl)) {
 
 #### Save outputs for visualization ####
 save(nge,md,cl,dr_clust,dr_viz,
-     CGS,deTissue,deVS,deMarker,deNeighb,
+     CGS,deTissue,deMarker,deNeighb,
      file=paste0(outputDirectory,
                  sub("^.*/","",sub("\\.[A-Za-z0-9]+$","",get(grep("^dataRD",ls(),value=T)))),
                  "_forViz.RData"))

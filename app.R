@@ -191,35 +191,32 @@ server <- function(input,output,session) {
     toplim <- c(21,max(unlist(numDEgenes)) + 20)
     botlim <- c(-1,21)
     
-    layout(matrix(c(3,3,1,2),2),widths=c(1,29))
-    par(mar=c(0.2,2,1,1),mgp=2:0)
+    par(mar=c(0.2,3.5,1,1),mgp=2:0,mfrow=c(2,1))
     plot(x=numClust,y=sapply(numDEgenes,median),type="l",
          xlim=range(numClust)+c(-.5,.5),ylim=toplim,yaxs="i",xaxt="n",ylab=NA)
     abline(h=seq(0,max(unlist(numDEgenes)),10),lty=3,col=alpha(1,0.3))
     for (i in names(numDEgenes)[names(numDEgenes) != input$res]) {
-      boxplot(numDEgenes[[i]],add=T,at=numClust[i])
+      boxplot(numDEgenes[[i]],add=T,at=numClust[i],yaxt="n")
     }
     if (any(names(numDEgenes) == input$res)) {
       boxplot(numDEgenes[[input$res]],add=T,at=numClust[input$res],border="red")
     }
     
-    par(mar=c(3,2,0.2,1),mgp=2:0)
+    par(mar=c(3,3.5,0.2,1),mgp=2:0)
     plot(x=numClust,y=sapply(numDEgenes,median),type="l",
          xlim=range(numClust)+c(-.5,.5),ylim=botlim,yaxs="i",xlab="Number of clusters",ylab=NA)
     abline(h=seq(0,max(unlist(numDEgenes)),10),lty=3,col=alpha(1,0.3))
     for (i in names(numDEgenes)[names(numDEgenes) != input$res]) {
-      boxplot(numDEgenes[[i]],add=T,at=numClust[i])
+      boxplot(numDEgenes[[i]],add=T,at=numClust[i],yaxt="n")
     }
     if (any(names(numDEgenes) == input$res)) {
       boxplot(numDEgenes[[input$res]],add=T,at=numClust[input$res],border="red")
     }
-    
-    par(mar=c(3,0,1,0))
-    plot.new()
     mtext(switch(input$deType,
                  "deMarker"="Positive DE genes per cluster to all other clusters",
                  "deNeighb"="Positive DE genes per cluster to nearest cluster")
-          ,side=2,line=-1.5)
+          ,side=2,line=2.5,at=botlim[2],xpd=NA)
+    
   }
   
   output$cqPlot <- renderPlot({
@@ -229,7 +226,7 @@ server <- function(input,output,session) {
   output$cqPlotSave <- downloadHandler(
     filename="cqPlot.pdf",
     content=function(file) {
-      pdf(file,width=12,height=9)
+      pdf(file,width=6,height=5)
       print(plot_cqPlot())
       dev.off()
     }
@@ -702,7 +699,7 @@ server <- function(input,output,session) {
         }
         
       } else if (input$cgLegend == "regex" & length(GOI()) > 0) {
-        degl <- GOI()
+        degl <- which(rownames(nge) %in% GOI())
         points(x=CGS[[res()]][[hiC()]]$DR[degl],y=CGS[[res()]][[hiC()]]$MDTC[degl],
                pch=16,cex=1.2,col="darkred")
         text(x=CGS[[res()]][[hiC()]]$DR[degl],y=CGS[[res()]][[hiC()]]$MDTC[degl],
