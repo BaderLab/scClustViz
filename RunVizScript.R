@@ -1,6 +1,6 @@
 ######## User-defined variables ########
 
-dataPath <- "../scClustViz/testData_forViz.RData"
+dataPath <- "./e13_Cortical_Only_forViz.RData"
 ##  ^ Point this to the output file from PrepareInputs.R
 ##  If you set a default resolution in the Shiny app, it will save to the same directory.
 
