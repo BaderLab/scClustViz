@@ -53,10 +53,13 @@ ui <- fixedPage(
   hr(),
   
   fixedRow(
-    column(6,selectInput("tsneMDcol","Metadata:",choices=colnames(md),selected="Phase")),
+    column(6,selectInput("tsneMDcol","Metadata:",choices=colnames(md),
+                         selected=grep("phase",colnames(md),value=T,ignore.case=T)[1])),
     column(3,selectInput("mdFactorData","Metadata (factor):",
                          choices=colnames(md)[sapply(md,function(X) is.factor(X) | is.character(X))],
-                         selected="Phase")),
+                         selected=grep("phase",
+                                       colnames(md)[sapply(md,function(X) is.factor(X) | is.character(X))],
+                                       value=T,ignore.case=T)[1])),
     column(3,radioButtons("mdFactorRA","Factor counts per cluster:",inline=T,
                           choices=list("Absolute"="absolute","Relative"="relative")))
   ),
@@ -421,9 +424,10 @@ server <- function(input,output,session) {
   #### Metadata Factor Barplot ####
   plot_mdFactor <- function() {
     id <- switch(input$mdFactorRA,
-                 "relative"=do.call(cbind,tapply(md[,input$mdFactorData],clusts(),
-                                                 function(X) table(X) / length(X))),
-                 "absolute"=do.call(cbind,tapply(md[,input$mdFactorData],clusts(),table)))
+                 "relative"=tapply(md[,input$mdFactorData],clusts(),
+                                   function(X) table(X) / length(X)),
+                 "absolute"=tapply(md[,input$mdFactorData],clusts(),table))
+    if (is.list(id)) { id <- do.call(cbind,id) }
     idylab <- switch(input$mdFactorRA,
                      "relative"="Proportion per cell type",
                      "absolute"="Counts per cell type")
