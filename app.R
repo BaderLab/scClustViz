@@ -164,12 +164,6 @@ ui <- fixedPage(
     column(6,align="left",downloadButton("goiPlot1Save","Save as PDF")),
     column(6,align="right",downloadButton("goiPlot2Save","Save as PDF"))
   ),
-  hr(),
-  
-  #### Targeted DE ####
-  fixedRow(
-    column(6,plotOutput("tsneForSelect",height="570px"))
-  ),
   h1()
 )
 
@@ -923,16 +917,6 @@ server <- function(input,output,session) {
       dev.off()
     }
   )
-  
-  
-  #### Targeted DE ####
-  output$tsneForSelect <- renderPlot({
-    if (length(res()) > 0) {
-      print(plot_tsne())
-      print(plot_tsne_labels())
-    }
-  })
-  
   
 }
 
