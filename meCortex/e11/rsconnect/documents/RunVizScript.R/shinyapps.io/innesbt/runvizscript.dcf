@@ -1,0 +1,10 @@
+name: runvizscript
+title:
+username:
+account: innesbt
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 361580
+bundleId: 1431687
+url: https://innesbt.shinyapps.io/runvizscript/
+when: 1529078133.82426

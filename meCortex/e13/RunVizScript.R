@@ -1,10 +1,10 @@
 ######## User-defined variables ########
 
-dataPath <- "demo/10Xneurons_forViz.RData"
+dataPath <- "e13_Cortical_Only_forViz.RData"
 ##  ^ Point this to the output file from PrepareInputs.R
 ##  If you set a default resolution in the Shiny app, it will save to the same directory.
 
-vizScriptPath <- "app/" 
+vizScriptPath <- "../../" 
 ##  ^ Point this to the directory in which the "app.R" Shiny script resides
 
 species <- "mouse" 
@@ -40,16 +40,9 @@ library(scales)
 library(viridis)
 library(RColorBrewer)
 library(TeachingDemos)
+library(org.Mm.eg.db)
 
-egDB <- switch(species,
-               mouse={ library(org.Mm.eg.db); "org.Mm.eg.db" },
-               human={ library(org.Hs.eg.db); "org.Hs.eg.db" },
-               stop("
-Set species please!  
-If not mouse/human, add your species' annotation database from Bioconductor:  
-source('https://bioconductor.org/biocLite.R')
-biocLite('org.Xx.eg.db')
-"))
+egDB <- "org.Mm.eg.db"
 
 rainbow2 <- function(n,a=1) {
   require(scales)
