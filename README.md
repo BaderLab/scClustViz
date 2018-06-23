@@ -21,11 +21,12 @@ These are .RData files ready to be run in scClustViz by downloading and pointing
 -   [Mouse embryonic cerebral cortex](#cell-reports-2017) data from timepoints spanning neurogenesis is available below.
 
 ## Cell Reports 2017
-The data from the 2017 Cell Reports paper [Developmental Emergence of Adult Neural Stem Cells as Revealed by Single-Cell Transcriptional Profiling](https://doi.org/10.1016/j.celrep.2017.12.017) by Yuzwa *et al.* is available to explore online below:  
+The data from the 2017 Cell Reports paper [Developmental Emergence of Adult Neural Stem Cells as Revealed by Single-Cell Transcriptional Profiling](https://doi.org/10.1016/j.celrep.2017.12.017) by Yuzwa *et al.* is available to using online instances of the scClustViz tool using the links below:  
 -   [E11.5 Cerebral Cortex](https://innesbt.shinyapps.io/e11cortex/) - [file for download](meCortex/e11/e11_Cortical_Only_forViz.RData)  
 -   [E13.5 Cerebral Cortex](https://innesbt.shinyapps.io/e13cortex/) - [file for download](meCortex/e13/e13_Cortical_Only_forViz.RData)  
 -   [E15.5 Cerebral Cortex](https://innesbt.shinyapps.io/e15cortex/) - [file for download](meCortex/e15/e15_Cortical_Only_forViz.RData)  
 -   [E17.5 Cerebral Cortex](https://innesbt.shinyapps.io/e17cortex/) - [file for download](meCortex/e17/e17_Cortical_Only_forViz.RData)  
+
 These are DropSeq data from timepoints spanning neurogenesis and filtered for cortically-derived cells, processed on an earlier version of the pipeline and imported into scClustViz using PrepareInputs.  
 
 ## scRNAseq analysis pipeline
