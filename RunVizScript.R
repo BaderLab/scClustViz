@@ -4,7 +4,7 @@ dataPath <- "demo/10Xneurons_forViz.RData"
 ##  ^ Point this to the output file from PrepareInputs.R
 ##  If you set a default resolution in the Shiny app, it will save to the same directory.
 
-vizScriptPath <- "app/" 
+vizScriptPath <- "./" 
 ##  ^ Point this to the directory in which the "app.R" Shiny script resides
 
 species <- "mouse" 
@@ -79,6 +79,11 @@ if (file.exists(paste0(dataPath,dataTitle,"_savedRes.RData"))) {
   load(paste0(dataPath,dataTitle,"_savedRes.RData"))
 } else {
   savedRes <- NULL
+}
+
+if (!file.exists(paste0(dataPath,"intro.md"))) {
+  write(paste0(dataTitle,": You can add to this preamble by editting ",dataPath,"intro.md"),
+        file=paste0(dataPath,"intro.md"))
 }
 
 silDist <- dist(dr_clust,method="euclidean")  

@@ -1,0 +1,10 @@
+name: e17cortex
+title:
+username:
+account: innesbt
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 365580
+bundleId: 1444310
+url: https://innesbt.shinyapps.io/e17cortex/
+when: 1529722972.84331

@@ -1,0 +1,2 @@
+Welcome to the data portal for the 2017 Cell Reports paper [Developmental Emergence of Adult Neural Stem Cells as Revealed by Single-Cell Transcriptional Profiling](https://doi.org/10.1016/j.celrep.2017.12.017) by Yuzwa *et al.*, brought to you by [scClustViz](https://baderlab.github.io/scClustViz).  These are embryonic day 17.5 cortically-derived cells.  
+Other datasets:	[E11.5 Cerebral Cortex](https://innesbt.shinyapps.io/e11cortex/); [E13.5 Cerebral Cortex](https://innesbt.shinyapps.io/e13cortex/); [E15.5 Cerebral Cortex](https://innesbt.shinyapps.io/e15cortex/)

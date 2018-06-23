@@ -1,3 +1,284 @@
+######## User-defined variables ########
+
+dataPath <- "e17_Cortical_Only_forViz.RData"
+##  ^ Point this to the output file from PrepareInputs.R
+##  If you set a default resolution in the Shiny app, it will save to the same directory.
+
+vizScriptPath <- "./" 
+##  ^ Point this to the directory in which the "app.R" Shiny script resides
+
+species <- "mouse" 
+##  ^ Set species ("mouse"/"human").  
+##  If other, add the annotation database from Bioconductor to the egDB <- switch() expression below.
+
+#### List known cell-type markers ####
+cellMarkers <- list("Cortical precursors"=c("Mki67","Sox2","Pax6","Pcna","Nes","Cux1","Cux2"),
+                    "Interneurons"=c("Gad1","Gad2","Npy","Sst","Lhx6","Tubb3","Rbfox3","Dcx"),
+                    "Cajal-Retzius neurons"="Reln",
+                    "Intermediate progenitors"="Eomes",
+                    "Projection neurons"=c("Tbr1","Satb2","Fezf2","Bcl11b","Tle4",
+                                           "Nes","Cux1","Cux2","Tubb3","Rbfox3","Dcx"),
+                    "Oligodendrocyte precursors"=c("Cspg4","Olig2","Pdgfra"),
+                    "Oligodendrocytes"=c("Mbp","Mog","Plp1","Mag"),
+                    "Astrocytes"=c("Aldh1l1","Gfap","Slc1a3","Glul"),
+                    "Microglia"="Cx3cr1")
+#cellMarkers <- list()
+##  ^ If you have canonical marker genes for expected cell types, list them here 
+##  (see example above from mouse embryonic cortex).  The Shiny app will attempt 
+##  to label clusters in the tSNE projection by highest median gene expression.
+##  Otherwise leave the list blank (uncomment line above).
+
+########################################
+
+
+
+######## Code to run the Shiny app ########
+library(markdown)
+library(shiny)
+library(cluster)
+library(gplots)
+library(scales)
+library(viridis)
+library(RColorBrewer)
+library(TeachingDemos)
+
+library(org.Mm.eg.db)
+egDB <- "org.Mm.eg.db"
+
+rainbow2 <- function(n,a=1) {
+  require(scales)
+  hues = seq(15, 375, length = n + 1)
+  alpha(hcl(h = hues, l = 60, c = 100)[1:n],a)
+}
+
+if (length(cellMarkers) < 1) {
+  cellMarkersS <- cellMarkersU <- list()
+} else {
+  cellMarkersS <- apply(combn(seq_along(cellMarkers),2),2,function(X) do.call(intersect,unname(cellMarkers[X])))
+  try(names(cellMarkersS) <- apply(combn(seq_along(cellMarkers),2),2,function(X) paste(X,collapse="&")),silent=T)
+  cellMarkersS <- cellMarkersS[sapply(cellMarkersS,length) > 0]
+  cellMarkersU <- lapply(cellMarkers,function(X) X[!X %in% unlist(cellMarkersS)])
+}
+
+demoRegex <- switch(species,mouse="^Actb$",human="^ACTB$")
+
+load(dataPath)
+temp_dataPath <- strsplit(dataPath,"/|\\\\")
+dataPath <- sub(temp_dataPath[[1]][length(temp_dataPath[[1]])],"",dataPath)
+if (dataPath == "") { dataPath <- "./" }
+dataTitle <- sub("\\..+$|_forViz\\..+$","",temp_dataPath[[1]][length(temp_dataPath[[1]])])
+rm(temp_dataPath)
+
+if (file.exists(paste0(dataPath,dataTitle,"_savedRes.RData"))) {
+  load(paste0(dataPath,dataTitle,"_savedRes.RData"))
+} else {
+  savedRes <- NULL
+}
+
+if (!file.exists(paste0(dataPath,"intro.md"))) {
+  write(paste0(dataTitle,": You can add to this preamble by editting ",dataPath,"intro.md"),
+        file=paste0(dataPath,"intro.md"))
+}
+
+silDist <- dist(dr_clust,method="euclidean")  
+##  ^ precalculating distances in reduced dimensionality space for the silhouette plot.
+
+for (l in names(CGS)) {
+  for (i in names(CGS[[l]])) {
+    CGS[[l]][[i]]$MTCrank <- rank(CGS[[l]][[i]]$MTC,ties.method="min")/nrow(CGS[[l]][[i]])
+    CGS[[l]][[i]]$cMu <- rownames(CGS[[l]][[i]]) %in% unlist(cellMarkersU)
+    CGS[[l]][[i]]$cMs <- rownames(CGS[[l]][[i]]) %in% unlist(cellMarkersS)
+    CGS[[l]][[i]]$overCut <- CGS[[l]][[i]]$MTC > mean(CGS[[l]][[i]]$MTC)
+    CGS[[l]][[i]]$genes <- rownames(CGS[[l]][[i]])
+  }
+}
+
+if (length(cellMarkers) < 1) {
+  clusterID <- sapply(colnames(cl),function(X) rep("",nrow(cl)),simplify=F)
+} else {
+  clusterID <- sapply(CGS,function(Z) {
+    temp <- names(cellMarkers)[sapply(Z,function(Y) 
+      which.max(sapply(cellMarkers,function(X) median(Y$MTC[rownames(Y) %in% X]))))]
+    names(temp) <- names(Z)
+    return(temp)
+  },simplify=F)
+}
+
+#### Run the Shiny App!  ####
+
+
+########## UI ########## 
+ui <- fixedPage(
+  fixedRow(
+    titlePanel(paste("scClustViz -",dataTitle)),
+    includeMarkdown(paste0(dataPath,"intro.md"))
+  ),
+  hr(),
+  
+  ######## Cluster Resolution Selection ########
+  fixedRow(titlePanel("Cluster Resolution Selection"),
+           column(6,
+                  fixedRow(column(6,uiOutput("resSelect"),align="left"),
+                           column(6,align="right",
+                                  actionButton("go","View clusters at this resolution",icon("play")),
+                                  actionButton("save","Save this resolution as default",icon("bookmark")))),
+                  radioButtons("deType",NULL,list("# of marker genes per cluster"="deMarker",
+                                                  "# of DE genes to nearest neighbouring cluster"="deNeighb"),inline=T),
+                  plotOutput("cqPlot",height="500px")),
+           column(6,plotOutput("sil",height="600px"))
+  ),
+  fixedRow(
+    column(6,downloadButton("cqPlotSave","Save as PDF"),align="left"),
+    column(6,downloadButton("silSave","Save as PDF"),align="right")
+  ),
+  hr(),
+  
+  ######## Cell-type Clusters ########
+  fixedRow(titlePanel("Cell-type Clusters")),
+  fixedRow(
+    column(6,
+           if (length(cellMarkers) > 0) {
+             radioButtons("tsneLabels","Labels:",inline=T,
+                          choices=list("Cluster numbers"="cn","Cluster annotations"="ca"))
+           } else {
+             radioButtons("tsneLabels","Labels:",inline=T,
+                          choices=list("Cluster numbers"="cn"))
+           },
+           strong("Click point on plot below to select cluster")),
+    column(3,selectInput("mdScatterX","x axis:",
+                         choices=colnames(md)[!sapply(md,function(X) is.factor(X) | is.character(X))],
+                         selected="total_counts"),align="left"),
+    column(3,selectInput("mdScatterY","y axis:",
+                         choices=colnames(md)[!sapply(md,function(X) is.factor(X) | is.character(X))],
+                         selected="total_features"),align="left")
+  ),
+  fixedRow(
+    column(6,plotOutput("tsne",height="570px",click="tsneClick")),
+    column(6,plotOutput("mdScatter",height="570px"))
+  ),
+  fixedRow(
+    column(6,align="left",downloadButton("tsneSave","Save as PDF")),
+    column(6,align="right",downloadButton("mdScatterSave","Save as PDF"))
+  ),
+  hr(),
+  
+  fixedRow(
+    column(6,selectInput("tsneMDcol","Metadata:",choices=colnames(md),
+                         selected=grep("phase",colnames(md),value=T,ignore.case=T)[1])),
+    column(3,selectInput("mdFactorData","Metadata (factor):",
+                         choices=colnames(md)[sapply(md,function(X) is.factor(X) | is.character(X))],
+                         selected=grep("phase",
+                                       colnames(md)[sapply(md,function(X) is.factor(X) | is.character(X))],
+                                       value=T,ignore.case=T)[1])),
+    column(3,radioButtons("mdFactorRA","Factor counts per cluster:",inline=T,
+                          choices=list("Absolute"="absolute","Relative"="relative")))
+  ),
+  fixedRow(
+    column(6,plotOutput("tsneMD",height="570px")),
+    column(6,plotOutput("mdFactor",height="570px"))
+  ),
+  fixedRow(
+    column(6,align="left",downloadButton("tsneMDSave","Save as PDF")),
+    column(6,align="right",downloadButton("mdFactorSave","Save as PDF"))
+  ),
+  hr(),
+  
+  ######## Cluster-wise Gene Stats #########
+  fixedRow(titlePanel("Cluster-wise Gene Stats")),
+  fixedRow(
+    column(2,radioButtons("heatG","Heapmap Genes:",
+                          choices=list("DE vs tissue average"="deTissue",
+                                       "Marker genes"="deMarker",
+                                       "DE vs neighbour"="deNeighb"))),
+    column(2,uiOutput("DEclustSelect")),
+    column(2,downloadButton("deGeneSave","Download gene list"),
+           downloadButton("heatmapSave","Save as PDF"),align="right"), 
+    column(6,uiOutput("DEgeneSlider"))
+  ),
+  fixedRow(plotOutput("heatmap",height="600px")),
+  hr(),
+  
+  fixedRow(
+    column(1,uiOutput("genePlotClustSelect")),
+    column(6,if (length(cellMarkers) > 0) {
+      radioButtons("cgLegend",inline=T,label="Highlighted genes:",
+                   choices=c("Cell-type markers"="markers",
+                             "Gene symbols (regex)"="regex",
+                             "Top DE genes (from heatmap)"="heatmap"))
+    } else {
+      radioButtons("cgLegend",inline=T,label="Highlighted genes:",
+                   choices=c("Gene symbols (regex)"="regex",
+                             "Top DE genes (from heatmap)"="heatmap"))
+    }),
+    column(4,align="right",textInput("GOI","Gene symbols (regex)",demoRegex)),
+    column(1,actionButton("GOIgo","Search",icon=icon("search")))
+  ),tags$style(type='text/css', "button#GOIgo { margin-top: 25px; }"),
+  fixedRow(
+    plotOutput("clusterGenes",height="600px",click="cgClick"),
+    downloadButton("clusterGenesSave","Save as PDF")
+  ),
+  hr(),
+  
+  fixedRow(
+    column(4,uiOutput("cgSelect")),
+    column(8,
+           radioButtons("boxplotGene",inline=T,label="Gene of interest:",
+                        choices=c("Click from plot above"="click",
+                                  "From gene symbols (regex entry)"="regex")),
+           checkboxGroupInput("bxpOpts",label=NULL,selected=c("sct","rnk"),inline=T,
+                              choices=list("Include scatterplot"="sct",
+                                           "Include gene rank"="rnk")))
+  ),
+  fixedRow(plotOutput("geneTest",height="500px"),
+           downloadButton("geneTestSave","Save as PDF")
+  ),
+  hr(),
+  
+  ######## Distribution of genes of interest #########
+  fixedRow(titlePanel("Distribution of Genes of Interest")),
+  fixedRow(
+    column(4,
+           fixedRow(
+             radioButtons("plotClust1",inline=T,label="Plot:",selected="goi",
+                          choices=list("clusters"="clust","gene expression overlay"="goi")),
+             checkboxInput("plotLabel1",label="Include cluster labels",value=T)
+           ),
+           fixedRow(
+             column(9,textInput("GOI1",label="Gene symbols (regex):",demoRegex)),
+             column(3,actionButton("GOI1go","Search",icon=icon("search")))
+           ),tags$style(type='text/css', "button#GOI1go { margin-top: 25px; margin-left: -25px; }")
+    ),
+    column(2,uiOutput("GOI1select")),
+    column(4,
+           fixedRow(
+             radioButtons("plotClust2",inline=T,label="Plot:",selected="goi",
+                          choices=list("clusters"="clust","gene expression overlay"="goi")),
+             checkboxInput("plotLabel2",label="Include cluster labels",value=T)
+           ),
+           fixedRow(
+             column(9,textInput("GOI2",label="Gene symbols (regex):",demoRegex)),
+             column(3,actionButton("GOI2go","Search",icon=icon("search")))
+           ),tags$style(type='text/css', "button#GOI2go { margin-top: 25px; margin-left: -25px; }")
+    ),
+    column(2,uiOutput("GOI2select"))
+  ),
+  fixedRow(
+    column(6,strong("If multiple genes are selected, the max expression per cell will be displayed")),
+    column(6,strong("If multiple genes are selected, the max expression per cell will be displayed"))
+  ),
+  fixedRow(
+    column(6,plotOutput("goiPlot1",height="600px")),
+    column(6,plotOutput("goiPlot2",height="600px"))
+  ),
+  fixedRow(
+    column(6,align="left",downloadButton("goiPlot1Save","Save as PDF")),
+    column(6,align="right",downloadButton("goiPlot2Save","Save as PDF"))
+  ),
+  h1()
+)
+
+
+
 ########## Server ##########
 server <- function(input,output,session) {
   clustCols <- reactive({      
@@ -165,9 +446,9 @@ server <- function(input,output,session) {
   
   
   clusterSelect <- reactiveValues(cl=NULL)
-
+  
   observeEvent(input$tsneClick,{ clusterSelect$cl <- input$tsneClick })
-
+  
   cSelected <- reactive({
     t <- nearPoints(as.data.frame(dr_viz),clusterSelect$cl,xvar="tSNE_1",yvar="tSNE_2",threshold=5)
     t2 <- cl[rownames(t)[1],res()]
@@ -437,14 +718,14 @@ server <- function(input,output,session) {
     }
   )
   
-
+  
   #### clusterGenes ####
   output$genePlotClustSelect <- renderUI({
     if (length(res()) > 0) {
       selectInput("genePlotClust","Cluster:",choices=c("",levels(clusts())),selected=cSelected())
     }
   })
-
+  
   cellMarkCols <- reactive(rainbow2(length(cellMarkers)))
   
   GOI <- eventReactive(input$GOIgo,grep(input$GOI,rownames(nge),value=T,ignore.case=T),ignoreNULL=F)
@@ -490,7 +771,7 @@ server <- function(input,output,session) {
       mtext(paste("Cells:",sum(clusts()==hiC()),
                   "   Genes detected:",length(CGS[[res()]][[hiC()]]$DR)),side=3,line=0,cex=0.9)
       box(col=clustCols()[hiC()],lwd=2)
-
+      
       if (input$cgLegend == "markers") {
         for (x in which(CGS[[res()]][[hiC()]]$cMu)) {
           my.symbols(x=CGS[[res()]][[hiC()]]$DR[x],y=CGS[[res()]][[hiC()]]$MDTC[x],symb=singleDot,inches=0.1,
@@ -572,7 +853,7 @@ server <- function(input,output,session) {
       }
     }
   })
-
+  
   plot_geneTest <- function() {
     if (input$cgGene == "") {
       plot(x=NA,y=NA,xlim=0:1,ylim=0:1,xaxt="n",yaxt="n",xlab=NA,ylab=NA)
@@ -750,3 +1031,6 @@ server <- function(input,output,session) {
   
 }
 
+
+########## ShinyApp ##########
+shinyApp(ui = ui, server = server)
