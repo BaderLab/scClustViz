@@ -1,5 +1,5 @@
 # scClustViz
-An interactive R Shiny tool for visualizing single-cell RNAseq clustering results from the *Seurat* R package or any other analysis pipeline.  Its main goal is to help select a biologically appropriate resolution or K from clustering results by assessing differential expression between the resulting clusters.  
+An interactive R Shiny tool for visualizing single-cell RNAseq clustering results from the *Seurat* R package or any other analysis pipeline.  Its main goal is two-fold: **A:** to help select a biologically appropriate resolution or K from clustering results by assessing differential expression between the resulting clusters; and **B:** annotate cell types and identify marker genes.  You can check out an [online demo here](https://innesbt.shinyapps.io/e11cortex/) using data from [Yuzwa *et al.*'s 2017 Cell Reports paper](https://doi.org/10.1016/j.celrep.2017.12.017/).
 
 -   [scClustViz Usage](#scclustviz-usage)  
     -   [Setup](#setup)  
@@ -11,17 +11,22 @@ An interactive R Shiny tool for visualizing single-cell RNAseq clustering result
 
 ## scClustViz Usage
 scClustViz is distributed as a collection of R scripts rather than a package for ease of customization and integration into your existing analysis pipeline.  Running the visualization tool requires a one-time setup step, then it's just a matter of running a single R script.  
+
 ### Setup
-To set up the files necessary, download and run [PrepareInputs.R](PrepareInputs.R).  Note that you will need to change some of the variables in the script to reflect your data/computer, as well as installing any missing libraries.  This script is designed to take your *Seurat* output and generate all the differential expression information necessary for the visualization tool, which will be saved in a directory of your choosing.  If you have your analysis outputs in another format (i.e. Bioconductor's SingleCellExperiment class), you can use the code used to pull the relevant bits out of the *Seurat* object as a template for loading your data into the visualization tool.  I aim to include automatic loading for the SingleCellExperiment class shortly, but in the meantime you can check out [iSEE](https://bioconductor.org/packages/release/bioc/html/iSEE.html) if you'd prefer not to deal with it yourself.  
+scClustViz assumes you have tried a variety of parameterizations when clustering the cells from your scRNAseq data, and want to decide which clustering solution you should use.  If you haven't yet clustered your data, or are interested in an example of integrating the differential expression metric used in this tool to systematically test different clustering resolutions, see the example [pipeline below](#scrnaseq-analysis-pipeline).  
+The setup step does all the differential expression testing for all cluster solutions, and saves it all in the file format necessary for the visualization to run.  To perform the setup, download and run [PrepareInputs.R](PrepareInputs.R).  Note that you will need to change some of the variables in the script to reflect your data/computer, as well as installing any missing libraries.  This script is designed to take your *Seurat* output and generate all the differential expression information necessary for the visualization tool, which will be saved in a directory of your choosing.  If you have your analysis outputs in another format (i.e. Bioconductor's SingleCellExperiment class), you can use the code used to pull the relevant bits out of the *Seurat* object as a template for loading your data into the visualization tool.  I aim to include automatic loading for the SingleCellExperiment class shortly, but in the meantime you can check out [iSEE](https://bioconductor.org/packages/release/bioc/html/iSEE.html), which is a GUI designed specifically for Bioconductor.  
+
 ### Run
 After you've run PrepareInputs.R, download [RunVizScript.R](RunVizScript.R) and [app.R](app.R).  You will again need to change some variables and install any missing libraries in RunVizScript.R.  You shouldn't need to touch app.R unless you're interested in modifying the Shiny visualization itself.  Running RunVizScript.R will load your data into the visualization software, and will open the Shiny UI in a web browser.  Have fun exploring your data!
+
 ### Demos
 These are .RData files ready to be run in scClustViz by downloading and pointing RunVizScript.R to the file path.
 -   [1000 cells from E18 mouse brain (10X Genomics)](demo/10Xneurons_forViz.RData).  This is the output file of the example processing pipeline outlined below, [using data from 10X Genomics](https://support.10xgenomics.com/single-cell-gene-expression/datasets/2.1.0/neurons_900).
--   [Mouse embryonic cerebral cortex](#cell-reports-2017) data from timepoints spanning neurogenesis is available below.
+-   [Mouse embryonic cerebral cortex](#cell-reports-2017) data from timepoints spanning neurogenesis are available below.
+
 
 ## Cell Reports 2017
-The data from the 2017 Cell Reports paper [Developmental Emergence of Adult Neural Stem Cells as Revealed by Single-Cell Transcriptional Profiling](https://doi.org/10.1016/j.celrep.2017.12.017) by Yuzwa *et al.* is available to using online instances of the scClustViz tool using the links below:  
+The data from the 2017 Cell Reports paper [Developmental Emergence of Adult Neural Stem Cells as Revealed by Single-Cell Transcriptional Profiling](https://doi.org/10.1016/j.celrep.2017.12.017) by Yuzwa *et al.* are available to explore using online instances of the scClustViz tool using the links below:  
 -   [E11.5 Cerebral Cortex](https://innesbt.shinyapps.io/e11cortex/) - [file for download](meCortex/e11/e11_Cortical_Only_forViz.RData)  
 -   [E13.5 Cerebral Cortex](https://innesbt.shinyapps.io/e13cortex/) - [file for download](meCortex/e13/e13_Cortical_Only_forViz.RData)  
 -   [E15.5 Cerebral Cortex](https://innesbt.shinyapps.io/e15cortex/) - [file for download](meCortex/e15/e15_Cortical_Only_forViz.RData)  
@@ -29,10 +34,13 @@ The data from the 2017 Cell Reports paper [Developmental Emergence of Adult Neur
 
 These are DropSeq data from timepoints spanning neurogenesis and filtered for cortically-derived cells, processed on an earlier version of the pipeline and imported into scClustViz using PrepareInputs.  
 
+
 ## scRNAseq analysis pipeline
-I've also included my current basic pipeline for scRNAseq analysis from data generated by a 10X Genomics Chromium and processed using 10X Genomics CellRanger.  The quality control and normalization steps are based to some extent on the [workflow](http://dx.doi.org/10.12688/f1000research.9501.2) proposed by the Marioni group using their [*scran* package](http://bioconductor.org/packages/release/bioc/html/scran.html), and the clustering is done using the algorithm implemented in the Satija lab's [*Seurat* package](https://satijalab.org/seurat/).  I've set the pipeline up as R notebooks so that they generate convenient reports as they run.  Here's an example using [sample data from 10X genomics](https://support.10xgenomics.com/single-cell-gene-expression/datasets/2.1.0/neurons_900).  Note that if you use this pipeline to process your data, you can load the output straight into RunVizScript and skip the PrepareInputs processing step.  
+I've also included my current basic pipeline for scRNAseq analysis from data generated by a 10X Genomics Chromium and processed using 10X Genomics CellRanger.  The quality control and normalization steps are based to some extent on the [workflow](http://dx.doi.org/10.12688/f1000research.9501.2) proposed by the Marioni group using their [*scran* package](http://bioconductor.org/packages/release/bioc/html/scran.html), and the clustering is done using the algorithm implemented in the Satija lab's [*Seurat* package](https://satijalab.org/seurat/).  I've set the pipeline up as R notebooks so that they generate convenient reports as they run.  Here's an example using [sample data from 10X genomics](https://support.10xgenomics.com/single-cell-gene-expression/datasets/2.1.0/neurons_900).  
+*Note that if you use this pipeline to process your data, you can load the output straight into RunVizScript.R and skip the PrepareInputs.R processing step.*  
 -   [Quality Control & Normalization](pipeline/pipeline_QCN.md) or a [pdf report](pipeline/pipeline_QCN.pdf), and download the [R notebook](pipeline/pipeline_QCN.Rmd) (RStudio required).  
 -   [Clustering and DE analysis](pipeline/pipeline_Clust.md) or a [pdf report](pipeline/pipeline_Clust.pdf), and download the [R notebook](pipeline/pipeline_Clust.Rmd) (RStudio required).  
+
 
 ### Contact
 You can [contact me](http://www.baderlab.org/BrendanInnes) for questions about this repo.  For general scRNAseq questions, do what I do and [ask the Toronto single-cell RNAseq working group on Slack](http://bit.ly/scRNAseqTO)!  
