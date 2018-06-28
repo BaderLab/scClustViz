@@ -13,8 +13,8 @@ ui <- fixedPage(
                            column(6,align="right",
                                   actionButton("go","View clusters at this resolution",icon("play")),
                                   actionButton("save","Save this resolution as default",icon("bookmark")))),
-                  radioButtons("deType",NULL,list("# of marker genes per cluster"="deMarker",
-                                                  "# of DE genes to nearest neighbouring cluster"="deNeighb"),inline=T),
+                  radioButtons("deType",NULL,list("# of DE genes to nearest neighbouring cluster"="deNeighb",
+                                                  "# of marker genes per cluster"="deMarker"),inline=T),
                   plotOutput("cqPlot",height="500px")),
            column(6,plotOutput("sil",height="600px"))
   ),
@@ -36,26 +36,26 @@ ui <- fixedPage(
                           choices=list("Cluster numbers"="cn"))
            },
            strong("Click point on plot below to select cluster")),
+    column(6,selectInput("tsneMDcol","Metadata:",choices=colnames(md),
+                         selected=grep("phase",colnames(md),value=T,ignore.case=T)[1]))
+  ),
+  fixedRow(
+    column(6,plotOutput("tsne",height="580px",click="tsneClick")),
+    column(6,plotOutput("tsneMD",height="580px"))
+  ),
+  fixedRow(
+    column(6,align="left",downloadButton("tsneSave","Save as PDF")),
+    column(6,align="right",downloadButton("tsneMDSave","Save as PDF"))
+  ),
+  hr(),
+  
+  fixedRow(
     column(3,selectInput("mdScatterX","x axis:",
                          choices=colnames(md)[!sapply(md,function(X) is.factor(X) | is.character(X))],
                          selected="total_counts"),align="left"),
     column(3,selectInput("mdScatterY","y axis:",
                          choices=colnames(md)[!sapply(md,function(X) is.factor(X) | is.character(X))],
-                         selected="total_features"),align="left")
-  ),
-  fixedRow(
-    column(6,plotOutput("tsne",height="570px",click="tsneClick")),
-    column(6,plotOutput("mdScatter",height="570px"))
-  ),
-  fixedRow(
-    column(6,align="left",downloadButton("tsneSave","Save as PDF")),
-    column(6,align="right",downloadButton("mdScatterSave","Save as PDF"))
-  ),
-  hr(),
-  
-  fixedRow(
-    column(6,selectInput("tsneMDcol","Metadata:",choices=colnames(md),
-                         selected=grep("phase",colnames(md),value=T,ignore.case=T)[1])),
+                         selected="total_features"),align="left"),
     column(3,selectInput("mdFactorData","Metadata (factor):",
                          choices=colnames(md)[sapply(md,function(X) is.factor(X) | is.character(X))],
                          selected=grep("phase",
@@ -65,11 +65,11 @@ ui <- fixedPage(
                           choices=list("Absolute"="absolute","Relative"="relative")))
   ),
   fixedRow(
-    column(6,plotOutput("tsneMD",height="570px")),
-    column(6,plotOutput("mdFactor",height="570px"))
+    column(6,plotOutput("mdScatter",height="560px")),
+    column(6,plotOutput("mdFactor",height="560px"))
   ),
   fixedRow(
-    column(6,align="left",downloadButton("tsneMDSave","Save as PDF")),
+    column(6,align="left",downloadButton("mdScatterSave","Save as PDF")),
     column(6,align="right",downloadButton("mdFactorSave","Save as PDF"))
   ),
   hr(),
@@ -94,12 +94,12 @@ ui <- fixedPage(
     column(6,if (length(cellMarkers) > 0) {
       radioButtons("cgLegend",inline=T,label="Highlighted genes:",
                    choices=c("Cell-type markers"="markers",
-                             "Gene symbols (regex)"="regex",
-                             "Top DE genes (from heatmap)"="heatmap"))
+                             "Top DE genes (from heatmap)"="heatmap",
+                             "Gene symbols (regex)"="regex"))
     } else {
       radioButtons("cgLegend",inline=T,label="Highlighted genes:",
-                   choices=c("Gene symbols (regex)"="regex",
-                             "Top DE genes (from heatmap)"="heatmap"))
+                   choices=c("Top DE genes (from heatmap)"="heatmap",
+                             "Gene symbols (regex)"="regex"))
     }),
     column(4,align="right",textInput("GOI","Gene symbols (regex)",demoRegex)),
     column(1,actionButton("GOIgo","Search",icon=icon("search")))
@@ -230,7 +230,7 @@ server <- function(input,output,session) {
   output$cqPlotSave <- downloadHandler(
     filename="cqPlot.pdf",
     content=function(file) {
-      pdf(file,width=6,height=5)
+      pdf(file,width=7,height=6)
       print(plot_cqPlot())
       dev.off()
     }
@@ -239,7 +239,7 @@ server <- function(input,output,session) {
   #### Silhouette plot ####
   plot_sil <- function() {
     tempSil <- silhouette(as.integer(cl[,input$res]),dist=silDist)
-    par(mar=c(4,0,2,1),mgp=2:0)
+    par(mar=c(4.5,.5,1.5,1.5),mgp=2:0)
     if (length(tempSil) <= 1) {
       plot(x=NA,y=NA,xlim=0:1,ylim=0:1,xaxt="n",yaxt="n",xlab=NA,ylab=NA)
       text(.5,.5,paste("Silhouette plot cannot be computed",
@@ -256,7 +256,7 @@ server <- function(input,output,session) {
   output$silSave <- downloadHandler(
     filename="sil.pdf",
     content=function(file) {
-      pdf(file,width=9,height=12)
+      pdf(file,width=6,height=7)
       print(plot_sil())
       dev.off()
     }
@@ -293,7 +293,7 @@ server <- function(input,output,session) {
   }
   
   plot_tsne <- function() {
-    par(mar=c(4,3,3,1),mgp=2:0)
+    par(mar=c(3,3,4,1),mgp=2:0)
     plot(x=NULL,y=NULL,xlab="tSNE_1",ylab="tSNE_2",
          main=paste("tSNE at",res(),"using",ncol(dr_clust),"PCs"),
          xlim=range(dr_viz[,1]),ylim=range(dr_viz[,2]))
@@ -326,8 +326,9 @@ server <- function(input,output,session) {
   output$tsneSave <- downloadHandler(
     filename="tsne.pdf",
     content=function(file) {
-      pdf(file,width=10,height=10)
+      pdf(file,width=7,height=7)
       print(plot_tsne())
+      print(plot_tsne_labels())
       dev.off()
     }
   )
@@ -416,7 +417,7 @@ server <- function(input,output,session) {
   output$tsneMDSave <- downloadHandler(
     filename="tsneMD.pdf",
     content=function(file) {
-      pdf(file,width=10,height=10)
+      pdf(file,width=7,height=7)
       print(plot_tsneMD())
       dev.off()
     }
@@ -430,8 +431,8 @@ server <- function(input,output,session) {
                  "absolute"=tapply(md[,input$mdFactorData],clusts(),table))
     if (is.list(id)) { id <- do.call(cbind,id) }
     idylab <- switch(input$mdFactorRA,
-                     "relative"="Proportion per cell type",
-                     "absolute"="Counts per cell type")
+                     "relative"="Proportion of cells per cluster",
+                     "absolute"="Number of cells per cluster")
     if (length(levels(md[,input$mdFactorData])) <= 8) {
       idcol <- brewer.pal(length(levels(md[,input$mdFactorData])),
                           "Dark2")[1:length(levels(md[,input$mdFactorData]))]
@@ -454,7 +455,7 @@ server <- function(input,output,session) {
   output$mdFactorSave <- downloadHandler(
     filename="mdFactor.pdf",
     content=function(file) {
-      pdf(file,width=10,height=10)
+      pdf(file,width=7,height=7)
       print(plot_mdFactor())
       dev.off()
     }
@@ -496,7 +497,7 @@ server <- function(input,output,session) {
   output$mdScatterSave <- downloadHandler(
     filename="mdScatter.pdf",
     content=function(file) {
-      pdf(file,width=10,height=10)
+      pdf(file,width=7,height=7)
       print(plot_mdScatter())
       dev.off()
     }
@@ -576,9 +577,10 @@ server <- function(input,output,session) {
                                               deNeighb=deNeighb[[res()]]),nrow),"DE"),
                           sep=": ")
       heatmap.2(clustMeans(),Rowv=as.dendrogram(hC()),Colv=as.dendrogram(hG()),scale="column",
-                col=viridis(100,d=-1),trace="none",margins=c(9,12),keysize=1,lhei=c(2,10),lwid=c(1,11),
+                margins=c(9,12),lhei=c(2,10),lwid=c(1,11),trace="none",
+                keysize=1.5,density.info="none",key.par=list(mar=c(3,.5,2,.5),mgp=2:0),
                 cexCol=1 + 1/log2(nrow(clustMeans())),cexRow=1 + 1/log2(ncol(clustMeans())),
-                RowSideColors=clustCols(),labRow=tempLabRow,rowsep=sepClust())
+                RowSideColors=clustCols(),labRow=tempLabRow,rowsep=sepClust(),col=viridis(100,d=-1))
     }
   }
   
@@ -591,7 +593,7 @@ server <- function(input,output,session) {
   output$heatmapSave <- downloadHandler(
     filename="heatmap.pdf",
     content=function(file) {
-      pdf(file,width=9,height=12)
+      pdf(file,width=12,height=7)
       print(plot_heatmap())
       dev.off()
     }
@@ -722,7 +724,7 @@ server <- function(input,output,session) {
   output$clusterGenesSave <- downloadHandler(
     filename="clusterGenes.pdf",
     content=function(file) {
-      pdf(file,width=12,height=9)
+      pdf(file,width=12,height=7)
       print(plot_clusterGenes())
       dev.off()
     }
@@ -805,7 +807,7 @@ server <- function(input,output,session) {
   output$geneTestSave <- downloadHandler(
     filename="geneTest.pdf",
     content=function(file) {
-      pdf(file,width=12,height=9)
+      pdf(file,width=12,height=7)
       print(plot_geneTest())
       dev.off()
     }
@@ -876,7 +878,7 @@ server <- function(input,output,session) {
   output$goiPlot1Save <- downloadHandler(
     filename="goi1.pdf",
     content=function(file) {
-      pdf(file,width=10,height=10)
+      pdf(file,width=7,height=7)
       if (input$plotClust1 == "clust" & length(res()) > 0) {
         print(plot_tsne())
         if (input$plotLabel1) { print(plot_tsne_labels()) }
@@ -905,7 +907,7 @@ server <- function(input,output,session) {
   output$goiPlot2Save <- downloadHandler(
     filename="goi2.pdf",
     content=function(file) {
-      pdf(file,width=10,height=10)
+      pdf(file,width=7,height=7)
       if (input$plotClust2 == "clust" & length(res()) > 0) {
         print(plot_tsne())
         if (input$plotLabel2) { print(plot_tsne_labels()) }

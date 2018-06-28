@@ -1,6 +1,6 @@
 ######## User-defined variables ########
 
-dataPath <- "demo/10Xneurons_forViz.RData"
+dataPath <- "meCortex/e15/e15_Cortical_Only_forViz.RData"#"demo/10Xneurons_forViz.RData"
 ##  ^ Point this to the output file from PrepareInputs.R
 ##  If you set a default resolution in the Shiny app, it will save to the same directory.
 
@@ -17,11 +17,7 @@ cellMarkers <- list("Cortical precursors"=c("Mki67","Sox2","Pax6","Pcna","Nes","
                     "Cajal-Retzius neurons"="Reln",
                     "Intermediate progenitors"="Eomes",
                     "Projection neurons"=c("Tbr1","Satb2","Fezf2","Bcl11b","Tle4",
-                                           "Nes","Cux1","Cux2","Tubb3","Rbfox3","Dcx"),
-                    "Oligodendrocyte precursors"=c("Cspg4","Olig2","Pdgfra"),
-                    "Oligodendrocytes"=c("Mbp","Mog","Plp1","Mag"),
-                    "Astrocytes"=c("Aldh1l1","Gfap","Slc1a3","Glul"),
-                    "Microglia"="Cx3cr1")
+                                           "Nes","Cux1","Cux2","Tubb3","Rbfox3","Dcx"))
 #cellMarkers <- list()
 ##  ^ If you have canonical marker genes for expected cell types, list them here 
 ##  (see example above from mouse embryonic cortex).  The Shiny app will attempt 

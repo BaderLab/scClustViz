@@ -10,14 +10,22 @@ pseudocount <- 1
 ##  ^ pseudocount added to all log-normalized values in your input data.  
 ##  Most methods use a pseudocount of 1 to eliminate log(0) errors.
 
-logFCthresh <- 1 # magnitude of mean log-expression fold change to use as a minimum threshold for DE testing
+#threshType <- "logFC"  # use a fold-change-based threshold for filtering genes prior to DE testing
+threshType <- "dDR"     # use a difference in detection rate threshold for filtering 
+##  Filtering genes for use in differential expression testing can be done multiple ways.
+##  We use a fold-change filter for comparing each cluster to the tissue as a whole, but find that
+##  difference in detection rates works better when comparing clusters to each other.  You can set
+##  threshType to "logFC" to use fold-change for all gene filtering if you'd prefer.
+
+logFCthresh <- 1  # magnitude of mean log-expression fold change between clusters to use as filter.
+dDRthresh <- 0.15 # magnitude of detection rate difference between clusters to use as filter.
 WRSTalpha <- 0.01 # significance level for DE testing using Wilcoxon rank sum test
 
 #dataRDS <- "../scClustViz_files/testData.rds" 
 ##  ^ path to input data object, saved as RDS (use saveRDS() to generate).
-dataRData <- "../scClustViz_files/e11_Cortical_Only.RData" 
+dataRData <- "../scClustViz_files/e13_Cortical_Only.RData" 
 ##  ^ path to input data, saved as RData (use save() to generate )
-outputDirectory <- "./" 
+outputDirectory <- "meCortex/e13/" 
 ##  ^ path to output directory with trailing slash (for loading into the R Shiny visualization script)
 
 convertGeneIDs <- FALSE ##  Set to TRUE if your gene names aren't official gene symbols.
@@ -87,6 +95,7 @@ if (class(inD) == "seurat") {
     data("cc.genes")  
     inD <- CellCycleScoring(inD,g2m.genes=cc.genes$g2m.genes,s.genes=cc.genes$s.genes)
     inD@meta.data$Phase <- factor(inD@meta.data$Phase,levels=c("G1","S","G2M")) # So that the phases are in order.
+    rm(cc.genes)
   }
   ##  ^ If necessary, Seurat has a function to predict cell cycle phase from expression of canonical marker genes.
   ##  These are stored as HGNC symbols, but if your data is mouse it will try case-insensitive matches to homologues
@@ -116,7 +125,7 @@ if (class(inD) == "seurat") {
   dr_viz <- inD@dr$tsne@cell.embeddings  
   ##  ^ cell embeddings in 2D space for visualization (usually tSNE) (matrix: cells x coordinates)
   
-  rm(inD,cc.genes)
+  rm(inD)
 } else {
   warning("
 Currently only Seurat objects are supported for auto-loading. 
@@ -168,7 +177,10 @@ for (res in colnames(cl)) {
                pVal=deT_pVal[[i]])[order(deT_pVal[[i]]),],simplify=F)
   tempQval <- tapply(p.adjust(do.call(rbind,deTissue[[res]])$pVal,"fdr"),
                      rep(names(sapply(deTissue[[res]],nrow)),sapply(deTissue[[res]],nrow)),c)
-  for (i in names(deTissue[[res]])) { deTissue[[res]][[i]]$qVal <- tempQval[[i]] }
+  for (i in names(deTissue[[res]])) { 
+    deTissue[[res]][[i]] <- deTissue[[res]][[i]][tempQval[[i]] <= WRSTalpha,]
+    deTissue[[res]][[i]]$qVal <- tempQval[[i]][tempQval[[i]] <= WRSTalpha] 
+  }
   
   #### deMarker - DE per cluster vs each other cluster #### 
   combos <- combn(levels(cl[,res]),2)
@@ -177,12 +189,11 @@ for (res in colnames(cl)) {
   print(paste("Calculating marker DE for",res,"with",ncol(combos),"combinations of clusters"))
   deM_dDR <- apply(combos,2,function(i) DR[i[1],] - DR[i[2],])
   deM_logFC <- apply(combos,2,function(i) MTC[i[1],] - MTC[i[2],])
-  deM_genesUsed <- apply(deM_logFC,2,function(X) which(abs(X) > logFCthresh))  
+  deM_genesUsed <- switch(threshType,
+                          dDR=apply(deM_dDR,2,function(X) which(abs(X) > dDRthresh)),
+                          logFC=apply(deM_logFC,2,function(X) which(abs(X) > logFCthresh))) 
   if (any(sapply(deM_genesUsed,length) < 1)) {
-    stop(paste0("logFCthresh should be set to less than ",
-                min(apply(deM_logFC,2,function(X) max(abs(X)))),
-                ", the largest magnitude logFC between clusters ",
-                names(which.min(apply(deM_logFC,2,function(X) max(abs(X))))),"."))
+    stop("Gene filtering threshold is set too high.")
   }
   deM_pVal <- pbsapply(colnames(combos),function(i)
     apply(nge[deM_genesUsed[[i]],],1,function(X) 
@@ -202,9 +213,11 @@ for (res in colnames(cl)) {
       if (! i %in% combos[[X]]) {
         next
       } else if (which(combos[[X]] == i) == 1) {
-        temp[[combos[[X]][2]]] <- temp_deVS[[X]][temp_deVS[[X]]$logFC > 0 & temp_deVS[[X]]$qVal < WRSTalpha,]
+        temp[[combos[[X]][2]]] <- temp_deVS[[X]][temp_deVS[[X]][,threshType] > 0 & 
+                                                   temp_deVS[[X]]$qVal <= WRSTalpha,]
       } else if (which(combos[[X]] == i) == 2) {
-        temp[[combos[[X]][1]]] <- temp_deVS[[X]][temp_deVS[[X]]$logFC < 0 & temp_deVS[[X]]$qVal < WRSTalpha,]
+        temp[[combos[[X]][1]]] <- temp_deVS[[X]][temp_deVS[[X]][,threshType] < 0 &
+                                                   temp_deVS[[X]]$qVal <= WRSTalpha,]
         temp[[combos[[X]][1]]]$dDR <- temp[[combos[[X]][1]]]$dDR * -1
         temp[[combos[[X]][1]]]$logFC <- temp[[combos[[X]][1]]]$logFC * -1
       }
@@ -237,5 +250,10 @@ save(nge,md,cl,dr_clust,dr_viz,
                  sub("^.*/","",sub("\\.[A-Za-z0-9]+$","",get(grep("^dataRD",ls(),value=T)))),
                  "_forViz.RData"))
 ##  ^ Saved objects for use in visualization script (RunVizScript.R).
+
+save(deVS,file=paste0(outputDirectory,
+                      sub("^.*/","",sub("\\.[A-Za-z0-9]+$","",get(grep("^dataRD",ls(),value=T)))),
+                      "_deVS.RData"))
+##  ^ All pairwise DE test results between clusters.
 
 
