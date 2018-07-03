@@ -1,6 +1,6 @@
 ######## User-defined variables ########
 
-dataPath <- "meCortex/e15/e15_Cortical_Only_forViz.RData"#"demo/10Xneurons_forViz.RData"
+dataPath <- "meCortex/e13/e13_Cortical_Only_forViz.RData"#"demo/10Xneurons_forViz.RData"
 ##  ^ Point this to the output file from PrepareInputs.R
 ##  If you set a default resolution in the Shiny app, it will save to the same directory.
 
