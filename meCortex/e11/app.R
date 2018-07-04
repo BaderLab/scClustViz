@@ -11,29 +11,47 @@ species <- "mouse"
 ##  ^ Set species ("mouse"/"human").  
 ##  If other, add the annotation database from Bioconductor to the egDB <- switch() expression below.
 
+
 #### List known cell-type markers ####
 cellMarkers <- list("Cortical precursors"=c("Mki67","Sox2","Pax6","Pcna","Nes","Cux1","Cux2"),
                     "Interneurons"=c("Gad1","Gad2","Npy","Sst","Lhx6","Tubb3","Rbfox3","Dcx"),
                     "Cajal-Retzius neurons"="Reln",
                     "Intermediate progenitors"="Eomes",
                     "Projection neurons"=c("Tbr1","Satb2","Fezf2","Bcl11b","Tle4",
-                                           "Nes","Cux1","Cux2","Tubb3","Rbfox3","Dcx"),
-                    "Oligodendrocyte precursors"=c("Cspg4","Olig2","Pdgfra"),
-                    "Oligodendrocytes"=c("Mbp","Mog","Plp1","Mag"),
-                    "Astrocytes"=c("Aldh1l1","Gfap","Slc1a3","Glul"),
-                    "Microglia"="Cx3cr1")
+                                           "Nes","Cux1","Cux2","Tubb3","Rbfox3","Dcx"))
 #cellMarkers <- list()
 ##  ^ If you have canonical marker genes for expected cell types, list them here 
 ##  (see example above from mouse embryonic cortex).  The Shiny app will attempt 
 ##  to label clusters in the tSNE projection by highest median gene expression.
 ##  Otherwise leave the list blank (uncomment line above).
 
+
+#### Variables for differential expression analysis ####
+exponent <- 2  
+##  ^ log base of your normalized input data.  
+##  Seurat defaults to natural log (set this to exp(1)), 
+##  other methods are generally log2 (set this to 2).
+pseudocount <- 1 
+##  ^ pseudocount added to all log-normalized values in your input data.  
+##  Most methods use a pseudocount of 1 to eliminate log(0) errors.
+
+#threshType <- "logFC"  # use a fold-change-based threshold for filtering genes prior to DE testing
+threshType <- "dDR"     # use a difference in detection rate threshold for filtering 
+##  Filtering genes for use in differential expression testing can be done multiple ways.
+##  We use a fold-change filter for comparing each cluster to the tissue as a whole, but find that
+##  difference in detection rates works better when comparing clusters to each other.  You can set
+##  threshType to "logFC" to use fold-change for all gene filtering if you'd prefer.
+
+logFCthresh <- 1  # magnitude of mean log-expression fold change between clusters to use as filter.
+dDRthresh <- 0.15 # magnitude of detection rate difference between clusters to use as filter.
+WRSTalpha <- 0.01 # significance level for DE testing using Wilcoxon rank sum test
+
+
 ########################################
 
 
 
 ######## Code to run the Shiny app ########
-library(markdown)
 library(shiny)
 library(cluster)
 library(gplots)
@@ -42,9 +60,17 @@ library(viridis)
 library(RColorBrewer)
 library(TeachingDemos)
 
-library(org.Mm.eg.db)
-egDB <- "org.Mm.eg.db"
+egDB <- switch(species,
+               mouse={ library(org.Mm.eg.db); "org.Mm.eg.db" },
+               human={ library(org.Hs.eg.db); "org.Hs.eg.db" },
+               stop("
+                    Set species please!  
+                    If not mouse/human, add your species' annotation database from Bioconductor:  
+                    source('https://bioconductor.org/biocLite.R')
+                    biocLite('org.Xx.eg.db')
+                    "))
 
+mean.logX <- function(data,ex=exponent,pc=pseudocount) { log(mean(ex^data - pc) + 1/ncol(nge),base=ex) }
 rainbow2 <- function(n,a=1) {
   require(scales)
   hues = seq(15, 375, length = n + 1)
@@ -116,16 +142,17 @@ ui <- fixedPage(
   hr(),
   
   ######## Cluster Resolution Selection ########
-  fixedRow(titlePanel("Cluster Resolution Selection"),
-           column(6,
-                  fixedRow(column(6,uiOutput("resSelect"),align="left"),
-                           column(6,align="right",
-                                  actionButton("go","View clusters at this resolution",icon("play")),
-                                  actionButton("save","Save this resolution as default",icon("bookmark")))),
-                  radioButtons("deType",NULL,list("# of marker genes per cluster"="deMarker",
-                                                  "# of DE genes to nearest neighbouring cluster"="deNeighb"),inline=T),
-                  plotOutput("cqPlot",height="500px")),
-           column(6,plotOutput("sil",height="600px"))
+  fixedRow(
+    titlePanel("Cluster Resolution Selection"),
+    column(6,
+           fixedRow(column(6,uiOutput("resSelect"),align="left"),
+                    column(6,align="right",
+                           actionButton("go","View clusters at this resolution",icon("play")),
+                           actionButton("save","Save this resolution as default",icon("bookmark")))),
+           radioButtons("deType",NULL,list("# of DE genes to nearest neighbouring cluster"="deNeighb",
+                                           "# of marker genes per cluster"="deMarker"),inline=T),
+           plotOutput("cqPlot",height="500px")),
+    column(6,plotOutput("sil",height="600px"))
   ),
   fixedRow(
     column(6,downloadButton("cqPlotSave","Save as PDF"),align="left"),
@@ -145,40 +172,43 @@ ui <- fixedPage(
                           choices=list("Cluster numbers"="cn"))
            },
            strong("Click point on plot below to select cluster")),
-    column(3,selectInput("mdScatterX","x axis:",
-                         choices=colnames(md)[!sapply(md,function(X) is.factor(X) | is.character(X))],
-                         selected="total_counts"),align="left"),
-    column(3,selectInput("mdScatterY","y axis:",
-                         choices=colnames(md)[!sapply(md,function(X) is.factor(X) | is.character(X))],
-                         selected="total_features"),align="left")
+    column(6,selectInput("tsneMDcol","Metadata:",choices=colnames(md),
+                         selected=grep("phase",colnames(md),value=T,ignore.case=T)[1]))
   ),
   fixedRow(
-    column(6,plotOutput("tsne",height="570px",click="tsneClick")),
-    column(6,plotOutput("mdScatter",height="570px"))
+    column(6,plotOutput("tsne",height="580px",click="tsneClick")),
+    column(6,plotOutput("tsneMD",height="580px"))
   ),
   fixedRow(
     column(6,align="left",downloadButton("tsneSave","Save as PDF")),
-    column(6,align="right",downloadButton("mdScatterSave","Save as PDF"))
+    column(6,align="right",downloadButton("tsneMDSave","Save as PDF"))
   ),
   hr(),
   
   fixedRow(
-    column(6,selectInput("tsneMDcol","Metadata:",choices=colnames(md),
-                         selected=grep("phase",colnames(md),value=T,ignore.case=T)[1])),
-    column(3,selectInput("mdFactorData","Metadata (factor):",
-                         choices=colnames(md)[sapply(md,function(X) is.factor(X) | is.character(X))],
-                         selected=grep("phase",
-                                       colnames(md)[sapply(md,function(X) is.factor(X) | is.character(X))],
-                                       value=T,ignore.case=T)[1])),
+    column(3,selectInput(
+      "mdScatterX","x axis:",
+      choices=colnames(md)[!sapply(md,function(X) is.factor(X) | is.character(X))],
+      selected="total_counts"),align="left"),
+    column(3,selectInput(
+      "mdScatterY","y axis:",
+      choices=colnames(md)[!sapply(md,function(X) is.factor(X) | is.character(X))],
+      selected="total_features"),align="left"),
+    column(3,selectInput(
+      "mdFactorData","Metadata (factor):",
+      choices=colnames(md)[sapply(md,function(X) is.factor(X) | is.character(X))],
+      selected=grep("phase",
+                    colnames(md)[sapply(md,function(X) is.factor(X) | is.character(X))],
+                    value=T,ignore.case=T)[1])),
     column(3,radioButtons("mdFactorRA","Factor counts per cluster:",inline=T,
                           choices=list("Absolute"="absolute","Relative"="relative")))
   ),
   fixedRow(
-    column(6,plotOutput("tsneMD",height="570px")),
-    column(6,plotOutput("mdFactor",height="570px"))
+    column(6,plotOutput("mdScatter",height="560px")),
+    column(6,plotOutput("mdFactor",height="560px"))
   ),
   fixedRow(
-    column(6,align="left",downloadButton("tsneMDSave","Save as PDF")),
+    column(6,align="left",downloadButton("mdScatterSave","Save as PDF")),
     column(6,align="right",downloadButton("mdFactorSave","Save as PDF"))
   ),
   hr(),
@@ -186,10 +216,7 @@ ui <- fixedPage(
   ######## Cluster-wise Gene Stats #########
   fixedRow(titlePanel("Cluster-wise Gene Stats")),
   fixedRow(
-    column(2,radioButtons("heatG","Heapmap Genes:",
-                          choices=list("DE vs tissue average"="deTissue",
-                                       "Marker genes"="deMarker",
-                                       "DE vs neighbour"="deNeighb"))),
+    column(2,uiOutput("heatDEtype")),
     column(2,uiOutput("DEclustSelect")),
     column(2,downloadButton("deGeneSave","Download gene list"),
            downloadButton("heatmapSave","Save as PDF"),align="right"), 
@@ -199,18 +226,18 @@ ui <- fixedPage(
   hr(),
   
   fixedRow(
-    column(1,uiOutput("genePlotClustSelect")),
+    column(2,uiOutput("genePlotClustSelect")),
     column(6,if (length(cellMarkers) > 0) {
       radioButtons("cgLegend",inline=T,label="Highlighted genes:",
                    choices=c("Cell-type markers"="markers",
-                             "Gene symbols (regex)"="regex",
-                             "Top DE genes (from heatmap)"="heatmap"))
+                             "Top DE genes (from heatmap)"="heatmap",
+                             "Gene symbols (regex)"="regex"))
     } else {
       radioButtons("cgLegend",inline=T,label="Highlighted genes:",
-                   choices=c("Gene symbols (regex)"="regex",
-                             "Top DE genes (from heatmap)"="heatmap"))
+                   choices=c("Top DE genes (from heatmap)"="heatmap",
+                             "Gene symbols (regex)"="regex"))
     }),
-    column(4,align="right",textInput("GOI","Gene symbols (regex)",demoRegex)),
+    column(3,align="right",textInput("GOI","Gene symbols (regex)",demoRegex)),
     column(1,actionButton("GOIgo","Search",icon=icon("search")))
   ),tags$style(type='text/css', "button#GOIgo { margin-top: 25px; }"),
   fixedRow(
@@ -274,18 +301,43 @@ ui <- fixedPage(
     column(6,align="left",downloadButton("goiPlot1Save","Save as PDF")),
     column(6,align="right",downloadButton("goiPlot2Save","Save as PDF"))
   ),
+  hr(),
+  
+  ######## Custom sets for DE #########
+  fixedRow(
+    column(6,plotOutput("tsneSelDE",brush="tsneBrush",height="580px")),
+    column(6,
+           actionButton("addCellsA","Set A: Add Cells",icon("plus")),
+           actionButton("removeCellsA","Set A: Remove Cells",icon("minus")),
+           hr(),
+           actionButton("addCellsB","Set B: Add Cells",icon("plus")),
+           actionButton("removeCellsB","Set B: Remove Cells",icon("minus")),
+           hr(),
+           textInput("DEsetName","Short name for this comparison:",
+                     placeholder="A-z0-9 only please"),
+           actionButton("calcDE","Calculate DE and Save",icon("play")),
+           hr(),
+           textOutput("calcText")
+    )
+  ),
   h1()
 )
 
 
-
 ########## Server ##########
 server <- function(input,output,session) {
-  clustCols <- reactive({      
-    if (length(levels(cl[,input$res])) <= 8) {
-      brewer.pal(length(levels(cl[,input$res])),"Dark2")[1:length(levels(cl[,input$res]))]
+  d <- reactiveValues(cl=cl,CGS=CGS,
+                      clusterID=clusterID,
+                      deTissue=deTissue,
+                      deMarker=deMarker)
+  
+  clustCols <- reactive({
+    if (grepl("^Comp",input$res)) {
+      c(brewer.pal(3,"PRGn")[c(1,3)],"grey80")
+    } else if (length(levels(d$cl[,input$res])) <= 8) {
+      brewer.pal(length(levels(d$cl[,input$res])),"Dark2")[1:length(levels(d$cl[,input$res]))]
     } else {
-      rainbow2(length(levels(cl[,input$res])))
+      rainbow2(length(levels(d$cl[,input$res])))
     }
   })
   
@@ -293,10 +345,20 @@ server <- function(input,output,session) {
   ######## Cluster Resolution Selection ########
   #### Inter-cluster DE boxplots ####
   numClust <- sapply(cl,function(X) length(levels(X)))
-  clustList <- as.list(colnames(cl))
-  names(clustList) <- paste0(unlist(clustList),": ",numClust," clusters")
+  clustList <- reactive({ 
+    temp <- as.list(colnames(d$cl)) 
+    names(temp)[seq_along(numClust)] <- paste0(unlist(temp)[seq_along(numClust)],
+                                               ": ",numClust," clusters")
+    if (length(temp) > length(numClust)) {
+      names(temp)[setdiff(seq_along(temp),seq_along(numClust))] <- 
+        paste0("Comparison: ",
+               sub("Comp.","",fixed=T,
+                   x=unlist(temp)[setdiff(seq_along(temp),seq_along(numClust))]))  
+    }
+    return(temp)
+  })
   output$resSelect <- renderUI({
-    selectInput("res","Resolution:",choices=clustList,selected=savedRes)
+    selectInput("res","Resolution:",choices=clustList(),selected=savedRes)
   })
   numClust <- numClust[numClust > 1]
   
@@ -305,32 +367,39 @@ server <- function(input,output,session) {
     toplim <- c(21,max(unlist(numDEgenes)) + 20)
     botlim <- c(-1,21)
     
-    par(mar=c(0.2,3.5,1,1),mgp=2:0,mfrow=c(2,1))
-    plot(x=numClust,y=sapply(numDEgenes,median),type="l",
-         xlim=range(numClust)+c(-.5,.5),ylim=toplim,yaxs="i",xaxt="n",ylab=NA)
-    abline(h=seq(0,max(unlist(numDEgenes)),10),lty=3,col=alpha(1,0.3))
-    for (i in names(numDEgenes)[names(numDEgenes) != input$res]) {
-      boxplot(numDEgenes[[i]],add=T,at=numClust[i],yaxt="n")
+    if (grepl("^Comp",input$res)) {
+      par(mar=c(3,3.5,1,1))
+      plot(x=NA,y=NA,xlim=0:1,ylim=0:1,xaxt="n",yaxt="n",xlab=NA,ylab=NA)
+      text(.5,.5,paste("Press 'View clusters at this resolution'",
+                       "to view the comparison",
+                       sub("Comp.","",input$res,fixed=T),sep="\n"))
+    } else {
+      par(mar=c(0.2,3.5,1,1),mgp=2:0,mfrow=c(2,1))
+      plot(x=numClust,y=sapply(numDEgenes,median),type="l",
+           xlim=range(numClust)+c(-.5,.5),ylim=toplim,yaxs="i",xaxt="n",ylab=NA)
+      abline(h=seq(0,max(unlist(numDEgenes)),10),lty=3,col=alpha(1,0.3))
+      for (i in names(numDEgenes)[names(numDEgenes) != input$res]) {
+        boxplot(numDEgenes[[i]],add=T,at=numClust[i],yaxt="n")
+      }
+      if (any(names(numDEgenes) == input$res)) {
+        boxplot(numDEgenes[[input$res]],add=T,at=numClust[input$res],border="red")
+      }
+      
+      par(mar=c(3,3.5,0.2,1),mgp=2:0)
+      plot(x=numClust,y=sapply(numDEgenes,median),type="l",
+           xlim=range(numClust)+c(-.5,.5),ylim=botlim,yaxs="i",xlab="Number of clusters",ylab=NA)
+      abline(h=seq(0,max(unlist(numDEgenes)),10),lty=3,col=alpha(1,0.3))
+      for (i in names(numDEgenes)[names(numDEgenes) != input$res]) {
+        boxplot(numDEgenes[[i]],add=T,at=numClust[i],yaxt="n")
+      }
+      if (any(names(numDEgenes) == input$res)) {
+        boxplot(numDEgenes[[input$res]],add=T,at=numClust[input$res],border="red")
+      }
+      mtext(switch(input$deType,
+                   "deMarker"="Positive DE genes per cluster to all other clusters",
+                   "deNeighb"="Positive DE genes per cluster to nearest cluster")
+            ,side=2,line=2.5,at=botlim[2],xpd=NA)
     }
-    if (any(names(numDEgenes) == input$res)) {
-      boxplot(numDEgenes[[input$res]],add=T,at=numClust[input$res],border="red")
-    }
-    
-    par(mar=c(3,3.5,0.2,1),mgp=2:0)
-    plot(x=numClust,y=sapply(numDEgenes,median),type="l",
-         xlim=range(numClust)+c(-.5,.5),ylim=botlim,yaxs="i",xlab="Number of clusters",ylab=NA)
-    abline(h=seq(0,max(unlist(numDEgenes)),10),lty=3,col=alpha(1,0.3))
-    for (i in names(numDEgenes)[names(numDEgenes) != input$res]) {
-      boxplot(numDEgenes[[i]],add=T,at=numClust[i],yaxt="n")
-    }
-    if (any(names(numDEgenes) == input$res)) {
-      boxplot(numDEgenes[[input$res]],add=T,at=numClust[input$res],border="red")
-    }
-    mtext(switch(input$deType,
-                 "deMarker"="Positive DE genes per cluster to all other clusters",
-                 "deNeighb"="Positive DE genes per cluster to nearest cluster")
-          ,side=2,line=2.5,at=botlim[2],xpd=NA)
-    
   }
   
   output$cqPlot <- renderPlot({
@@ -340,7 +409,7 @@ server <- function(input,output,session) {
   output$cqPlotSave <- downloadHandler(
     filename="cqPlot.pdf",
     content=function(file) {
-      pdf(file,width=6,height=5)
+      pdf(file,width=7,height=6)
       print(plot_cqPlot())
       dev.off()
     }
@@ -348,8 +417,8 @@ server <- function(input,output,session) {
   
   #### Silhouette plot ####
   plot_sil <- function() {
-    tempSil <- silhouette(as.integer(cl[,input$res]),dist=silDist)
-    par(mar=c(4,0,2,1),mgp=2:0)
+    tempSil <- silhouette(as.integer(d$cl[,input$res]),dist=silDist)
+    par(mar=c(4.5,.5,1.5,1.5),mgp=2:0)
     if (length(tempSil) <= 1) {
       plot(x=NA,y=NA,xlim=0:1,ylim=0:1,xaxt="n",yaxt="n",xlab=NA,ylab=NA)
       text(.5,.5,paste("Silhouette plot cannot be computed",
@@ -366,7 +435,7 @@ server <- function(input,output,session) {
   output$silSave <- downloadHandler(
     filename="sil.pdf",
     content=function(file) {
-      pdf(file,width=9,height=12)
+      pdf(file,width=6,height=7)
       print(plot_sil())
       dev.off()
     }
@@ -382,13 +451,13 @@ server <- function(input,output,session) {
   
   
   ######## Cell-type Clusters ########
-  clusts <- reactive(cl[,res()])
+  clusts <- reactive(d$cl[,res()])
   
   #### Cell-type tSNE ####
   plot_tsne_labels <- function() {
     if (input$tsneLabels == "ca") {
-      temp_labelNames <- sapply(unique(clusterID[[res()]]),function(X) 
-        names(which(clusterID[[res()]] == X)),simplify=F)
+      temp_labelNames <- sapply(unique(d$clusterID[[res()]]),function(X) 
+        names(which(d$clusterID[[res()]] == X)),simplify=F)
       temp_labels <- apply(dr_viz,2,function(Y) 
         tapply(Y,apply(sapply(temp_labelNames,function(X) clusts() %in% X),1,which),mean))
       if (!is.matrix(temp_labels)) { temp_labels <- rbind(temp_labels) }
@@ -403,7 +472,7 @@ server <- function(input,output,session) {
   }
   
   plot_tsne <- function() {
-    par(mar=c(4,3,3,1),mgp=2:0)
+    par(mar=c(3,3,4,1),mgp=2:0)
     plot(x=NULL,y=NULL,xlab="tSNE_1",ylab="tSNE_2",
          main=paste("tSNE at",res(),"using",ncol(dr_clust),"PCs"),
          xlim=range(dr_viz[,1]),ylim=range(dr_viz[,2]))
@@ -421,7 +490,7 @@ server <- function(input,output,session) {
     }
     if (hiC() != "") {
       mtext(side=3,line=-1,text=paste("Cluster",hiC(),"-",
-                                      clusterID[[res()]][hiC()],"-",
+                                      d$clusterID[[res()]][hiC()],"-",
                                       sum(clusts() == hiC()),"cells"))
     }
   }
@@ -436,8 +505,9 @@ server <- function(input,output,session) {
   output$tsneSave <- downloadHandler(
     filename="tsne.pdf",
     content=function(file) {
-      pdf(file,width=10,height=10)
+      pdf(file,width=7,height=7)
       print(plot_tsne())
+      print(plot_tsne_labels())
       dev.off()
     }
   )
@@ -451,15 +521,21 @@ server <- function(input,output,session) {
   
   cSelected <- reactive({
     t <- nearPoints(as.data.frame(dr_viz),clusterSelect$cl,xvar="tSNE_1",yvar="tSNE_2",threshold=5)
-    t2 <- cl[rownames(t)[1],res()]
-    if (is.na(t2)) { return("") } else { return(t2) }
+    t2 <- d$cl[rownames(t)[1],res()]
+    if (is.na(t2)) { 
+      return("") 
+    } else if (t2 == "Unselected") {
+      return("")
+    } else { 
+      return(t2) 
+    }
   })
   
   hiC <- reactive({ 
     if (length(res()) < 1) {
       return("")
     } else if (input$genePlotClust != "") {
-      cl[which(cl[,res()] == input$genePlotClust)[1],res()]
+      d$cl[which(d$cl[,res()] == input$genePlotClust)[1],res()]
     } else {
       return(input$genePlotClust)
     }
@@ -526,7 +602,7 @@ server <- function(input,output,session) {
   output$tsneMDSave <- downloadHandler(
     filename="tsneMD.pdf",
     content=function(file) {
-      pdf(file,width=10,height=10)
+      pdf(file,width=7,height=7)
       print(plot_tsneMD())
       dev.off()
     }
@@ -540,8 +616,8 @@ server <- function(input,output,session) {
                  "absolute"=tapply(md[,input$mdFactorData],clusts(),table))
     if (is.list(id)) { id <- do.call(cbind,id) }
     idylab <- switch(input$mdFactorRA,
-                     "relative"="Proportion per cell type",
-                     "absolute"="Counts per cell type")
+                     "relative"="Proportion of cells per cluster",
+                     "absolute"="Number of cells per cluster")
     if (length(levels(md[,input$mdFactorData])) <= 8) {
       idcol <- brewer.pal(length(levels(md[,input$mdFactorData])),
                           "Dark2")[1:length(levels(md[,input$mdFactorData]))]
@@ -564,7 +640,7 @@ server <- function(input,output,session) {
   output$mdFactorSave <- downloadHandler(
     filename="mdFactor.pdf",
     content=function(file) {
-      pdf(file,width=10,height=10)
+      pdf(file,width=7,height=7)
       print(plot_mdFactor())
       dev.off()
     }
@@ -587,7 +663,7 @@ server <- function(input,output,session) {
     }
     if (any(ci())) {
       legend("topleft",bty="n",pch=21,col="red",pt.bg=alpha("red",0.5),
-             legend=paste("Cluster",hiC(),"-",clusterID[[res()]][hiC()]))
+             legend=paste("Cluster",hiC(),"-",d$clusterID[[res()]][hiC()]))
     }
     par(mar=c(0,3,1,0))
     boxplot(tapply(md[,input$mdScatterX],ci(),c),
@@ -606,7 +682,7 @@ server <- function(input,output,session) {
   output$mdScatterSave <- downloadHandler(
     filename="mdScatter.pdf",
     content=function(file) {
-      pdf(file,width=10,height=10)
+      pdf(file,width=7,height=7)
       print(plot_mdScatter())
       dev.off()
     }
@@ -616,46 +692,68 @@ server <- function(input,output,session) {
   ######## Cluster-wise Gene Stats #########
   
   #### Heatmap genes ####
+  output$heatDEtype <- renderUI({
+    if (grepl("^Comp",input$res)) {
+      temp <- list("DE vs tissue average"="deTissue",
+                   "Set A vs Set B"="deMarker")
+    } else {
+      temp <- list("DE vs tissue average"="deTissue",
+                   "Marker genes"="deMarker",
+                   "DE vs neighbour"="deNeighb")
+    }
+    radioButtons("heatG","Heapmap Genes:",choices=temp)
+  })
+  
   output$DEgeneSlider <- renderUI({
     if (length(res()) > 0) {
-      switch(input$heatG,
-             deTissue=
-               sliderInput("DEgeneCount",min=2,max=max(sapply(deTissue[[res()]],nrow)),
-                           value=5,step=1,ticks=T,width="100%",
-                           label=HTML(paste("Positive differential gene expression of cluster over tissue",
-                                            "# of genes per cluster to show",sep="<br/>"))),
-             deMarker=
-               sliderInput("DEgeneCount",min=2,max=max(sapply(deMarker[[res()]],nrow)),
-                           value=5,step=1,ticks=T,width="100%",
-                           label=HTML(paste("Positive differential gene expression between cluster and all other clusters",
-                                            "# of genes per cluster to show",sep="<br/>"))),
-             deNeighb=
-               sliderInput("DEgeneCount",min=2,max=max(sapply(deNeighb[[res()]],nrow)),
-                           value=5,step=1,ticks=T,width="100%",
-                           label=HTML(paste("Positive differential gene expression between cluster and nearest neighbour",
-                                            "# of genes per cluster to show",sep="<br/>"))))
+      switch(
+        input$heatG,
+        deTissue=
+          sliderInput("DEgeneCount",min=2,max=max(sapply(d$deTissue[[res()]],nrow)),
+                      value=5,step=1,ticks=T,width="100%",
+                      label=HTML(paste(
+                        "Positive differential gene expression of cluster over tissue",
+                        "# of genes per cluster to show",sep="<br/>"
+                      ))),
+        deMarker=
+          sliderInput("DEgeneCount",min=2,max=max(sapply(d$deMarker[[res()]],nrow)),
+                      value=5,step=1,ticks=T,width="100%",
+                      label=HTML(paste(
+                        "Positive differential gene expression between cluster and all other clusters",
+                        "# of genes per cluster to show",sep="<br/>"
+                      ))),
+        deNeighb=
+          sliderInput("DEgeneCount",min=2,max=max(sapply(deNeighb[[res()]],nrow)),
+                      value=5,step=1,ticks=T,width="100%",
+                      label=HTML(paste(
+                        "Positive differential gene expression between cluster and nearest neighbour",
+                        "# of genes per cluster to show",sep="<br/>"
+                      ))))
     }
   })
   
   output$DEclustSelect <- renderUI({
     if (length(res()) > 0) {
-      selectInput("DEclustNum","Cluster # for gene list",choices=levels(clusts()))
+      selectInput("DEclustNum","Cluster # for gene list",
+                  choices=levels(clusts())[!levels(clusts()) == "Unselected"])
     }
   })
   
   heatGenes <- reactive({
-    temp <- unique(unlist(lapply(switch(input$heatG,
-                                        deTissue=deTissue[[res()]],
-                                        deMarker=deMarker[[res()]],
-                                        deNeighb=deNeighb[[res()]]),
-                                 function(X) 
-                                   if (nrow(X) == 0) { NA } else { rownames(X)[1:input$DEgeneCount] })))
+    temp <- unique(unlist(lapply(
+      switch(input$heatG,
+             deTissue=d$deTissue[[res()]],
+             deMarker=d$deMarker[[res()]],
+             deNeighb=deNeighb[[res()]]),
+      function(X) 
+        if (nrow(X) == 0) { NA } else { rownames(X)[1:input$DEgeneCount] }
+    )))
     temp <- temp[!is.na(temp)]
     return(temp)
   })
   
   clustMeans <- reactive({ #This only works if input is in ascending order of adjusted p value.
-    temp <- sapply(CGS[[res()]],function(X) X[heatGenes(),"MTC"])
+    temp <- sapply(d$CGS[[res()]],function(X) X[heatGenes(),"MTC"])
     rownames(temp) <- heatGenes()
     return(t(temp))
   })
@@ -681,14 +779,15 @@ server <- function(input,output,session) {
     } else {
       tempLabRow <- paste(paste0("Cluster ",levels(clusts())),
                           paste(sapply(switch(input$heatG,
-                                              deTissue=deTissue[[res()]],
-                                              deMarker=deMarker[[res()]],
+                                              deTissue=d$deTissue[[res()]],
+                                              deMarker=d$deMarker[[res()]],
                                               deNeighb=deNeighb[[res()]]),nrow),"DE"),
                           sep=": ")
       heatmap.2(clustMeans(),Rowv=as.dendrogram(hC()),Colv=as.dendrogram(hG()),scale="column",
-                col=viridis(100,d=-1),trace="none",margins=c(9,12),keysize=1,lhei=c(2,10),lwid=c(1,11),
+                margins=c(9,12),lhei=c(2,10),lwid=c(1,11),trace="none",
+                keysize=1.5,density.info="none",key.par=list(mar=c(3,.5,2,.5),mgp=2:0),
                 cexCol=1 + 1/log2(nrow(clustMeans())),cexRow=1 + 1/log2(ncol(clustMeans())),
-                RowSideColors=clustCols(),labRow=tempLabRow,rowsep=sepClust())
+                RowSideColors=clustCols(),labRow=tempLabRow,rowsep=sepClust(),col=viridis(100,d=-1))
     }
   }
   
@@ -701,7 +800,7 @@ server <- function(input,output,session) {
   output$heatmapSave <- downloadHandler(
     filename="heatmap.pdf",
     content=function(file) {
-      pdf(file,width=9,height=12)
+      pdf(file,width=12,height=7)
       print(plot_heatmap())
       dev.off()
     }
@@ -711,8 +810,8 @@ server <- function(input,output,session) {
     filename=function() { paste0(input$heatG,"_",input$DEclustNum,".txt") },
     content=function(file) {
       outTable <- switch(input$heatG,
-                         deTissue=deTissue[[res()]][[input$DEclustNum]],
-                         deMarker=deMarker[[res()]][[input$DEclustNum]],
+                         deTissue=d$deTissue[[res()]][[input$DEclustNum]],
+                         deMarker=d$deMarker[[res()]][[input$DEclustNum]],
                          deNeighb=deNeighb[[res()]][[input$DEclustNum]])
       write.table(outTable,file,quote=F,sep="\t",row.names=T,col.names=NA)
     }
@@ -722,7 +821,8 @@ server <- function(input,output,session) {
   #### clusterGenes ####
   output$genePlotClustSelect <- renderUI({
     if (length(res()) > 0) {
-      selectInput("genePlotClust","Cluster:",choices=c("",levels(clusts())),selected=cSelected())
+      selectInput("genePlotClust","Cluster:",selected=cSelected(),
+                  choices=c("",levels(clusts())[!levels(clusts()) == "Unselected"]))
     }
   })
   
@@ -762,63 +862,69 @@ server <- function(input,output,session) {
                        "to see gene expression for that cluster.",sep="\n"))
     } else {
       plot(MDTC~DR,
-           data=CGS[[res()]][[hiC()]][
-             !((CGS[[res()]][[hiC()]]$cMu | CGS[[res()]][[hiC()]]$cMs) & CGS[[res()]][[hiC()]]$overCut),],
+           data=d$CGS[[res()]][[hiC()]][
+             !((d$CGS[[res()]][[hiC()]]$cMu | d$CGS[[res()]][[hiC()]]$cMs) & 
+                 d$CGS[[res()]][[hiC()]]$overCut),],
            col=alpha("black",0.3),
            xlab="Proportion of cells detecting gene",
            ylab="Mean normalized gene expression of detected genes")
-      title(paste0("Cluster ", hiC(),": ",clusterID[[res()]][hiC()]),cex=1.2)
+      title(paste0("Cluster ", hiC(),": ",d$clusterID[[res()]][hiC()]),cex=1.2)
       mtext(paste("Cells:",sum(clusts()==hiC()),
-                  "   Genes detected:",length(CGS[[res()]][[hiC()]]$DR)),side=3,line=0,cex=0.9)
+                  "   Genes detected:",length(d$CGS[[res()]][[hiC()]]$DR)),side=3,line=0,cex=0.9)
       box(col=clustCols()[hiC()],lwd=2)
       
       if (input$cgLegend == "markers") {
-        for (x in which(CGS[[res()]][[hiC()]]$cMu)) {
-          my.symbols(x=CGS[[res()]][[hiC()]]$DR[x],y=CGS[[res()]][[hiC()]]$MDTC[x],symb=singleDot,inches=0.1,
+        for (x in which(d$CGS[[res()]][[hiC()]]$cMu)) {
+          my.symbols(x=d$CGS[[res()]][[hiC()]]$DR[x],
+                     y=d$CGS[[res()]][[hiC()]]$MDTC[x],
+                     symb=singleDot,inches=0.1,
                      MoreArgs=list(col1=cellMarkCols()[which(sapply(cellMarkersU,function(X) 
-                       CGS[[res()]][[hiC()]]$genes[x] %in% X))]))
+                       d$CGS[[res()]][[hiC()]]$genes[x] %in% X))]))
         }
-        for (x in which(CGS[[res()]][[hiC()]]$cMs)) {
+        for (x in which(d$CGS[[res()]][[hiC()]]$cMs)) {
           temp <- unlist(strsplit(names(which(sapply(cellMarkersS,function(X) 
-            CGS[[res()]][[hiC()]]$genes[x] %in% X))),"&"))
-          my.symbols(x=CGS[[res()]][[hiC()]]$DR[x],y=CGS[[res()]][[hiC()]]$MDTC[x],symb=doubleDot,inches=0.1,
+            d$CGS[[res()]][[hiC()]]$genes[x] %in% X))),"&"))
+          my.symbols(x=d$CGS[[res()]][[hiC()]]$DR[x],
+                     y=d$CGS[[res()]][[hiC()]]$MDTC[x],
+                     symb=doubleDot,inches=0.1,
                      MoreArgs=list(col1=cellMarkCols()[as.integer(temp[1])],
                                    col2=cellMarkCols()[as.integer(temp[2])]))
         }
-        for (x in which(CGS[[res()]][[hiC()]]$cMu & CGS[[res()]][[hiC()]]$overCut)) {
-          text(x=CGS[[res()]][[hiC()]]$DR[x],y=CGS[[res()]][[hiC()]]$MDTC[x],
-               labels=CGS[[res()]][[hiC()]]$genes[x],srt=315,cex=1.5,font=2,adj=c(1.1,-.1),
+        for (x in which(d$CGS[[res()]][[hiC()]]$cMu & d$CGS[[res()]][[hiC()]]$overCut)) {
+          text(x=d$CGS[[res()]][[hiC()]]$DR[x],y=d$CGS[[res()]][[hiC()]]$MDTC[x],
+               labels=d$CGS[[res()]][[hiC()]]$genes[x],srt=315,cex=1.5,font=2,adj=c(1.1,-.1),
                col=cellMarkCols()[which(sapply(cellMarkersU,function(X) 
-                 CGS[[res()]][[hiC()]]$genes[x] %in% X))])
+                 d$CGS[[res()]][[hiC()]]$genes[x] %in% X))])
         }
-        for (x in which(CGS[[res()]][[hiC()]]$cMs & CGS[[res()]][[hiC()]]$overCut)) {
-          text(x=CGS[[res()]][[hiC()]]$DR[x],y=CGS[[res()]][[hiC()]]$MDTC[x],
-               labels=CGS[[res()]][[hiC()]]$genes[x],srt=315,cex=1.5,font=2,adj=c(1.1,-.1),
+        for (x in which(d$CGS[[res()]][[hiC()]]$cMs & d$CGS[[res()]][[hiC()]]$overCut)) {
+          text(x=d$CGS[[res()]][[hiC()]]$DR[x],y=d$CGS[[res()]][[hiC()]]$MDTC[x],
+               labels=d$CGS[[res()]][[hiC()]]$genes[x],srt=315,cex=1.5,font=2,adj=c(1.1,-.1),
                col=cellMarkCols()[as.integer(temp[2])])
         }
-        legend(x=1.05,y=max(CGS[[res()]][[hiC()]]$MDTC),xpd=NA,bty="n",ncol=1,
+        legend(x=1.05,y=max(d$CGS[[res()]][[hiC()]]$MDTC),xpd=NA,bty="n",ncol=1,
                pch=19,col=cellMarkCols(),legend=names(cellMarkersU))
         
       } else if (input$cgLegend == "heatmap") {
-        degl <- rownames(CGS[[res()]][[hiC()]]) %in% 
+        degl <- rownames(d$CGS[[res()]][[hiC()]]) %in% 
           rownames(switch(input$heatG,
-                          deTissue=deTissue[[res()]],
-                          deMarker=deMarker[[res()]],
+                          deTissue=d$deTissue[[res()]],
+                          deMarker=d$deMarker[[res()]],
                           deNeighb=deNeighb[[res()]])[[hiC()]])[1:input$DEgeneCount]
         if (any(degl)) {
-          points(x=CGS[[res()]][[hiC()]]$DR[degl],y=CGS[[res()]][[hiC()]]$MDTC[degl],
+          points(x=d$CGS[[res()]][[hiC()]]$DR[degl],y=d$CGS[[res()]][[hiC()]]$MDTC[degl],
                  pch=16,cex=1.2,col="darkred")
-          text(x=CGS[[res()]][[hiC()]]$DR[degl],y=CGS[[res()]][[hiC()]]$MDTC[degl],
+          text(x=d$CGS[[res()]][[hiC()]]$DR[degl],y=d$CGS[[res()]][[hiC()]]$MDTC[degl],
                srt=315,cex=1.5,font=2,adj=c(1.1,-.1),col="darkred",
-               labels=CGS[[res()]][[hiC()]]$genes[degl])
+               labels=d$CGS[[res()]][[hiC()]]$genes[degl])
         }
         
       } else if (input$cgLegend == "regex" & length(GOI()) > 0) {
         degl <- which(rownames(nge) %in% GOI())
-        points(x=CGS[[res()]][[hiC()]]$DR[degl],y=CGS[[res()]][[hiC()]]$MDTC[degl],
+        points(x=d$CGS[[res()]][[hiC()]]$DR[degl],y=d$CGS[[res()]][[hiC()]]$MDTC[degl],
                pch=16,cex=1.2,col="darkred")
-        text(x=CGS[[res()]][[hiC()]]$DR[degl],y=CGS[[res()]][[hiC()]]$MDTC[degl],
-             srt=315,cex=1.5,font=2,adj=c(1.1,-.1),col="darkred",labels=CGS[[res()]][[hiC()]]$genes[degl])
+        text(x=d$CGS[[res()]][[hiC()]]$DR[degl],y=d$CGS[[res()]][[hiC()]]$MDTC[degl],
+             srt=315,cex=1.5,font=2,adj=c(1.1,-.1),col="darkred",
+             labels=d$CGS[[res()]][[hiC()]]$genes[degl])
       }
     }
   }
@@ -832,7 +938,7 @@ server <- function(input,output,session) {
   output$clusterGenesSave <- downloadHandler(
     filename="clusterGenes.pdf",
     content=function(file) {
-      pdf(file,width=12,height=9)
+      pdf(file,width=12,height=7)
       print(plot_clusterGenes())
       dev.off()
     }
@@ -840,7 +946,7 @@ server <- function(input,output,session) {
   
   #### Gene Stats Plot ####
   cgGeneOpts <- reactive({
-    t <- nearPoints(CGS[[res()]][[hiC()]],input$cgClick,xvar="DR",yvar="MDTC")
+    t <- nearPoints(d$CGS[[res()]][[hiC()]],input$cgClick,xvar="DR",yvar="MDTC")
     return(t$genes)
   })
   
@@ -891,8 +997,8 @@ server <- function(input,output,session) {
         }
       }
       if ("rnk" %in% input$bxpOpts) {
-        points(x=seq_along(CGS[[res()]]),
-               y=sapply(CGS[[res()]][temp_pos],function(X) X[input$cgGene,"MTCrank"]) * 
+        points(x=seq_along(d$CGS[[res()]]),
+               y=sapply(d$CGS[[res()]][temp_pos],function(X) X[input$cgGene,"MTCrank"]) * 
                  max(nge[input$cgGene,]) + min(nge[input$cgGene,]),
                pch=25,cex=1.2,col="darkred",bg="firebrick2")
         axis(side=4,at=seq(0,1,.25) * max(nge[input$cgGene,]) + min(nge[input$cgGene,]),
@@ -915,7 +1021,7 @@ server <- function(input,output,session) {
   output$geneTestSave <- downloadHandler(
     filename="geneTest.pdf",
     content=function(file) {
-      pdf(file,width=12,height=9)
+      pdf(file,width=12,height=7)
       print(plot_geneTest())
       dev.off()
     }
@@ -924,12 +1030,16 @@ server <- function(input,output,session) {
   
   ######## Distribution of genes of interest #########
   
-  GOI1 <- eventReactive(input$GOI1go,grep(input$GOI1,rownames(nge),value=T,ignore.case=T),ignoreNULL=F)
+  GOI1 <- eventReactive(input$GOI1go,
+                        grep(input$GOI1,rownames(nge),value=T,ignore.case=T),
+                        ignoreNULL=F)
   output$GOI1select <- renderUI({ 
     selectInput("goi1",label="Gene:",choices=sort(GOI1()),multiple=T)
   })
   
-  GOI2 <- eventReactive(input$GOI2go,grep(input$GOI2,rownames(nge),value=T,ignore.case=T),ignoreNULL=F)
+  GOI2 <- eventReactive(input$GOI2go,
+                        grep(input$GOI2,rownames(nge),value=T,ignore.case=T),
+                        ignoreNULL=F)
   output$GOI2select <- renderUI({ 
     selectInput("goi2",label="Gene:",choices=sort(GOI2()),multiple=T)
   })
@@ -963,9 +1073,12 @@ server <- function(input,output,session) {
                quantile(range(dr_viz[,1]),.95)),
            y=rep(max(dr_viz[,2]) + temp_yrange * .06,3),
            labels=c(round(min(gv),2),"Max expression per cell",round(max(gv),2)),pos=2:4,xpd=NA)
-      try(tempGeneName <- select(get(egDB),keys=goi,keytype="SYMBOL",column="GENENAME")$GENENAME,silent=T)
+      try(tempGeneName <- 
+            select(get(egDB),keys=goi,keytype="SYMBOL",column="GENENAME")$GENENAME,silent=T)
       if (exists("tempGeneName")) { 
-        if (length(tempGeneName) > 4) { tempGeneName[5] <- "and more..."; tempGeneName <- tempGeneName[1:5] }
+        if (length(tempGeneName) > 4) { 
+          tempGeneName[5] <- "and more..."; tempGeneName <- tempGeneName[1:5] 
+        }
         title(paste(tempGeneName,collapse="\n"),line=0.25,adj=.01,font.main=1)
       }
     }
@@ -986,7 +1099,7 @@ server <- function(input,output,session) {
   output$goiPlot1Save <- downloadHandler(
     filename="goi1.pdf",
     content=function(file) {
-      pdf(file,width=10,height=10)
+      pdf(file,width=7,height=7)
       if (input$plotClust1 == "clust" & length(res()) > 0) {
         print(plot_tsne())
         if (input$plotLabel1) { print(plot_tsne_labels()) }
@@ -1015,7 +1128,7 @@ server <- function(input,output,session) {
   output$goiPlot2Save <- downloadHandler(
     filename="goi2.pdf",
     content=function(file) {
-      pdf(file,width=10,height=10)
+      pdf(file,width=7,height=7)
       if (input$plotClust2 == "clust" & length(res()) > 0) {
         print(plot_tsne())
         if (input$plotLabel2) { print(plot_tsne_labels()) }
@@ -1028,6 +1141,157 @@ server <- function(input,output,session) {
       dev.off()
     }
   )
+  
+  
+  ######## Custom sets for DE #########
+  selectedSets <- reactiveValues(a=NULL,b=NULL)
+  
+  plot_tsne_selDE <- function() {
+    par(mar=c(3,3,1,1),mgp=2:0)
+    plot(dr_viz)
+    points(dr_viz[selectedSets$a,],pch=19,col=brewer.pal(3,"PRGn")[1])
+    points(dr_viz[selectedSets$b,],pch=19,col=brewer.pal(3,"PRGn")[3])
+    points(dr_viz[intersect(selectedSets$a,selectedSets$b),],pch=19,col="red")
+  }
+  output$tsneSelDE <- renderPlot({ print(plot_tsne_selDE()) })
+  
+  
+  currSel <- reactive(rownames(brushedPoints(as.data.frame(dr_viz),
+                                             input$tsneBrush,xvar="tSNE_1",yvar="tSNE_2")))
+  observeEvent(input$addCellsA,{ 
+    selectedSets$a <- append(selectedSets$a,currSel()[!currSel() %in% selectedSets$a]) 
+  })
+  observeEvent(input$removeCellsA,{ 
+    selectedSets$a <- selectedSets$a[!selectedSets$a %in% currSel()]
+  })
+  observeEvent(input$addCellsB,{ 
+    selectedSets$b <- append(selectedSets$b,currSel()[!currSel() %in% selectedSets$b]) 
+  })
+  observeEvent(input$removeCellsB,{ 
+    selectedSets$b <- selectedSets$b[!selectedSets$b %in% currSel()]
+  })
+  
+  observeEvent(input$calcDE,{
+    newRes <- paste0("Comp.",gsub("[^A-Za-z0-9]","",input$DEsetName))
+    if (length(intersect(selectedSets$a,selectedSets$b)) > 0) {
+      output$calcText <- renderText("Sets can't overlap (please assign red cells to only one set).")
+    } else if (any(sapply(list(selectedSets$a,selectedSets$b),length) < 3)) {
+      output$calcText <- renderText("Each set must contain at least 3 cells.")
+    } else if (nchar(newRes) < 1) {
+      output$calcText <- renderText("Please name this comparison (in text box above).")
+    } else if (newRes %in% colnames(d$cl)) {
+      output$calcText <- renderText("This comparison name has already been used.")
+    } else {
+      output$calcText <- renderText("")
+      withProgress({
+        temp <- rep("Unselected",nrow(d$cl))
+        names(temp) <- rownames(d$cl)
+        temp[selectedSets$a] <- "Set A"
+        temp[selectedSets$b] <- "Set B"
+        d$cl[[newRes]] <- factor(temp)
+        
+        #### Gene stats per set ####
+        incProgress(amount=1/6,detail="Gene detection rate per set")
+        setCells <- d$cl[,newRes] != "Unselected"
+        DR <- apply(nge[,setCells],1,function(X) 
+          tapply(X,d$cl[,newRes][setCells],function(Y) sum(Y>0)/length(Y)))
+        
+        incProgress(amount=1/6,detail="Mean detected gene expression per set")
+        MDTC <- apply(nge[,setCells],1,function(X) 
+          tapply(X,d$cl[,newRes][setCells],function(Y) {
+            temp <- mean.logX(Y[Y>0])
+            if (is.na(temp)) { temp <- 0 }
+            return(temp)
+          }))
+        
+        incProgress(amount=1/6,detail="Mean gene expression per set")
+        MTC <- apply(nge,1,function(X) 
+          tapply(X,d$cl[,newRes],mean.logX))
+        
+        d$CGS[[newRes]] <- sapply(levels(d$cl[,newRes])[1:2],function(X) 
+          data.frame(DR=DR[X,],MDTC=MDTC[X,],MTC=MTC[X,]),simplify=F)
+        d$CGS[[newRes]][["Unselected"]] <- data.frame(MTC=MTC["Unselected",])
+        for (i in names(d$CGS[[newRes]])) {
+          d$CGS[[newRes]][[i]]$MTCrank <- rank(d$CGS[[newRes]][[i]]$MTC,
+                                               ties.method="min")/nrow(d$CGS[[newRes]][[i]])
+          if (i == "Unselected") { next }
+          d$CGS[[newRes]][[i]]$cMu <- rownames(d$CGS[[newRes]][[i]]) %in% unlist(cellMarkersU)
+          d$CGS[[newRes]][[i]]$cMs <- rownames(d$CGS[[newRes]][[i]]) %in% unlist(cellMarkersS)
+          d$CGS[[newRes]][[i]]$overCut <- d$CGS[[newRes]][[i]]$MTC > mean(d$CGS[[newRes]][[i]]$MTC)
+          d$CGS[[newRes]][[i]]$genes <- rownames(d$CGS[[newRes]][[i]])
+        }
+        if (length(cellMarkers) < 1) {
+          d$clusterID[[newRes]] <- rep("",nrow(cl))
+        } else {
+          d$clusterID[[newRes]] <- c(names(cellMarkers)[sapply(d$CGS[[newRes]],function(Y) 
+            which.max(sapply(cellMarkers,function(X) median(Y$MTC[rownames(Y) %in% X]))))],
+            "Unselected")
+          names(d$clusterID[[newRes]]) <- c(names(d$CGS[[newRes]]),"Unselected")
+        }
+        
+        #### deTissue - DE per cluster vs all other data ####
+        incProgress(amount=1/6,detail="DE vs tissue logFC calculations")
+        deT_logFC <- sapply(levels(d$cl[,newRes])[1:2],function(i) 
+          MTC[i,] - apply(nge[,d$cl[,newRes] != i],1,mean.logX))
+        deT_genesUsed <- apply(deT_logFC,2,function(X) which(X > logFCthresh))  
+        if (any(sapply(deT_genesUsed,length) < 1)) {
+          stop(paste0("logFCthresh should be set to less than ",
+                      min(apply(deT_logFC,2,function(X) max(abs(X)))),
+                      ", the largest magnitude logFC between cluster ",
+                      names(which.min(apply(deT_logFC,2,function(X) max(abs(X))))),
+                      " and the remaining data."))
+        }
+        incProgress(amount=1/6,detail="DE vs tissue Wilcoxon rank sum calculations")
+        deT_pVal <- sapply(levels(d$cl[,newRes])[1:2],function(i)
+          apply(nge[deT_genesUsed[[i]],],1,function(X) 
+            wilcox.test(X[d$cl[,newRes] == i],X[d$cl[,newRes] != i])$p.value),simplify=F)
+        d$deTissue[[newRes]] <- sapply(levels(d$cl[,newRes])[1:2],function(i) 
+          data.frame(logFC=deT_logFC[deT_genesUsed[[i]],i],
+                     pVal=deT_pVal[[i]])[order(deT_pVal[[i]]),],simplify=F)
+        tempQval <- tapply(
+          p.adjust(do.call(rbind,d$deTissue[[newRes]])$pVal,"fdr"),
+          rep(names(sapply(d$deTissue[[newRes]],nrow)),sapply(d$deTissue[[newRes]],nrow)),
+          c)
+        for (i in names(d$deTissue[[newRes]])) { 
+          d$deTissue[[newRes]][[i]] <- d$deTissue[[newRes]][[i]][tempQval[[i]] <= WRSTalpha,]
+          d$deTissue[[newRes]][[i]]$qVal <- tempQval[[i]][tempQval[[i]] <= WRSTalpha] 
+        }
+        
+        #### deMarker - DE per cluster vs each other cluster #### 
+        incProgress(amount=1/6,detail="Calculating Set A vs Set B")
+        
+        deM_dDR <- DR["Set A",] - DR["Set B",]
+        deM_logFC <- MTC["Set A",] - MTC["Set B",]
+        deM_genesUsed <- switch(threshType,
+                                dDR=which(abs(deM_dDR) > dDRthresh),
+                                logFC=which(abs(deM_logFC) > logFCthresh))
+        if (length(deM_genesUsed) < 1) {
+          stop("Gene filtering threshold is set too high.")
+        }
+        
+        deM_pVal <- apply(nge[deM_genesUsed,],1,function(X) 
+          wilcox.test(X[d$cl[,newRes] == "Set A"],
+                      X[d$cl[,newRes] == "Set B"])$p.value)
+        
+        temp_deVS <- data.frame(dDR=deM_dDR[deM_genesUsed],
+                                logFC=deM_logFC[deM_genesUsed],
+                                pVal=deM_pVal)[order(deM_pVal),]
+        temp_deVS$qVal <- p.adjust(temp_deVS$pVal,"fdr")
+        
+        d$deMarker[[newRes]] <- list(
+          "Set A"=temp_deVS[temp_deVS[,threshType] > 0 & temp_deVS$qVal <= WRSTalpha,],
+          "Set B"=temp_deVS[temp_deVS[,threshType] < 0 & temp_deVS$qVal <= WRSTalpha,]
+        )
+        d$deMarker[[newRes]][["Set B"]]$dDR <- d$deMarker[[newRes]][["Set B"]]$dDR * -1
+        d$deMarker[[newRes]][["Set B"]]$logFC <- d$deMarker[[newRes]][["Set B"]]$logFC * -1
+        
+        
+        selectedSets$a <- selectedSets$b <- NULL
+      },message="DE calculations:")      
+      
+      
+    }
+  })
   
 }
 
