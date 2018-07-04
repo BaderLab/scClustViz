@@ -52,6 +52,7 @@ WRSTalpha <- 0.01 # significance level for DE testing using Wilcoxon rank sum te
 
 
 ######## Code to run the Shiny app ########
+library(markdown)
 library(shiny)
 library(cluster)
 library(gplots)

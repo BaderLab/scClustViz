@@ -52,6 +52,7 @@ WRSTalpha <- 0.01 # significance level for DE testing using Wilcoxon rank sum te
 
 
 ######## Code to run the Shiny app ########
+library(markdown)
 library(shiny)
 library(cluster)
 library(gplots)
@@ -60,15 +61,8 @@ library(viridis)
 library(RColorBrewer)
 library(TeachingDemos)
 
-egDB <- switch(species,
-               mouse={ library(org.Mm.eg.db); "org.Mm.eg.db" },
-               human={ library(org.Hs.eg.db); "org.Hs.eg.db" },
-               stop("
-                    Set species please!  
-                    If not mouse/human, add your species' annotation database from Bioconductor:  
-                    source('https://bioconductor.org/biocLite.R')
-                    biocLite('org.Xx.eg.db')
-                    "))
+library(org.Mm.eg.db)
+egDB <- "org.Mm.eg.db"
 
 mean.logX <- function(data,ex=exponent,pc=pseudocount) { log(mean(ex^data - pc) + 1/ncol(nge),base=ex) }
 rainbow2 <- function(n,a=1) {

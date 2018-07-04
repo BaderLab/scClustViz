@@ -5,6 +5,6 @@ account: innesbt
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
 appId: 365571
-bundleId: 1444284
+bundleId: 1463887
 url: https://innesbt.shinyapps.io/e11cortex/
-when: 1529720913.69514
+when: 1530676542.41646
