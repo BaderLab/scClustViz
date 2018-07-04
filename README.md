@@ -4,7 +4,7 @@ An interactive R Shiny tool for visualizing single-cell RNAseq clustering result
 -   [scClustViz Usage](#scclustviz-usage)  
     -   [Setup](#setup)  
     -   [Run](#run)  
-    -   [Demo](#demo)  
+    -   [Demos](#demos)  
 -   [Cell Reports 2017](#cell-reports-2017)
 -   [scRNAseq analysis pipeline](#scrnaseq-analysis-pipeline)  
 -   [Contact](#contact)  
