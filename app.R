@@ -169,20 +169,30 @@ ui <- fixedPage(
   hr(),
   
   ######## Custom sets for DE #########
+  fixedRow(titlePanel("Select cells for direct comparison")),
   fixedRow(
     column(6,plotOutput("tsneSelDE",brush="tsneBrush",height="580px")),
     column(6,
+           p(paste("Here you can select cells to further explore using the figures above.",
+                   "Click and drag to select cells, and use the buttons below to add them",
+                   "to a set of cells. When your sets are ready, name the comparison and",
+                   "click the 'Calculate & Save' button. Once the calculation is done",
+                   "the comparison will be added to the cluster list at the top of the page.")),
+           hr(),
            actionButton("addCellsA","Set A: Add Cells",icon("plus")),
            actionButton("removeCellsA","Set A: Remove Cells",icon("minus")),
+           htmlOutput("textSetA"),
            hr(),
            actionButton("addCellsB","Set B: Add Cells",icon("plus")),
            actionButton("removeCellsB","Set B: Remove Cells",icon("minus")),
+           htmlOutput("textSetB"),
            hr(),
            textInput("DEsetName","Short name for this comparison:",
                      placeholder="A-z0-9 only please"),
            actionButton("calcDE","Calculate DE and Save",icon("play")),
+           actionButton("updateForViz","Save comparisons",icon("save")),
            hr(),
-           textOutput("calcText")
+           span(textOutput("calcText"),style="color:red")
     )
   ),
   h1()
@@ -1012,11 +1022,14 @@ server <- function(input,output,session) {
   selectedSets <- reactiveValues(a=NULL,b=NULL)
   
   plot_tsne_selDE <- function() {
-    par(mar=c(3,3,1,1),mgp=2:0)
+    par(mar=c(3,3,2,1),mgp=2:0)
     plot(dr_viz)
     points(dr_viz[selectedSets$a,],pch=19,col=brewer.pal(3,"PRGn")[1])
     points(dr_viz[selectedSets$b,],pch=19,col=brewer.pal(3,"PRGn")[3])
     points(dr_viz[intersect(selectedSets$a,selectedSets$b),],pch=19,col="red")
+    legend("top",horiz=T,bty="n",xpd=NA,inset=c(0,-.06),
+           legend=c("Set A","Set B","Both"),
+           pch=19,col=c(brewer.pal(3,"PRGn")[c(1,3)],"red"))
   }
   output$tsneSelDE <- renderPlot({ print(plot_tsne_selDE()) })
   
@@ -1035,6 +1048,10 @@ server <- function(input,output,session) {
   observeEvent(input$removeCellsB,{ 
     selectedSets$b <- selectedSets$b[!selectedSets$b %in% currSel()]
   })
+  output$textSetA <- renderText(paste("<font color=\"#AF8DC3\"> &#9899 </font>",
+                                      length(selectedSets$a),"cells in Set A."))
+  output$textSetB <- renderText(paste("<font color=\"#7FBF7B\"> &#9899 </font>",
+                                      length(selectedSets$b),"cells in Set B."))
   
   observeEvent(input$calcDE,{
     newRes <- paste0("Comp.",gsub("[^A-Za-z0-9]","",input$DEsetName))
@@ -1150,12 +1167,18 @@ server <- function(input,output,session) {
         d$deMarker[[newRes]][["Set B"]]$dDR <- d$deMarker[[newRes]][["Set B"]]$dDR * -1
         d$deMarker[[newRes]][["Set B"]]$logFC <- d$deMarker[[newRes]][["Set B"]]$logFC * -1
 
-        
         selectedSets$a <- selectedSets$b <- NULL
       },message="DE calculations:")      
 
       
     }
+  })
+  observeEvent(input$updateForViz, {
+    cl <<- d$cl
+    CGS <- d$CGS
+    deTissue <<- d$deTissue
+    deMarker <<- d$deMarker
+    #save() #### ADD THIS ####
   })
   
 }
