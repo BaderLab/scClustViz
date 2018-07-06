@@ -89,12 +89,22 @@ if (length(cellMarkers) < 1) {
 
 demoRegex <- switch(species,mouse="^Actb$",human="^ACTB$")
 
+
 load(dataPath)
 temp_dataPath <- strsplit(dataPath,"/|\\\\")
 dataPath <- sub(temp_dataPath[[1]][length(temp_dataPath[[1]])],"",dataPath)
 if (dataPath == "") { dataPath <- "./" }
 dataTitle <- sub("\\..+$|_forViz\\..+$","",temp_dataPath[[1]][length(temp_dataPath[[1]])])
 rm(temp_dataPath)
+
+for (selDEfile in grep(paste0("^",dataTitle,".+selDE.+RData$"),list.files(dataPath),value=T)) {
+  temp <- load(paste0(dataPath,selDEfile))
+  cl <- cbind(cl,new_cl)
+  CGS <- append(CGS,new_CGS)
+  deTissue <- append(deTissue,new_deTissue)
+  deMarker <- append(deMarker,new_deMarker)
+  rm(list=temp)
+}
 
 if (file.exists(paste0(dataPath,dataTitle,"_savedRes.RData"))) {
   load(paste0(dataPath,dataTitle,"_savedRes.RData"))
@@ -113,6 +123,7 @@ silDist <- dist(dr_clust,method="euclidean")
 for (l in names(CGS)) {
   for (i in names(CGS[[l]])) {
     CGS[[l]][[i]]$MTCrank <- rank(CGS[[l]][[i]]$MTC,ties.method="min")/nrow(CGS[[l]][[i]])
+    if (i == "Unselected") { next }
     CGS[[l]][[i]]$cMu <- rownames(CGS[[l]][[i]]) %in% unlist(cellMarkersU)
     CGS[[l]][[i]]$cMs <- rownames(CGS[[l]][[i]]) %in% unlist(cellMarkersS)
     CGS[[l]][[i]]$overCut <- CGS[[l]][[i]]$MTC > mean(CGS[[l]][[i]]$MTC)
@@ -127,6 +138,7 @@ if (length(cellMarkers) < 1) {
     temp <- names(cellMarkers)[sapply(Z,function(Y) 
       which.max(sapply(cellMarkers,function(X) median(Y$MTC[rownames(Y) %in% X]))))]
     names(temp) <- names(Z)
+    temp["Unselected"] <- "Unselected"
     return(temp)
   },simplify=F)
 }

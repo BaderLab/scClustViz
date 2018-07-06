@@ -13,7 +13,9 @@ ui <- fixedPage(
            fixedRow(column(6,uiOutput("resSelect"),align="left"),
                     column(6,align="right",
                            actionButton("go","View clusters at this resolution",icon("play")),
-                           actionButton("save","Save this resolution as default",icon("bookmark")))),
+                           uiOutput("saveButton")
+                    )
+           ),
            radioButtons("deType",NULL,list("# of DE genes to nearest neighbouring cluster"="deNeighb",
                                            "# of marker genes per cluster"="deMarker"),inline=T),
            plotOutput("cqPlot",height="500px")),
@@ -171,7 +173,8 @@ ui <- fixedPage(
   ######## Custom sets for DE #########
   fixedRow(titlePanel("Select cells for direct comparison")),
   fixedRow(
-    column(6,plotOutput("tsneSelDE",brush="tsneBrush",height="580px")),
+    column(6,
+           plotOutput("tsneSelDE",brush="tsneBrush",height="580px")),
     column(6,
            p(paste("Here you can select cells to further explore using the figures above.",
                    "Click and drag to select cells, and use the buttons below to add them",
@@ -179,18 +182,25 @@ ui <- fixedPage(
                    "click the 'Calculate & Save' button. Once the calculation is done",
                    "the comparison will be added to the cluster list at the top of the page.")),
            hr(),
-           actionButton("addCellsA","Set A: Add Cells",icon("plus")),
-           actionButton("removeCellsA","Set A: Remove Cells",icon("minus")),
-           htmlOutput("textSetA"),
+           selectInput("tsneSelDEcol","Metadata overlay:",choices=c("",colnames(md))),
            hr(),
-           actionButton("addCellsB","Set B: Add Cells",icon("plus")),
-           actionButton("removeCellsB","Set B: Remove Cells",icon("minus")),
-           htmlOutput("textSetB"),
+           column(6,htmlOutput("textSetA"),
+                  actionButton("addCellsA","Set A: Add Cells",icon("plus"),
+                               style="color: #fff; background-color: #a50026"),
+                  actionButton("removeCellsA","Set A: Remove Cells",icon("minus"),
+                               style="color: #a50026; background-color: #fff; border-color: #a50026")
+           ),
+           column(6,htmlOutput("textSetB"),
+                  actionButton("addCellsB","Set B: Add Cells",icon("plus"),
+                               style="color: #fff; background-color: #313695"),
+                  actionButton("removeCellsB","Set B: Remove Cells",icon("minus"),
+                               style="color: #313695; background-color: #fff; border-color: #313695")
+           ),
+           htmlOutput("textOverlap"),
            hr(),
            textInput("DEsetName","Short name for this comparison:",
                      placeholder="A-z0-9 only please"),
-           actionButton("calcDE","Calculate DE and Save",icon("play")),
-           actionButton("updateForViz","Save comparisons",icon("save")),
+           actionButton("calcDE","Calculate differential gene expression",icon("play")),
            hr(),
            span(textOutput("calcText"),style="color:red")
     )
@@ -219,7 +229,7 @@ server <- function(input,output,session) {
   
   ######## Cluster Resolution Selection ########
   #### Inter-cluster DE boxplots ####
-  numClust <- sapply(cl,function(X) length(levels(X)))
+  numClust <- sapply(cl[,!grepl("^Comp",colnames(cl))],function(X) length(levels(X)))
   clustList <- reactive({ 
     temp <- as.list(colnames(d$cl)) 
     names(temp)[seq_along(numClust)] <- paste0(unlist(temp)[seq_along(numClust)],
@@ -234,6 +244,13 @@ server <- function(input,output,session) {
   })
   output$resSelect <- renderUI({
     selectInput("res","Resolution:",choices=clustList(),selected=savedRes)
+  })
+  output$saveButton <- renderUI({
+    if (grepl("^Comp",input$res)) {
+      actionButton("updateForViz","Save this comparison to disk",icon("save"))
+    } else {
+      actionButton("save","Save this resolution as default",icon("bookmark"))
+    }
   })
   numClust <- numClust[numClust > 1]
   
@@ -584,21 +601,21 @@ server <- function(input,output,session) {
       switch(
         input$heatG,
         deTissue=
-          sliderInput("DEgeneCount",min=2,max=max(sapply(d$deTissue[[res()]],nrow)),
+          sliderInput("DEgeneCount",min=1,max=max(sapply(d$deTissue[[res()]],nrow)),
                       value=5,step=1,ticks=T,width="100%",
                       label=HTML(paste(
                         "Positive differential gene expression of cluster over tissue",
                         "# of genes per cluster to show",sep="<br/>"
                       ))),
         deMarker=
-          sliderInput("DEgeneCount",min=2,max=max(sapply(d$deMarker[[res()]],nrow)),
+          sliderInput("DEgeneCount",min=1,max=max(sapply(d$deMarker[[res()]],nrow)),
                       value=5,step=1,ticks=T,width="100%",
                       label=HTML(paste(
                         "Positive differential gene expression between cluster and all other clusters",
                         "# of genes per cluster to show",sep="<br/>"
                       ))),
         deNeighb=
-          sliderInput("DEgeneCount",min=2,max=max(sapply(deNeighb[[res()]],nrow)),
+          sliderInput("DEgeneCount",min=1,max=max(sapply(deNeighb[[res()]],nrow)),
                       value=5,step=1,ticks=T,width="100%",
                       label=HTML(paste(
                         "Positive differential gene expression between cluster and nearest neighbour",
@@ -651,13 +668,25 @@ server <- function(input,output,session) {
       plot(x=NA,y=NA,xlim=0:1,ylim=0:1,xaxt="n",yaxt="n",xlab=NA,ylab=NA)
       text(.5,.5,paste("Heatmap cannot be computed",
                        "with less than two clusters.",sep="\n"))
+    } else if (length(heatGenes()) < 1) {
+      plot(x=NA,y=NA,xlim=0:1,ylim=0:1,xaxt="n",yaxt="n",xlab=NA,ylab=NA)
+      text(.5,.5,"There are no differentially expressed genes.")
     } else {
-      tempLabRow <- paste(paste0("Cluster ",levels(clusts())),
-                          paste(sapply(switch(input$heatG,
-                                              deTissue=d$deTissue[[res()]],
-                                              deMarker=d$deMarker[[res()]],
-                                              deNeighb=deNeighb[[res()]]),nrow),"DE"),
-                          sep=": ")
+      if ("Unselected" %in% levels(clusts())) {
+        tempLabRow <- c(paste(levels(clusts())[!levels(clusts()) == "Unselected"],
+                              paste(sapply(switch(input$heatG,
+                                                  deTissue=d$deTissue[[res()]],
+                                                  deMarker=d$deMarker[[res()]],
+                                                  deNeighb=deNeighb[[res()]]),nrow),"DE"),
+                              sep=": "),"Unselected")
+      } else {
+        tempLabRow <- paste(paste0("Cluster ",levels(clusts())),
+                            paste(sapply(switch(input$heatG,
+                                                deTissue=d$deTissue[[res()]],
+                                                deMarker=d$deMarker[[res()]],
+                                                deNeighb=deNeighb[[res()]]),nrow),"DE"),
+                            sep=": ")
+      }
       heatmap.2(clustMeans(),Rowv=as.dendrogram(hC()),Colv=as.dendrogram(hG()),scale="column",
                 margins=c(9,12),lhei=c(2,10),lwid=c(1,11),trace="none",
                 keysize=1.5,density.info="none",key.par=list(mar=c(3,.5,2,.5),mgp=2:0),
@@ -1022,11 +1051,54 @@ server <- function(input,output,session) {
   selectedSets <- reactiveValues(a=NULL,b=NULL)
   
   plot_tsne_selDE <- function() {
-    par(mar=c(3,3,2,1),mgp=2:0)
-    plot(dr_viz)
-    points(dr_viz[selectedSets$a,],pch=19,col=brewer.pal(3,"PRGn")[1])
-    points(dr_viz[selectedSets$b,],pch=19,col=brewer.pal(3,"PRGn")[3])
-    points(dr_viz[intersect(selectedSets$a,selectedSets$b),],pch=19,col="red")
+    if (is.factor(md[,input$tsneSelDEcol]) | is.character(md[,input$tsneSelDEcol])) {
+      id <- as.factor(md[,input$tsneSelDEcol])
+      if (length(levels(md[,input$tsneSelDEcol])) <= 8) {
+        idcol <- brewer.pal(length(levels(md[,input$tsneSelDEcol])),
+                            "Dark2")[1:length(levels(md[,input$tsneSelDEcol]))]
+      } else {
+        idcol <- rainbow2(length(levels(md[,input$tsneSelDEcol])))
+      }
+    } else {
+      id <- cut(md[,input$tsneSelDEcol],100)
+      idcol <- viridis(100,d=-1)
+    }
+    layout(cbind(2:1),heights=c(1,9))
+    par(mar=c(3,3,0,1),mgp=2:0)
+    plot(x=NULL,y=NULL,xlab="tSNE_1",ylab="tSNE_2",
+         xlim=range(dr_viz[,1]),ylim=range(dr_viz[,2]))
+    if (any(ci())) {
+      points(dr_viz[!ci(),],pch=21,
+             col=alpha(idcol,.1)[id[!ci()]],
+             bg=alpha(idcol,0.05)[id[!ci()]])
+      points(dr_viz[ci(),],pch=21,
+             col=alpha(idcol,.8)[id[ci()]],
+             bg=alpha(idcol,0.4)[id[ci()]])
+    } else {
+      points(dr_viz,pch=21,
+             col=alpha(idcol,.8)[id],
+             bg=alpha(idcol,0.4)[id])
+    }
+    points(dr_viz[selectedSets$a,],pch=19,col="#a50026")
+    points(dr_viz[selectedSets$b,],pch=19,col="#313695")
+    points(dr_viz[intersect(selectedSets$a,selectedSets$b),],pch=19,col="#ffffbf")
+    points(dr_viz[intersect(selectedSets$a,selectedSets$b),],pch=4,col="red")
+    
+    if (is.factor(md[,input$tsneSelDEcol]) | is.character(md[,input$tsneSelDEcol])) {
+      par(mar=c(0,0,0,0))
+      plot.new()
+      legend("bottom",bty="n",horiz=T,pch=c(NA,rep(21,length(levels(md[,input$tsneSelDEcol])))),
+             legend=c(paste0(input$tsneSelDEcol,":"),levels(md[,input$tsneSelDEcol])),
+             col=c(NA,idcol),pt.bg=c(NA,alpha(idcol,0.5)))
+    } else {
+      par(mar=c(0,5,3,3))
+      barplot(rep(1,100),space=0,col=idcol,xaxt="n",yaxt="n",border=NA,main=input$tsneSelDEcol)
+      text(x=c(1,100),y=1,pos=c(2,4),xpd=NA,labels=round(range(md[,input$tsneSelDEcol]),2))
+    }
+    
+    
+    
+    
     legend("top",horiz=T,bty="n",xpd=NA,inset=c(0,-.06),
            legend=c("Set A","Set B","Both"),
            pch=19,col=c(brewer.pal(3,"PRGn")[c(1,3)],"red"))
@@ -1048,9 +1120,11 @@ server <- function(input,output,session) {
   observeEvent(input$removeCellsB,{ 
     selectedSets$b <- selectedSets$b[!selectedSets$b %in% currSel()]
   })
-  output$textSetA <- renderText(paste("<font color=\"#AF8DC3\"> &#9899 </font>",
+  output$textSetA <- renderText(paste("<font color=\"#a50026\"> &#9899 </font>",
                                       length(selectedSets$a),"cells in Set A."))
-  output$textSetB <- renderText(paste("<font color=\"#7FBF7B\"> &#9899 </font>",
+  output$textSetB <- renderText(paste("<font color=\"#313695\"> &#9899 </font>",
+                                      length(selectedSets$b),"cells in Set B."))
+  output$textOverlap <- renderText(paste("<font color=\"#313695\"> &#9899 </font>",
                                       length(selectedSets$b),"cells in Set B."))
   
   observeEvent(input$calcDE,{
@@ -1105,10 +1179,10 @@ server <- function(input,output,session) {
         if (length(cellMarkers) < 1) {
           d$clusterID[[newRes]] <- rep("",nrow(cl))
         } else {
-          d$clusterID[[newRes]] <- c(names(cellMarkers)[sapply(d$CGS[[newRes]],function(Y) 
+          d$clusterID[[newRes]] <- c(names(cellMarkers)[sapply(d$CGS[[newRes]][1:2],function(Y) 
             which.max(sapply(cellMarkers,function(X) median(Y$MTC[rownames(Y) %in% X]))))],
             "Unselected")
-          names(d$clusterID[[newRes]]) <- c(names(d$CGS[[newRes]]),"Unselected")
+          names(d$clusterID[[newRes]]) <- names(d$CGS[[newRes]])
         }
         
         #### deTissue - DE per cluster vs all other data ####
@@ -1174,11 +1248,20 @@ server <- function(input,output,session) {
     }
   })
   observeEvent(input$updateForViz, {
-    cl <<- d$cl
-    CGS <- d$CGS
-    deTissue <<- d$deTissue
-    deMarker <<- d$deMarker
-    #save() #### ADD THIS ####
+    withProgress({
+      new_cl <- d$cl[input$res]
+      new_CGS <- list()
+      for (i in names(d$CGS[[input$res]])) {
+        new_CGS[[input$res]][[i]] <- 
+          d$CGS[[input$res]][[i]][colnames(d$CGS[[input$res]][[i]]) %in% c("DR","MDTC","MTC")]
+      }
+      new_deTissue <- d$deTissue[input$res]
+      new_deMarker <- d$deMarker[input$res]
+      incProgress(.5)
+      save(new_cl,new_CGS,new_deTissue,new_deMarker,
+           file=paste0(dataPath,dataTitle,"_selDE_",sub("Comp.","",input$res,fixed=T),".RData"))
+    },message=paste0(
+      "Saving ",dataTitle,"_selDE_",sub("Comp.","",input$res,fixed=T),".RData to ",dataPath))
   })
   
 }
