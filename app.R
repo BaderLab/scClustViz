@@ -1051,7 +1051,10 @@ server <- function(input,output,session) {
   selectedSets <- reactiveValues(a=NULL,b=NULL)
   
   plot_tsne_selDE <- function() {
-    if (is.factor(md[,input$tsneSelDEcol]) | is.character(md[,input$tsneSelDEcol])) {
+    if (input$tsneSelDEcol == "") {
+      id <- rep(1,nrow(md))
+      idcol <- "grey20"
+    } else if (is.factor(md[,input$tsneSelDEcol]) | is.character(md[,input$tsneSelDEcol])) {
       id <- as.factor(md[,input$tsneSelDEcol])
       if (length(levels(md[,input$tsneSelDEcol])) <= 8) {
         idcol <- brewer.pal(length(levels(md[,input$tsneSelDEcol])),
@@ -1063,45 +1066,37 @@ server <- function(input,output,session) {
       id <- cut(md[,input$tsneSelDEcol],100)
       idcol <- viridis(100,d=-1)
     }
-    layout(cbind(2:1),heights=c(1,9))
-    par(mar=c(3,3,0,1),mgp=2:0)
+    par(mar=c(3,3,3,1),mgp=2:0)
     plot(x=NULL,y=NULL,xlab="tSNE_1",ylab="tSNE_2",
          xlim=range(dr_viz[,1]),ylim=range(dr_viz[,2]))
-    if (any(ci())) {
-      points(dr_viz[!ci(),],pch=21,
-             col=alpha(idcol,.1)[id[!ci()]],
-             bg=alpha(idcol,0.05)[id[!ci()]])
-      points(dr_viz[ci(),],pch=21,
-             col=alpha(idcol,.8)[id[ci()]],
-             bg=alpha(idcol,0.4)[id[ci()]])
+    points(dr_viz,pch=21,
+           col=alpha(idcol,.8)[id],
+           bg=alpha(idcol,0.4)[id])
+    
+    if (input$tsneSelDEcol == "") {
+    } else if (is.factor(md[,input$tsneSelDEcol]) | is.character(md[,input$tsneSelDEcol])) {
+      legend("topleft",bty="n",horiz=T,xpd=NA,inset=c(0,-.09),
+             pch=21,col=idcol,pt.bg=alpha(idcol,0.5),
+             title=input$tsneSelDEcol,legend=levels(md[,input$tsneSelDEcol]))
     } else {
-      points(dr_viz,pch=21,
-             col=alpha(idcol,.8)[id],
-             bg=alpha(idcol,0.4)[id])
+      legend("topleft",bty="n",horiz=T,xpd=NA,inset=c(0,-.09),
+             pch=21,col=viridis(3,d=-1),pt.bg=viridis(3,.5,d=-1),
+             title=input$tsneSelDEcol,
+             legend=c(round(min(md[,input$tsneSelDEcol]),2),
+                      round((max(md[,input$tsneSelDEcol]) - 
+                               min(md[,input$tsneSelDEcol])) / 2,2),
+                      round(max(md[,input$tsneSelDEcol]),2)))
     }
+    
+    
     points(dr_viz[selectedSets$a,],pch=19,col="#a50026")
     points(dr_viz[selectedSets$b,],pch=19,col="#313695")
     points(dr_viz[intersect(selectedSets$a,selectedSets$b),],pch=19,col="#ffffbf")
     points(dr_viz[intersect(selectedSets$a,selectedSets$b),],pch=4,col="red")
     
-    if (is.factor(md[,input$tsneSelDEcol]) | is.character(md[,input$tsneSelDEcol])) {
-      par(mar=c(0,0,0,0))
-      plot.new()
-      legend("bottom",bty="n",horiz=T,pch=c(NA,rep(21,length(levels(md[,input$tsneSelDEcol])))),
-             legend=c(paste0(input$tsneSelDEcol,":"),levels(md[,input$tsneSelDEcol])),
-             col=c(NA,idcol),pt.bg=c(NA,alpha(idcol,0.5)))
-    } else {
-      par(mar=c(0,5,3,3))
-      barplot(rep(1,100),space=0,col=idcol,xaxt="n",yaxt="n",border=NA,main=input$tsneSelDEcol)
-      text(x=c(1,100),y=1,pos=c(2,4),xpd=NA,labels=round(range(md[,input$tsneSelDEcol]),2))
-    }
-    
-    
-    
-    
-    legend("top",horiz=T,bty="n",xpd=NA,inset=c(0,-.06),
-           legend=c("Set A","Set B","Both"),
-           pch=19,col=c(brewer.pal(3,"PRGn")[c(1,3)],"red"))
+    legend("topright",horiz=T,bty="n",xpd=NA,inset=c(0,-.09),
+           title="Selected Cells",legend=c("Set A","Set B","Both"),
+           pch=c(19,19,4),col=c("#a50026","#313695","red"))
   }
   output$tsneSelDE <- renderPlot({ print(plot_tsne_selDE()) })
   
