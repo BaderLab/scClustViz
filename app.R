@@ -6,9 +6,30 @@ ui <- fixedPage(
     ),
   hr(),
   
-  ######## Cluster Resolution Selection ########
+  ######## Clustering Solution Selection ########
   fixedRow(
-    titlePanel("Cluster Resolution Selection"),
+    titlePanel("Clustering Solution Selection"),
+    p(paste("Here you can compare the results of clustering at different resolutions to",
+            "determine the appropriate clustering solution for your data. You can see the",
+            "cluster solutions represented as boxplots on the left, where each boxplot",
+            "represents the number of genes differentially expressed between each cluster",
+            "and its nearest neighbour, or marker genes per cluster. The cluster selected",
+            "in the pulldown menu is highlighted in red, and the silhouette plot for that",
+            "cluster is shown on the right.")),
+    p(paste("A silhouette plot is a horizontal barplot where each bar is a cell, grouped by",
+            "cluster. The width of each bar represents the difference between mean distance",
+            "to other cells within the cluster and mean distance to cells in the nearest",
+            "neighbouring cluster. Distance is Euclidean in reduced dimensional space.",
+            "Positive silhouettes indicate good cluster cohesion.")),
+    p(paste("Once you've selected an appropriate cluster solution (we suggest picking one",
+            "where all nearest neighbouring clusters have differentially expressed genes",
+            "between them), click 'View clusters at this resolution' to proceed. If you",
+            "want to save this cluster solution as the default for next time, click 'Save",
+            "this resolution as default'. All figures can be downloaded as PDFs by clicking",
+            "the buttons next to each figure.")),
+    h1()
+  ),
+  fixedRow(
     column(6,
            fixedRow(column(6,uiOutput("resSelect"),align="left"),
                     column(6,align="right",
@@ -27,8 +48,16 @@ ui <- fixedPage(
   ),
   hr(),
   
-  ######## Cell-type Clusters ########
-  fixedRow(titlePanel("Cell-type Clusters")),
+  ######## Dataset and Cluster Metadata Inspection ########
+  fixedRow(
+    titlePanel("Dataset and Cluster Metadata Inspection"),
+    p(paste("Here you can explore your dataset as a whole: cluster assignments for all",
+            "cells; metadata overlays for cell projections; and figures for comparing",
+            "both numeric and categorical metadata.")),
+    p(paste("You can select any cluster for further assessment by clicking on a cell",
+            "from that cluster in the first figure on the left.")),
+    h1()
+  ),
   fixedRow(
     column(6,
            if (length(cellMarkers) > 0) {
@@ -81,7 +110,12 @@ ui <- fixedPage(
   hr(),
   
   ######## Cluster-wise Gene Stats #########
-  fixedRow(titlePanel("Cluster-wise Gene Stats")),
+  fixedRow(
+    titlePanel("Cluster-wise Gene Stats"),
+    p(paste()),
+    h1()
+    
+  ),
   fixedRow(
     column(2,uiOutput("heatDEtype")),
     column(2,uiOutput("DEclustSelect")),
@@ -255,7 +289,8 @@ server <- function(input,output,session) {
   numClust <- numClust[numClust > 1]
   
   plot_cqPlot <- function() {
-    numDEgenes <- lapply(get(input$deType),function(X) sapply(X,nrow))
+    numDEgenes <- lapply(get(input$deType)[!grepl("^Comp",names(get(input$deType)))],
+                         function(X) sapply(X,nrow))
     toplim <- c(21,max(unlist(numDEgenes)) + 20)
     botlim <- c(-1,21)
     
@@ -586,10 +621,10 @@ server <- function(input,output,session) {
   #### Heatmap genes ####
   output$heatDEtype <- renderUI({
     if (grepl("^Comp",input$res)) {
-      temp <- list("DE vs tissue average"="deTissue",
+      temp <- list("DE vs rest"="deTissue",
                    "Set A vs Set B"="deMarker")
     } else {
-      temp <- list("DE vs tissue average"="deTissue",
+      temp <- list("DE vs rest"="deTissue",
                    "Marker genes"="deMarker",
                    "DE vs neighbour"="deNeighb")
     }
@@ -765,13 +800,16 @@ server <- function(input,output,session) {
       text(.5,.5,paste("Click a cell from a cluster on the tSNE plot above",
                        "to see gene expression for that cluster.",sep="\n"))
     } else {
+      temp_ylab <- switch(as.character(exponent == exp(1)),
+                          "TRUE"="(natural log scale)",
+                          "FALSE"=paste0("(log",exponent," scale)"))
       plot(MDTC~DR,
            data=d$CGS[[res()]][[hiC()]][
              !((d$CGS[[res()]][[hiC()]]$cMu | d$CGS[[res()]][[hiC()]]$cMs) & 
                  d$CGS[[res()]][[hiC()]]$overCut),],
            col=alpha("black",0.3),
            xlab="Proportion of cells detecting gene",
-           ylab="Mean normalized gene expression of detected genes")
+           ylab=paste("Mean normalized gene expression of detected genes",temp_ylab))
       title(paste0("Cluster ", hiC(),": ",d$clusterID[[res()]][hiC()]),cex=1.2)
       mtext(paste("Cells:",sum(clusts()==hiC()),
                   "   Genes detected:",length(d$CGS[[res()]][[hiC()]]$DR)),side=3,line=0,cex=0.9)
@@ -872,12 +910,15 @@ server <- function(input,output,session) {
                        "then pick the gene from the list just above this figure",
                        "to see a comparison of that gene's expression across all clusters.",sep="\n"))
     } else {
+      temp_ylab <- switch(as.character(exponent == exp(1)),
+                          "TRUE"="(natural log scale)",
+                          "FALSE"=paste0("(log",exponent," scale)"))
       temp_pos <- switch(as.character(length(levels(clusts())) > 1),"TRUE"=hC()$order,"FALSE"=1)
       layout(matrix(2:1,nrow=2),heights=c(1,4))
       par(mar=c(3,3,0,3),mgp=2:0)
       suppressWarnings(boxplot(vector("list",length(levels(clusts()))),
                                ylim=range(nge[input$cgGene,]),
-                               ylab=paste(input$cgGene,"gene expression (log2)"),
+                               ylab=paste(input$cgGene,"gene expression",temp_ylab),
                                xlab=NA,xaxt="n"))
       mtext(levels(clusts())[temp_pos],side=1,line=0,at=seq_along(temp_pos))
       mtext("Clusters, ordered by heatmap dendrogram",side=1,line=1)
@@ -1115,12 +1156,11 @@ server <- function(input,output,session) {
   observeEvent(input$removeCellsB,{ 
     selectedSets$b <- selectedSets$b[!selectedSets$b %in% currSel()]
   })
-  output$textSetA <- renderText(paste("<font color=\"#a50026\"> &#9899 </font>",
-                                      length(selectedSets$a),"cells in Set A."))
-  output$textSetB <- renderText(paste("<font color=\"#313695\"> &#9899 </font>",
-                                      length(selectedSets$b),"cells in Set B."))
-  output$textOverlap <- renderText(paste("<font color=\"#313695\"> &#9899 </font>",
-                                      length(selectedSets$b),"cells in Set B."))
+  output$textSetA <- renderText(paste(length(selectedSets$a),"cells in Set A."))
+  output$textSetB <- renderText(paste(length(selectedSets$b),"cells in Set B."))
+  output$textOverlap <- renderText(paste(length(intersect(selectedSets$a,selectedSets$b)),
+                                         "cells in both sets.",
+                                         "Cells must be assigned to a single set prior to calculation."))
   
   observeEvent(input$calcDE,{
     newRes <- paste0("Comp.",gsub("[^A-Za-z0-9]","",input$DEsetName))
@@ -1128,7 +1168,7 @@ server <- function(input,output,session) {
       output$calcText <- renderText("Sets can't overlap (please assign red cells to only one set).")
     } else if (any(sapply(list(selectedSets$a,selectedSets$b),length) < 3)) {
       output$calcText <- renderText("Each set must contain at least 3 cells.")
-    } else if (nchar(newRes) < 1) {
+    } else if (nchar(input$DEsetName) < 1) {
       output$calcText <- renderText("Please name this comparison (in text box above).")
     } else if (newRes %in% colnames(d$cl)) {
       output$calcText <- renderText("This comparison name has already been used.")
@@ -1181,15 +1221,15 @@ server <- function(input,output,session) {
         }
         
         #### deTissue - DE per cluster vs all other data ####
-        incProgress(amount=1/6,detail="DE vs tissue logFC calculations")
-        deT_logFC <- sapply(levels(d$cl[,newRes])[1:2],function(i) 
+        incProgress(amount=1/6,detail="DE vs tissue logGER calculations")
+        deT_logGER <- sapply(levels(d$cl[,newRes])[1:2],function(i) 
           MTC[i,] - apply(nge[,d$cl[,newRes] != i],1,mean.logX))
-        deT_genesUsed <- apply(deT_logFC,2,function(X) which(X > logFCthresh))  
+        deT_genesUsed <- apply(deT_logGER,2,function(X) which(X > logGERthresh))  
         if (any(sapply(deT_genesUsed,length) < 1)) {
-          stop(paste0("logFCthresh should be set to less than ",
-                      min(apply(deT_logFC,2,function(X) max(abs(X)))),
-                      ", the largest magnitude logFC between cluster ",
-                      names(which.min(apply(deT_logFC,2,function(X) max(abs(X))))),
+          stop(paste0("logGERthresh should be set to less than ",
+                      min(apply(deT_logGER,2,function(X) max(abs(X)))),
+                      ", the largest magnitude logGER between cluster ",
+                      names(which.min(apply(deT_logGER,2,function(X) max(abs(X))))),
                       " and the remaining data."))
         }
         incProgress(amount=1/6,detail="DE vs tissue Wilcoxon rank sum calculations")
@@ -1197,7 +1237,7 @@ server <- function(input,output,session) {
           apply(nge[deT_genesUsed[[i]],],1,function(X) 
             wilcox.test(X[d$cl[,newRes] == i],X[d$cl[,newRes] != i])$p.value),simplify=F)
         d$deTissue[[newRes]] <- sapply(levels(d$cl[,newRes])[1:2],function(i) 
-          data.frame(logFC=deT_logFC[deT_genesUsed[[i]],i],
+          data.frame(logGER=deT_logGER[deT_genesUsed[[i]],i],
                      pVal=deT_pVal[[i]])[order(deT_pVal[[i]]),],simplify=F)
         tempQval <- tapply(
           p.adjust(do.call(rbind,d$deTissue[[newRes]])$pVal,"fdr"),
@@ -1212,10 +1252,10 @@ server <- function(input,output,session) {
         incProgress(amount=1/6,detail="Calculating Set A vs Set B")
 
         deM_dDR <- DR["Set A",] - DR["Set B",]
-        deM_logFC <- MTC["Set A",] - MTC["Set B",]
+        deM_logGER <- MTC["Set A",] - MTC["Set B",]
         deM_genesUsed <- switch(threshType,
                                 dDR=which(abs(deM_dDR) > dDRthresh),
-                                logFC=which(abs(deM_logFC) > logFCthresh))
+                                logGER=which(abs(deM_logGER) > logGERthresh))
         if (length(deM_genesUsed) < 1) {
           stop("Gene filtering threshold is set too high.")
         }
@@ -1225,7 +1265,7 @@ server <- function(input,output,session) {
                       X[d$cl[,newRes] == "Set B"])$p.value)
         
         temp_deVS <- data.frame(dDR=deM_dDR[deM_genesUsed],
-                                logFC=deM_logFC[deM_genesUsed],
+                                logGER=deM_logGER[deM_genesUsed],
                                 pVal=deM_pVal)[order(deM_pVal),]
         temp_deVS$qVal <- p.adjust(temp_deVS$pVal,"fdr")
 
@@ -1234,7 +1274,7 @@ server <- function(input,output,session) {
           "Set B"=temp_deVS[temp_deVS[,threshType] < 0 & temp_deVS$qVal <= WRSTalpha,]
         )
         d$deMarker[[newRes]][["Set B"]]$dDR <- d$deMarker[[newRes]][["Set B"]]$dDR * -1
-        d$deMarker[[newRes]][["Set B"]]$logFC <- d$deMarker[[newRes]][["Set B"]]$logFC * -1
+        d$deMarker[[newRes]][["Set B"]]$logGER <- d$deMarker[[newRes]][["Set B"]]$logGER * -1
 
         selectedSets$a <- selectedSets$b <- NULL
       },message="DE calculations:")      

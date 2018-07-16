@@ -35,14 +35,14 @@ pseudocount <- 1
 ##  ^ pseudocount added to all log-normalized values in your input data.  
 ##  Most methods use a pseudocount of 1 to eliminate log(0) errors.
 
-#threshType <- "logFC"  # use a fold-change-based threshold for filtering genes prior to DE testing
+#threshType <- "logGER"  # use a fold-change-based threshold for filtering genes prior to DE testing
 threshType <- "dDR"     # use a difference in detection rate threshold for filtering 
 ##  Filtering genes for use in differential expression testing can be done multiple ways.
 ##  We use a fold-change filter for comparing each cluster to the tissue as a whole, but find that
 ##  difference in detection rates works better when comparing clusters to each other.  You can set
-##  threshType to "logFC" to use fold-change for all gene filtering if you'd prefer.
+##  threshType to "logGER" to use fold-change for all gene filtering if you'd prefer.
 
-logFCthresh <- 1  # magnitude of mean log-expression fold change between clusters to use as filter.
+logGERthresh <- 1  # magnitude of mean log-expression fold change between clusters to use as filter.
 dDRthresh <- 0.15 # magnitude of detection rate difference between clusters to use as filter.
 WRSTalpha <- 0.01 # significance level for DE testing using Wilcoxon rank sum test
 

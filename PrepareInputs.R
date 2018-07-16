@@ -10,14 +10,14 @@ pseudocount <- 1
 ##  ^ pseudocount added to all log-normalized values in your input data.  
 ##  Most methods use a pseudocount of 1 to eliminate log(0) errors.
 
-#threshType <- "logFC"  # use a fold-change-based threshold for filtering genes prior to DE testing
+#threshType <- "logGER"  # use an expression ratio-based threshold for filtering genes prior to DE testing
 threshType <- "dDR"     # use a difference in detection rate threshold for filtering 
 ##  Filtering genes for use in differential expression testing can be done multiple ways.
-##  We use a fold-change filter for comparing each cluster to the tissue as a whole, but find that
-##  difference in detection rates works better when comparing clusters to each other.  You can set
-##  threshType to "logFC" to use fold-change for all gene filtering if you'd prefer.
+##  We use an expression ratio filter for comparing each cluster to the rest of the tissue as a whole, 
+##  but find that difference in detection rates works better when comparing clusters to each other.  
+##  You can set threshType to "logGER" to use fold-change for all gene filtering if you'd prefer.
 
-logFCthresh <- 1  # magnitude of mean log-expression fold change between clusters to use as filter.
+logGERthresh <- 1  # magnitude of mean log-expression fold change between clusters to use as filter.
 dDRthresh <- 0.15 # magnitude of detection rate difference between clusters to use as filter.
 WRSTalpha <- 0.01 # significance level for DE testing using Wilcoxon rank sum test
 
@@ -39,7 +39,7 @@ speciesSymbol <- "mgi_symbol" ##  Gene IDs will be converted to MGI symbols if i
 
 ######## Functions ########
 mean.logX <- function(data,ex=exponent,pc=pseudocount) { log(mean(ex^data - pc) + 1/ncol(nge),base=ex) }
-##  ^ Adding a pseudocount of 1 to the logMean prior to logFC calculations skews the result quite dramatically,
+##  ^ Adding a pseudocount of 1 to the logMean prior to logGER calculations skews the result quite dramatically,
 ##  so instead we add a small pseudocount to avoid +/- inf results when means are zero, without the same skewing.
 ##  Adding a very small (ie 1e-99) number means that means of zero get set to a large negative log-mean, 
 ##  when it might be more appropriate to have those values fall closer to the smallest non-zero log-mean.
@@ -157,15 +157,15 @@ for (res in colnames(cl)) {
   #### deTissue - DE per cluster vs all other data ####
   print("")
   print(paste("Calculating DE vs tissue for",res,"with",length(levels(cl[,res])),"clusters"))
-  print("-- LogFC calculations --")
-  deT_logFC <- pbsapply(levels(cl[,res]),function(i) 
+  print("-- logGER calculations --")
+  deT_logGER <- pbsapply(levels(cl[,res]),function(i) 
     MTC[i,] - apply(nge[,cl[,res] != i],1,mean.logX))
-  deT_genesUsed <- apply(deT_logFC,2,function(X) which(X > logFCthresh))  
+  deT_genesUsed <- apply(deT_logGER,2,function(X) which(X > logGERthresh))  
   if (any(sapply(deT_genesUsed,length) < 1)) {
-    stop(paste0("logFCthresh should be set to less than ",
-                min(apply(deT_logFC,2,function(X) max(abs(X)))),
-                ", the largest magnitude logFC between cluster ",
-                names(which.min(apply(deT_logFC,2,function(X) max(abs(X))))),
+    stop(paste0("logGERthresh should be set to less than ",
+                min(apply(deT_logGER,2,function(X) max(abs(X)))),
+                ", the largest magnitude logGER between cluster ",
+                names(which.min(apply(deT_logGER,2,function(X) max(abs(X))))),
                 " and the remaining data."))
   }
   print("-- Wilcoxon rank sum calculations --")
@@ -173,7 +173,7 @@ for (res in colnames(cl)) {
     apply(nge[deT_genesUsed[[i]],],1,function(X) 
       wilcox.test(X[cl[,res] == i],X[cl[,res] != i])$p.value),simplify=F)
   deTissue[[res]] <- sapply(levels(cl[,res]),function(i) 
-    data.frame(logFC=deT_logFC[deT_genesUsed[[i]],i],
+    data.frame(logGER=deT_logGER[deT_genesUsed[[i]],i],
                pVal=deT_pVal[[i]])[order(deT_pVal[[i]]),],simplify=F)
   tempQval <- tapply(p.adjust(do.call(rbind,deTissue[[res]])$pVal,"fdr"),
                      rep(names(sapply(deTissue[[res]],nrow)),sapply(deTissue[[res]],nrow)),c)
@@ -188,10 +188,10 @@ for (res in colnames(cl)) {
   print("")
   print(paste("Calculating marker DE for",res,"with",ncol(combos),"combinations of clusters"))
   deM_dDR <- apply(combos,2,function(i) DR[i[1],] - DR[i[2],])
-  deM_logFC <- apply(combos,2,function(i) MTC[i[1],] - MTC[i[2],])
+  deM_logGER <- apply(combos,2,function(i) MTC[i[1],] - MTC[i[2],])
   deM_genesUsed <- switch(threshType,
                           dDR=apply(deM_dDR,2,function(X) which(abs(X) > dDRthresh)),
-                          logFC=apply(deM_logFC,2,function(X) which(abs(X) > logFCthresh))) 
+                          logGER=apply(deM_logGER,2,function(X) which(abs(X) > logGERthresh))) 
   if (any(sapply(deM_genesUsed,length) < 1)) {
     stop("Gene filtering threshold is set too high.")
   }
@@ -200,7 +200,7 @@ for (res in colnames(cl)) {
       wilcox.test(X[cl[,res] == combos[1,i]],
                   X[cl[,res] == combos[2,i]])$p.value),simplify=F)
   temp_deVS <- sapply(colnames(combos),function(i) 
-    data.frame(dDR=deM_dDR[deM_genesUsed[[i]],i],logFC=deM_logFC[deM_genesUsed[[i]],i],
+    data.frame(dDR=deM_dDR[deM_genesUsed[[i]],i],logGER=deM_logGER[deM_genesUsed[[i]],i],
                pVal=deM_pVal[[i]])[order(deM_pVal[[i]]),],simplify=F)
   tempQval <- tapply(p.adjust(do.call(rbind,temp_deVS)$pVal,"fdr"),
                      rep(names(sapply(temp_deVS,nrow)),sapply(temp_deVS,nrow)),c)
@@ -219,7 +219,7 @@ for (res in colnames(cl)) {
         temp[[combos[[X]][1]]] <- temp_deVS[[X]][temp_deVS[[X]][,threshType] < 0 &
                                                    temp_deVS[[X]]$qVal <= WRSTalpha,]
         temp[[combos[[X]][1]]]$dDR <- temp[[combos[[X]][1]]]$dDR * -1
-        temp[[combos[[X]][1]]]$logFC <- temp[[combos[[X]][1]]]$logFC * -1
+        temp[[combos[[X]][1]]]$logGER <- temp[[combos[[X]][1]]]$logGER * -1
       }
     }
     return(temp)
@@ -227,7 +227,7 @@ for (res in colnames(cl)) {
   
   deMarker[[res]] <- sapply(deVS[[res]],function(X) {
     markerGenes <- Reduce(intersect,lapply(X,rownames))
-    temp <- sapply(X,function(Y) Y[markerGenes,c("dDR","logFC","qVal")],simplify=F)
+    temp <- sapply(X,function(Y) Y[markerGenes,c("dDR","logGER","qVal")],simplify=F)
     names(temp) <- paste("vs",names(temp),sep=".")
     return(do.call(cbind,temp))
   },simplify=F)
@@ -237,7 +237,7 @@ for (res in colnames(cl)) {
                          function(X) tapply(X,cl[,res],mean)),diag=T,upper=T),2,
               function(Z) names(which.min(Z[Z > 0])))
   
-  deNeighb[[res]] <- mapply(function(NB,VS) VS[[NB]][,c("dDR","logFC","qVal")],NB=nb,VS=deVS[[res]],SIMPLIFY=F)
+  deNeighb[[res]] <- mapply(function(NB,VS) VS[[NB]][,c("dDR","logGER","qVal")],NB=nb,VS=deVS[[res]],SIMPLIFY=F)
   for (i in names(deNeighb[[res]])) {
     colnames(deNeighb[[res]][[i]]) <- paste("vs",nb[i],colnames(deNeighb[[res]][[i]]),sep=".")
   }
