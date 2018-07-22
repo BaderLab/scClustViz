@@ -33,7 +33,8 @@ ui <- fixedPage(
     column(6,
            fixedRow(column(6,uiOutput("resSelect"),align="left"),
                     column(6,align="right",
-                           actionButton("go","View clusters at this resolution",icon("play")),
+                           actionButton("go","View clusters at this resolution",icon("play"),
+                                        style="color: #fff; background-color: #008000"),
                            uiOutput("saveButton")
                     )
            ),
@@ -54,22 +55,28 @@ ui <- fixedPage(
     p(paste("Here you can explore your dataset as a whole: cluster assignments for all",
             "cells; metadata overlays for cell projections; and figures for comparing",
             "both numeric and categorical metadata.")),
-    p(paste("You can select any cluster for further assessment by clicking on a cell",
+    strong(paste("You can select any cluster for further assessment by clicking on a cell",
             "from that cluster in the first figure on the left.")),
     h1()
   ),
   fixedRow(
     column(6,
-           if (length(cellMarkers) > 0) {
+           if (length(cellMarkers) > 0 & !all(unlist(clusterID) == "")) {
              radioButtons("tsneLabels","Labels:",inline=T,
-                          choices=list("Cluster numbers"="cn","Cluster annotations"="ca"))
+                          choices=list("Cluster numbers"="cn",
+                                       "Cluster annotations"="ca",
+                                       "Cluster annotations (label all)"="can"))
            } else {
              radioButtons("tsneLabels","Labels:",inline=T,
                           choices=list("Cluster numbers"="cn"))
            },
-           strong("Click point on plot below to select cluster")),
-    column(6,selectInput("tsneMDcol","Metadata:",choices=colnames(md),
-                         selected=grep("phase",colnames(md),value=T,ignore.case=T)[1]))
+           checkboxInput("nnArrow",value=F,width="100%",
+                         label="Show nearest neighbouring clusters by # of DE genes.")
+    ),
+    
+    column(4,selectInput("tsneMDcol",label="Metadata:",width="100%",choices=colnames(md),
+                         selected=grep("phase",colnames(md),value=T,ignore.case=T)[1])),
+    column(2,uiOutput("tsneMDlog"))
   ),
   fixedRow(
     column(6,plotOutput("tsne",height="580px",click="tsneClick")),
@@ -82,14 +89,18 @@ ui <- fixedPage(
   hr(),
   
   fixedRow(
-    column(3,selectInput(
-      "mdScatterX","x axis:",
+    column(2,selectInput(
+      "mdScatterX","X axis:",
       choices=colnames(md)[!sapply(md,function(X) is.factor(X) | is.character(X))],
-      selected="total_counts"),align="left"),
-    column(3,selectInput(
-      "mdScatterY","y axis:",
+      selected="total_counts")
+    ),
+    column(2,selectInput(
+      "mdScatterY","Y axis:",
       choices=colnames(md)[!sapply(md,function(X) is.factor(X) | is.character(X))],
-      selected="total_features"),align="left"),
+      selected="total_features")),
+    column(2,checkboxGroupInput("scatterLog",inline=T,label="Log scale",
+                                choices=c("X axis"="x","Y axis"="y"))),
+    
     column(3,selectInput(
       "mdFactorData","Metadata (factor):",
       choices=colnames(md)[sapply(md,function(X) is.factor(X) | is.character(X))],
@@ -127,35 +138,39 @@ ui <- fixedPage(
   hr(),
   
   fixedRow(
-    column(2,uiOutput("genePlotClustSelect")),
-    column(6,if (length(cellMarkers) > 0) {
+    column(3,uiOutput("genePlotClustSelect")),
+    column(9,if (length(cellMarkers) > 0) {
       radioButtons("cgLegend",inline=T,label="Highlighted genes:",
                    choices=c("Cell-type markers"="markers",
                              "Top DE genes (from heatmap)"="heatmap",
-                             "Gene symbols (regex)"="regex"))
+                             "Gene symbols from search box below"="search"))
     } else {
       radioButtons("cgLegend",inline=T,label="Highlighted genes:",
                    choices=c("Top DE genes (from heatmap)"="heatmap",
-                             "Gene symbols (regex)"="regex"))
-    }),
-    column(3,align="right",textInput("GOI","Gene symbols (regex)",demoRegex)),
-    column(1,actionButton("GOIgo","Search",icon=icon("search")))
-  ),tags$style(type='text/css', "button#GOIgo { margin-top: 25px; }"),
-  fixedRow(
+                             "Gene symbols from search box below"="search"))
+    })
+  ),
+  fixedRow(align="right",
     plotOutput("clusterGenes",height="600px",click="cgClick"),
     downloadButton("clusterGenesSave","Save as PDF")
   ),
-  hr(),
-  
   fixedRow(
+    column(3,radioButtons("searchType",label="Search by:",
+                          choices=c("Gene list (comma-separated)"="comma",
+                                    "Regular expression"="regex"))),
+    column(8,uiOutput("geneSearchBox")),
+    column(1,actionButton("GOIgo","Search",icon=icon("search")))
+  ),tags$style(type='text/css', "button#GOIgo { margin-top: 25px; }"),
+  fixedRow(
+    column(4,radioButtons("boxplotGene",inline=T,
+                          label="Genes of interest (to populate list):",
+                          choices=c("From click on plot above"="click",
+                                    "From gene search"="search"))),
     column(4,uiOutput("cgSelect")),
-    column(8,
-           radioButtons("boxplotGene",inline=T,label="Gene of interest:",
-                        choices=c("Click from plot above"="click",
-                                  "From gene symbols (regex entry)"="regex")),
-           checkboxGroupInput("bxpOpts",label=NULL,selected=c("sct","rnk"),inline=T,
-                              choices=list("Include scatterplot"="sct",
-                                           "Include gene rank"="rnk")))
+    column(4,checkboxGroupInput("bxpOpts",label="Plotting options:",
+                                selected=c("sct","rnk"),inline=T,
+                                choices=list("Include scatterplot"="sct",
+                                             "Include gene rank"="rnk")))
   ),
   fixedRow(plotOutput("geneTest",height="500px"),
            downloadButton("geneTestSave","Save as PDF")
@@ -165,31 +180,36 @@ ui <- fixedPage(
   ######## Distribution of genes of interest #########
   fixedRow(titlePanel("Distribution of Genes of Interest")),
   fixedRow(
-    column(4,
-           fixedRow(
-             radioButtons("plotClust1",inline=T,label="Plot:",selected="goi",
-                          choices=list("clusters"="clust","gene expression overlay"="goi")),
-             checkboxInput("plotLabel1",label="Include cluster labels",value=T)
-           ),
-           fixedRow(
-             column(9,textInput("GOI1",label="Gene symbols (regex):",demoRegex)),
-             column(3,actionButton("GOI1go","Search",icon=icon("search")))
-           ),tags$style(type='text/css', "button#GOI1go { margin-top: 25px; margin-left: -25px; }")
+    column(2,radioButtons("searchType1",label="Search by:",
+                          choices=c("Gene list"="comma",
+                                    "Regular expression"="regex"))),
+    column(3,uiOutput("geneSearchBox1")),
+    column(1,actionButton("GOI1go","Search",icon=icon("search"))),
+    
+    column(2,radioButtons("searchType2",label="Search by:",
+                          choices=c("Gene list"="comma",
+                                    "Regular expression"="regex"))),
+    column(3,uiOutput("geneSearchBox2")),
+    column(1,actionButton("GOI2go","Search",icon=icon("search")))
+  ),tags$style(type='text/css', paste("button#GOI1go { margin-top: 25px; margin-left: -25px; }",
+                                      "button#GOI2go { margin-top: 25px; margin-left: -25px; }")),
+  
+  fixedRow(
+    column(3,
+           radioButtons("plotClust1",inline=T,label="Plot:",selected="goi",
+                        choices=list("Clusters"="clust","Gene expression overlay"="goi")),
+           checkboxInput("plotLabel1",label="Include cluster labels (style as above)",value=T)
     ),
-    column(2,uiOutput("GOI1select")),
-    column(4,
-           fixedRow(
-             radioButtons("plotClust2",inline=T,label="Plot:",selected="goi",
-                          choices=list("clusters"="clust","gene expression overlay"="goi")),
-             checkboxInput("plotLabel2",label="Include cluster labels",value=T)
-           ),
-           fixedRow(
-             column(9,textInput("GOI2",label="Gene symbols (regex):",demoRegex)),
-             column(3,actionButton("GOI2go","Search",icon=icon("search")))
-           ),tags$style(type='text/css', "button#GOI2go { margin-top: 25px; margin-left: -25px; }")
+    column(3,uiOutput("GOI1select")),
+    
+    column(3,
+           radioButtons("plotClust2",inline=T,label="Plot:",selected="goi",
+                        choices=list("Clusters"="clust","Gene expression overlay"="goi")),
+           checkboxInput("plotLabel2",label="Include cluster labels (style as above)",value=T)
     ),
-    column(2,uiOutput("GOI2select"))
+    column(3,uiOutput("GOI2select"))
   ),
+  
   fixedRow(
     column(6,strong("If multiple genes are selected, the max expression per cell will be displayed")),
     column(6,strong("If multiple genes are selected, the max expression per cell will be displayed"))
@@ -213,8 +233,10 @@ ui <- fixedPage(
            p(paste("Here you can select cells to further explore using the figures above.",
                    "Click and drag to select cells, and use the buttons below to add them",
                    "to a set of cells. When your sets are ready, name the comparison and",
-                   "click the 'Calculate & Save' button. Once the calculation is done",
-                   "the comparison will be added to the cluster list at the top of the page.")),
+                   "click the 'Calculate differential gene expression' button. Once the",
+                   "calculation is done the comparison will be added to the cluster list",
+                   "at the top of the page. Once you've selected the comparison from the",
+                   "cluster list, it can be saved by clicking 'Save this comparison to disk'.")),
            hr(),
            selectInput("tsneSelDEcol","Metadata overlay:",choices=c("",colnames(md))),
            hr(),
@@ -389,6 +411,10 @@ server <- function(input,output,session) {
         tapply(Y,apply(sapply(temp_labelNames,function(X) clusts() %in% X),1,which),mean))
       if (!is.matrix(temp_labels)) { temp_labels <- rbind(temp_labels) }
       text(temp_labels,labels=names(temp_labelNames),font=2,cex=1.5)
+    } else if (input$tsneLabels == "can") {
+      temp_labels <- apply(dr_viz,2,function(X) tapply(X,clusts(),mean))
+      if (!is.matrix(temp_labels)) { temp_labels <- rbind(temp_labels) }
+      text(temp_labels,labels=d$clusterID[[res()]],font=2,cex=1.5)
     } else if (input$tsneLabels == "cn") {
       temp_labels <- apply(dr_viz,2,function(X) tapply(X,clusts(),mean))
       if (!is.matrix(temp_labels)) { temp_labels <- rbind(temp_labels) }
@@ -419,6 +445,15 @@ server <- function(input,output,session) {
       mtext(side=3,line=-1,text=paste("Cluster",hiC(),"-",
                                       d$clusterID[[res()]][hiC()],"-",
                                       sum(clusts() == hiC()),"cells"))
+    }
+    if (input$nnArrow) {
+      temp_nn <- sapply(deNeighb[[res()]],function(X) 
+        unique(gsub(pattern="^vs\\.|\\.[A-Za-z]+?$","",colnames(X))),simplify=F)
+      temp_labels <- apply(dr_viz,2,function(X) tapply(X,clusts(),mean))
+      sapply(names(temp_nn),function(X)
+        arrows(lwd=2,col=alpha("black",0.5),length=0.1,
+               x0=temp_labels[X,1],y0=temp_labels[X,2],
+               x1=temp_labels[temp_nn[[X]],1],y1=temp_labels[temp_nn[[X]],2]))
     }
   }
   
@@ -477,6 +512,13 @@ server <- function(input,output,session) {
   })
   
   #### Metadata tSNE overlay ####
+  output$tsneMDlog <- renderUI({
+    if (!(is.factor(md[,input$tsneMDcol]) | is.character(md[,input$tsneMDcol]))) {
+      checkboxGroupInput("tsneMDlog",label="Colour scale",
+                         choices=c("Log scale"="log"),width="100%")
+    }
+  })
+  
   plot_tsneMD <- function() {
     if (is.factor(md[,input$tsneMDcol]) | is.character(md[,input$tsneMDcol])) {
       id <- as.factor(md[,input$tsneMDcol])
@@ -487,7 +529,11 @@ server <- function(input,output,session) {
         idcol <- rainbow2(length(levels(md[,input$tsneMDcol])))
       }
     } else {
-      id <- cut(md[,input$tsneMDcol],100)
+      if ("log" %in% input$tsneMDlog) {
+        id <- cut(log10(md[,input$tsneMDcol]),100)
+      } else {
+        id <- cut(md[,input$tsneMDcol],100)
+      }
       idcol <- viridis(100,d=-1)
     }
     layout(cbind(2:1),heights=c(1,9))
@@ -514,8 +560,13 @@ server <- function(input,output,session) {
              legend=c(paste0(input$tsneMDcol,":"),levels(md[,input$tsneMDcol])),
              col=c(NA,idcol),pt.bg=c(NA,alpha(idcol,0.5)))
     } else {
+      if ("log" %in% input$tsneMDlog) {
+        tempMain <- paste(input$tsneMDcol,"(log scale)")
+      } else {
+        tempMain <- input$tsneMDcol
+      }
       par(mar=c(0,5,3,3))
-      barplot(rep(1,100),space=0,col=idcol,xaxt="n",yaxt="n",border=NA,main=input$tsneMDcol)
+      barplot(rep(1,100),space=0,col=idcol,xaxt="n",yaxt="n",border=NA,main=tempMain)
       text(x=c(1,100),y=1,pos=c(2,4),xpd=NA,labels=round(range(md[,input$tsneMDcol]),2))
     }
   }
@@ -579,10 +630,12 @@ server <- function(input,output,session) {
     par(mar=c(3,3,0,0),mgp=2:0,cex=1.1)
     if (all(ci())) {
       plot(md[,input$mdScatterX],md[,input$mdScatterY],
+           log=paste(input$scatterLog,collapse=""),
            pch=21,col=alpha("red",0.4),bg=alpha("red",0.2),
            xlab=input$mdScatterX,ylab=input$mdScatterY)
     } else {
       plot(md[!ci(),input$mdScatterX],md[!ci(),input$mdScatterY],
+           log=paste(input$scatterLog,collapse=""),
            pch=21,col=alpha("black",0.2),bg=alpha("black",0.1),
            xlab=input$mdScatterX,ylab=input$mdScatterY)
       points(md[ci(),input$mdScatterX],md[ci(),input$mdScatterY],
@@ -592,11 +645,13 @@ server <- function(input,output,session) {
       legend("topleft",bty="n",pch=21,col="red",pt.bg=alpha("red",0.5),
              legend=paste("Cluster",hiC(),"-",d$clusterID[[res()]][hiC()]))
     }
+    if ("x" %in% input$scatterLog) { tempLX <- "x" } else { tempLX <- "" }
+    if ("y" %in% input$scatterLog) { tempLY <- "y" } else { tempLY <- "" }
     par(mar=c(0,3,1,0))
-    boxplot(tapply(md[,input$mdScatterX],ci(),c),
+    boxplot(tapply(md[,input$mdScatterX],ci(),c),log=tempLX,
             horizontal=T,xaxt="n",yaxt="n",border=c("black","red"))
     par(mar=c(3,0,0,1))
-    boxplot(tapply(md[,input$mdScatterY],ci(),c),
+    boxplot(tapply(md[,input$mdScatterY],ci(),c),log=tempLY,
             horizontal=F,xaxt="n",yaxt="n",border=c("black","red"))
   }
   
@@ -685,7 +740,17 @@ server <- function(input,output,session) {
     return(t(temp))
   })
   
-  hC <- reactive(hclust(dist(clustMeans()),"single"))
+  hC <- reactive({ 
+    if (exists("deDist")) {
+      if (res() %in% names(deDist)) {
+        return(hclust(as.dist(deDist[[res()]]),"single"))
+      } else {
+        return(hclust(dist(clustMeans()),"single"))
+      }
+    } else {
+      return(hclust(dist(clustMeans()),"single"))
+    }
+  })
   hG <- reactive(hclust(dist(t(clustMeans())),"complete"))
   
   sepClust <- reactive({
@@ -764,10 +829,30 @@ server <- function(input,output,session) {
                   choices=c("",levels(clusts())[!levels(clusts()) == "Unselected"]))
     }
   })
+  
+  output$geneSearchBox <- renderUI({
+    if (input$searchType == "comma") {
+      textInput("GOI",width="100%",
+                label=paste("Enter list of genes,",
+                            "(comma/space-separated, case-insensitive)",
+                            "and click Search"))
+    } else if (input$searchType == "regex") {
+      textInput("GOI",value=demoRegex,width="100%",
+                label="Search for genes by regular expression and click Search")
+    }
+  })
 
   cellMarkCols <- reactive(rainbow2(length(cellMarkers)))
   
-  GOI <- eventReactive(input$GOIgo,grep(input$GOI,rownames(nge),value=T,ignore.case=T),ignoreNULL=F)
+  GOI <- eventReactive(input$GOIgo,{
+    if (input$searchType == "comma") {
+      tempGeneList <- strsplit(input$GOI,split="[\\s,]",perl=T)[[1]]
+      return(rownames(nge)[which(toupper(rownames(nge)) %in% toupper(tempGeneList))])
+    } else if (input$searchType == "regex") {
+      return(grep(input$GOI,rownames(nge),value=T,ignore.case=T))
+    }
+  },
+  ignoreNULL=F)
   
   plot_clusterGenes <- function() {
     doubleDot <- function(col1,col2) {
@@ -860,7 +945,7 @@ server <- function(input,output,session) {
                labels=d$CGS[[res()]][[hiC()]]$genes[degl])
         }
         
-      } else if (input$cgLegend == "regex" & length(GOI()) > 0) {
+      } else if (input$cgLegend == "search" & length(GOI()) > 0) {
         degl <- which(rownames(nge) %in% GOI())
         points(x=d$CGS[[res()]][[hiC()]]$DR[degl],y=d$CGS[[res()]][[hiC()]]$MDTC[degl],
                pch=16,cex=1.2,col="darkred")
@@ -895,9 +980,9 @@ server <- function(input,output,session) {
   output$cgSelect <- renderUI({
     if (length(res()) > 0) {
       if (input$boxplotGene == "click") {
-        selectInput("cgGene",label="Gene:",choices=sort(cgGeneOpts()))
-      } else if (input$boxplotGene == "regex") {
-        selectInput("cgGene",label="Gene:",choices=sort(GOI()))
+        selectInput("cgGene",choices=sort(cgGeneOpts()),label="Select gene from list:")
+      } else if (input$boxplotGene == "search") {
+        selectInput("cgGene",choices=sort(GOI()),label="Select gene from list:")
       }
     }
   })
@@ -974,21 +1059,67 @@ server <- function(input,output,session) {
   
   
   ######## Distribution of genes of interest #########
-  
-  GOI1 <- eventReactive(input$GOI1go,
-                        grep(input$GOI1,rownames(nge),value=T,ignore.case=T),
-                        ignoreNULL=F)
+  output$geneSearchBox1 <- renderUI({
+    if (input$searchType1 == "comma") {
+      textInput("GOI1",width="100%",
+                label=paste("Enter list of genes"))
+    } else if (input$searchType1 == "regex") {
+      textInput("GOI1",value=demoRegex,width="100%",
+                label="Enter regular expression")
+    }
+  })
+
+  GOI1 <- eventReactive(input$GOI1go,{
+    if (input$searchType1 == "comma") {
+      tempGeneList <- ""
+      try({
+        tempGeneList <- strsplit(input$GOI1,split="[\\s,]",perl=T)[[1]]
+      },silent=T)
+      return(rownames(nge)[which(toupper(rownames(nge)) %in% toupper(tempGeneList))])
+    } else if (input$searchType1 == "regex") {
+      return(grep(input$GOI1,rownames(nge),value=T,ignore.case=T))
+    }
+  },ignoreNULL=F)
+
   output$GOI1select <- renderUI({ 
-    selectInput("goi1",label="Gene:",choices=sort(GOI1()),multiple=T)
+    selectInput("goi1",label="Select genes:",choices=sort(GOI1()),multiple=T)
   })
   
-  GOI2 <- eventReactive(input$GOI2go,
-                        grep(input$GOI2,rownames(nge),value=T,ignore.case=T),
-                        ignoreNULL=F)
+  output$geneSearchBox2 <- renderUI({
+    if (input$searchType2 == "comma") {
+      textInput("GOI2",width="100%",
+                label=paste("Search by list of genes"))
+    } else if (input$searchType2 == "regex") {
+      textInput("GOI2",value=demoRegex,width="100%",
+                label="Search by regular expression")
+    }
+  })
+  
+  GOI2 <- eventReactive(input$GOI2go,{
+    if (input$searchType2 == "comma") {
+      tempGeneList <- ""
+      try({
+        tempGeneList <- strsplit(input$GOI2,split="[\\s,]",perl=T)[[1]]
+      },silent=T)
+      return(rownames(nge)[which(toupper(rownames(nge)) %in% toupper(tempGeneList))])
+    } else if (input$searchType2 == "regex") {
+      return(grep(input$GOI2,rownames(nge),value=T,ignore.case=T))
+    }
+  },ignoreNULL=F)
+  
   output$GOI2select <- renderUI({ 
-    selectInput("goi2",label="Gene:",choices=sort(GOI2()),multiple=T)
+    selectInput("goi2",label="Select genes:",choices=sort(GOI2()),multiple=T)
   })
-  
+
+  plot_tsneClust <- function() {
+    par(mar=c(3,3,4,1),mgp=2:0)
+    plot(dr_viz,pch=21,
+         col=alpha(clustCols()[clusts()],1),
+         bg=alpha(clustCols()[clusts()],0.5),
+         xlab="tSNE_1",ylab="tSNE_2",
+         main=paste("tSNE at",res(),"using",ncol(dr_clust),"PCs"))
+  }
+
   plot_goi <- function(goi) {
     if (length(goi) < 1) {
       plot(x=NA,y=NA,xlim=0:1,ylim=0:1,xaxt="n",yaxt="n",xlab=NA,ylab=NA)
@@ -1031,7 +1162,7 @@ server <- function(input,output,session) {
   
   output$goiPlot1 <- renderPlot({
     if (input$plotClust1 == "clust" & length(res()) > 0) {
-      print(plot_tsne())
+      print(plot_tsneClust())
       if (input$plotLabel1) { print(plot_tsne_labels()) }
     } else if (input$plotClust1 == "goi") {
       print(plot_goi(input$goi1))
@@ -1046,7 +1177,7 @@ server <- function(input,output,session) {
     content=function(file) {
       pdf(file,width=7,height=7)
       if (input$plotClust1 == "clust" & length(res()) > 0) {
-        print(plot_tsne())
+        print(plot_tsneClust())
         if (input$plotLabel1) { print(plot_tsne_labels()) }
       } else if (input$plotClust1 == "goi") {
         print(plot_goi(input$goi1))
@@ -1060,7 +1191,7 @@ server <- function(input,output,session) {
   
   output$goiPlot2 <- renderPlot({
     if (input$plotClust2 == "clust" & length(res()) > 0) {
-      print(plot_tsne())
+      print(plot_tsneClust())
       if (input$plotLabel2) { print(plot_tsne_labels()) }
     } else if (input$plotClust2 == "goi") {
       print(plot_goi(input$goi2))
@@ -1075,7 +1206,7 @@ server <- function(input,output,session) {
     content=function(file) {
       pdf(file,width=7,height=7)
       if (input$plotClust2 == "clust" & length(res()) > 0) {
-        print(plot_tsne())
+        print(plot_tsneClust())
         if (input$plotLabel2) { print(plot_tsne_labels()) }
       } else if (input$plotClust2 == "goi") {
         print(plot_goi(input$goi2))
@@ -1212,7 +1343,10 @@ server <- function(input,output,session) {
           d$CGS[[newRes]][[i]]$genes <- rownames(d$CGS[[newRes]][[i]])
         }
         if (length(cellMarkers) < 1) {
-          d$clusterID[[newRes]] <- rep("",nrow(cl))
+          d$clusterID[[newRes]] <- sapply(d$CGS[[newRes]],function(Z) return(""))
+        } else if (!any(unlist(cellMarkers) %in% rownames(nge))) {
+          warning("None of the provided cellMarkers are found in the data (check your gene IDs against rownames in your data).")
+          d$clusterID[[newRes]] <- sapply(d$CGS[[newRes]],function(Z) return(""))
         } else {
           d$clusterID[[newRes]] <- c(names(cellMarkers)[sapply(d$CGS[[newRes]][1:2],function(Y) 
             which.max(sapply(cellMarkers,function(X) median(Y$MTC[rownames(Y) %in% X]))))],

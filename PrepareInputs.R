@@ -23,10 +23,11 @@ WRSTalpha <- 0.01 # significance level for DE testing using Wilcoxon rank sum te
 
 #dataRDS <- "../scClustViz_files/testData.rds" 
 ##  ^ path to input data object, saved as RDS (use saveRDS() to generate).
-dataRData <- "../scClustViz_files/e11_Cortical_Only.RData" 
+dataRData <- "../scClustViz_files/e17_Cortical_Only.RData"
 ##  ^ path to input data, saved as RData (use save() to generate )
-outputDirectory <- "meCortex/e11/" 
+outputDirectory <- "meCortex/e17/" 
 ##  ^ path to output directory with trailing slash (for loading into the R Shiny visualization script)
+if (!dir.exists(outputDirectory)) { dir.create(outputDirectory) }
 
 convertGeneIDs <- FALSE ##  Set to TRUE if your gene names aren't official gene symbols.
 ##  If converting gene IDs, set the following:
@@ -56,7 +57,9 @@ if (exists("dataRDS")) {
   inD <- readRDS(dataRDS) 
 } else if (exists("dataRData")) {
   temp <- load(dataRData)
-  inD <- get(temp) ## If you have multiple objects saved in this file, set inD to your data object.
+  inD <- get(temp)
+  ## If you have multiple objects saved in this file, set inD to your data object.
+  ## i.e. inD <- get("mySeuratDataObject")
   rm(list=c(temp,"temp"))
 } else { warning("Set path to input data as dataRDS or dataRData") }
 
@@ -101,14 +104,14 @@ if (class(inD) == "seurat") {
   ##  These are stored as HGNC symbols, but if your data is mouse it will try case-insensitive matches to homologues
   ##  (in which case you will see a warning in AddModuleScore indicating that it attempted to match case).
   
-  md <- inD@meta.data[,!grepl("^res",colnames(inD@meta.data))]  
+  md <- inD@meta.data[,!grepl("res\\.[0-9]",colnames(inD@meta.data))]  
   ##  ^ metadata for cells (dataframe of cells)
   
-  if (is.data.frame(inD@meta.data[,grepl("^res",colnames(inD@meta.data))])) {
-    cl <- data.frame(lapply(inD@meta.data[,grepl("^res",colnames(inD@meta.data))],as.factor))
+  if (is.data.frame(inD@meta.data[,grepl("res\\.[0-9]",colnames(inD@meta.data))])) {
+    cl <- data.frame(lapply(inD@meta.data[,grepl("res\\.[0-9]",colnames(inD@meta.data))],as.factor))
   } else {
-    cl <- data.frame(inD@meta.data[,grepl("^res",colnames(inD@meta.data))])
-    colnames(cl) <- grep("^res",colnames(inD@meta.data),value=T)
+    cl <- data.frame(inD@meta.data[,grepl("res\\.[0-9]",colnames(inD@meta.data))])
+    colnames(cl) <- grep("res\\.[0-9]",colnames(inD@meta.data),value=T)
   }
   rownames(cl) <- rownames(md) 
   ##  ^ cluster assignments per clustering resolution (dataframe: cells x cluster labels as factors)
@@ -134,7 +137,14 @@ See code above for details."
   )
 }
 
-CGS <- deTissue <- deVS <- deMarker <- deNeighb <- list()
+CGS <- deTissue <- deVS <- deMarker <- deDist <- deNeighb <- list()
+
+##  This loop iterates through every cluster solution, and does DE testing between clusters
+##  to generate the DE metrics for assessing your clusters.  This takes some time.
+##  If your cluster solutions are ordered in increasing resolution/number of clusters,
+##  you can uncomment a line of code at the end of this loop to have it exit if there
+##  are no longer differentially expressed genes between clusters.  Note that this will
+##  mean that any cluster solutions not run through this loop won't show up in the GUI.
 
 for (res in colnames(cl)) {
   #### Precalculate stats for viz tool ####
@@ -232,20 +242,29 @@ for (res in colnames(cl)) {
     return(do.call(cbind,temp))
   },simplify=F)
   
-  ### deNeighb - DE between closest neighbouring clusters ####
-  nb <- apply(dist(apply(dr_viz,2,
-                         function(X) tapply(X,cl[,res],mean)),diag=T,upper=T),2,
-              function(Z) names(which.min(Z[Z > 0])))
+  ### deNeighb - DE between nearest neighbouring clusters ####
+  deDist[[res]] <- sapply(names(deVS[[res]]),function(X) sapply(names(deVS[[res]]),function(Y) 
+    if (X == Y) { return(NA) } else { min(nrow(deVS[[res]][[X]][[Y]]),nrow(deVS[[res]][[Y]][[X]])) }))
+  nb <- colnames(deDist[[res]])[apply(deDist[[res]],1,which.min)]
+  names(nb) <- colnames(deDist[[res]])
+  ##  Nearest neighbour determined by number of DE genes between clusters.
   
-  deNeighb[[res]] <- mapply(function(NB,VS) VS[[NB]][,c("dDR","logGER","qVal")],NB=nb,VS=deVS[[res]],SIMPLIFY=F)
+  deNeighb[[res]] <- mapply(function(NB,VS) VS[[NB]][,c("dDR","logGER","qVal")],
+                            NB=nb,VS=deVS[[res]],SIMPLIFY=F)
   for (i in names(deNeighb[[res]])) {
     colnames(deNeighb[[res]][[i]]) <- paste("vs",nb[i],colnames(deNeighb[[res]][[i]]),sep=".")
   }
+
+  if (min(sapply(deNeighb[[res]],nrow)) < 1) { break }
+  ##  Uncomment the above line to exit the loop if there is no differentially expressed genes between
+  ##  nearest neighbouring clusters at the current resolution.  (This only makes sense if your cluster
+  ##  solutions are ordered in increasing resolution).
 }
+cl <- cl[names(deNeighb)] # removing cluster solutions not tested above.
 
 #### Save outputs for visualization ####
 save(nge,md,cl,dr_clust,dr_viz,
-     CGS,deTissue,deMarker,deNeighb,
+     CGS,deTissue,deMarker,deDist,deNeighb,
      file=paste0(outputDirectory,
                  sub("^.*/","",sub("\\.[A-Za-z0-9]+$","",get(grep("^dataRD",ls(),value=T)))),
                  "_forViz.RData"))

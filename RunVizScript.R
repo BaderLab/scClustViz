@@ -1,6 +1,6 @@
 ######## User-defined variables ########
 
-dataPath <- "meCortex/e13/e13_Cortical_Only_forViz.RData"#"demo/10Xneurons_forViz.RData"
+dataPath <- "meCortex/e15/e15_Cortical_Only_forViz.RData"
 ##  ^ Point this to the output file from PrepareInputs.R
 ##  If you set a default resolution in the Shiny app, it will save to the same directory.
 
@@ -117,7 +117,7 @@ if (!file.exists(paste0(dataPath,"intro.md"))) {
         file=paste0(dataPath,"intro.md"))
 }
 
-silDist <- dist(dr_clust,method="euclidean")  
+silDist <- dist(dr_clust)
 ##  ^ precalculating distances in reduced dimensionality space for the silhouette plot.
 
 for (l in names(CGS)) {
@@ -132,13 +132,16 @@ for (l in names(CGS)) {
 }
 
 if (length(cellMarkers) < 1) {
-  clusterID <- sapply(colnames(cl),function(X) rep("",nrow(cl)),simplify=F)
+  clusterID <- sapply(names(CGS),function(X) sapply(CGS[[X]],function(Z) return("")),simplify=F)
+} else if (!any(unlist(cellMarkers) %in% rownames(nge))) {
+  warning("None of the provided cellMarkers are found in the data (check your gene IDs against rownames in your data).")
+  clusterID <- sapply(names(CGS),function(X) sapply(CGS[[X]],function(Z) return("")),simplify=F)
 } else {
   clusterID <- sapply(CGS,function(Z) {
     temp <- names(cellMarkers)[sapply(Z,function(Y) 
       which.max(sapply(cellMarkers,function(X) median(Y$MTC[rownames(Y) %in% X]))))]
     names(temp) <- names(Z)
-    temp["Unselected"] <- "Unselected"
+    temp[names(temp) == "Unselected"] <- "Unselected"
     return(temp)
   },simplify=F)
 }
