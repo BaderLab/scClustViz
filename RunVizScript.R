@@ -1,6 +1,6 @@
 ######## User-defined variables ########
 
-dataPath <- "meCortex/e15/e15_Cortical_Only_forViz.RData"
+dataPath <- "meCortex/e13/e13_Cortical_Only_forViz.RData"
 ##  ^ Point this to the output file from PrepareInputs.R
 ##  If you set a default resolution in the Shiny app, it will save to the same directory.
 
@@ -81,8 +81,10 @@ rainbow2 <- function(n,a=1) {
 if (length(cellMarkers) < 1) {
   cellMarkersS <- cellMarkersU <- list()
 } else {
-  cellMarkersS <- apply(combn(seq_along(cellMarkers),2),2,function(X) do.call(intersect,unname(cellMarkers[X])))
-  try(names(cellMarkersS) <- apply(combn(seq_along(cellMarkers),2),2,function(X) paste(X,collapse="&")),silent=T)
+  cellMarkersS <- apply(combn(seq_along(cellMarkers),2),2,
+                        function(X) do.call(intersect,unname(cellMarkers[X])))
+  try(names(cellMarkersS) <- apply(combn(seq_along(cellMarkers),2),2,
+                                   function(X) paste(X,collapse="&")),silent=T)
   cellMarkersS <- cellMarkersS[sapply(cellMarkersS,length) > 0]
   cellMarkersU <- lapply(cellMarkers,function(X) X[!X %in% unlist(cellMarkersS)])
 }
@@ -134,7 +136,8 @@ for (l in names(CGS)) {
 if (length(cellMarkers) < 1) {
   clusterID <- sapply(names(CGS),function(X) sapply(CGS[[X]],function(Z) return("")),simplify=F)
 } else if (!any(unlist(cellMarkers) %in% rownames(nge))) {
-  warning("None of the provided cellMarkers are found in the data (check your gene IDs against rownames in your data).")
+  warning(paste("None of the provided cellMarkers are found in the data",
+                "(check your gene IDs against rownames in your data)."))
   clusterID <- sapply(names(CGS),function(X) sapply(CGS[[X]],function(Z) return("")),simplify=F)
 } else {
   clusterID <- sapply(CGS,function(Z) {

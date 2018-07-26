@@ -1,5 +1,5 @@
 # scClustViz
-An interactive R Shiny tool for visualizing single-cell RNAseq clustering results from the *Seurat* R package or any other analysis pipeline.  Its main goal is two-fold: **A:** to help select a biologically appropriate resolution or K from clustering results by assessing differential expression between the resulting clusters; and **B:** help annotate cell types and identify marker genes.
+An interactive R Shiny tool for visualizing single-cell RNAseq clustering results from the *Seurat* R package or any other analysis pipeline.  Its main goal is two-fold: **A:** to help select a biologically appropriate resolution or K from clustering results by assessing differential expression between the resulting clusters; and **B:** help annotate cell types and identify marker genes.  You can check out an [online demo here](https://innesbt.shinyapps.io/e11cortex/) using data from [Yuzwa *et al.*'s 2017 Cell Reports paper](https://doi.org/10.1016/j.celrep.2017.12.017/).
 
 -   [scClustViz Usage](#scclustviz-usage)  
     -   [Setup](#setup)  
@@ -14,8 +14,7 @@ scClustViz is distributed as a collection of R scripts rather than a package for
 
 ### Setup
 scClustViz assumes you have tried a variety of parameterizations when clustering the cells from your scRNAseq data, and want to decide which clustering solution you should use (if you haven't yet clustered your data, or are interested in an example of integrating the differential expression metric used in this tool to systematically test different clustering resolutions, see the example [pipeline below](#scrnaseq-analysis-pipeline)).  
-The setup step does the differential expression testing for all cluster solutions, and saves it in the file format necessary for the visualization to run.  To perform the setup, download and run [PrepareInputs.R](PrepareInputs.R).  Note that you will need to change some of the variables in the script to reflect your data/computer, as well as installing any missing libraries.  This script is designed to take your *Seurat* output and generate all the differential expression information necessary for the visualization tool, which will be saved in a directory of your choosing.  
-If you have your analysis outputs in another format (i.e. Bioconductor's SingleCellExperiment class), you can use the code used to pull the relevant bits out of the *Seurat* object as a template for loading your data into the visualization tool.  I aim to include automatic loading for the SingleCellExperiment class shortly, but in the meantime you can check out [iSEE](https://bioconductor.org/packages/release/bioc/html/iSEE.html), which is a powerful data-visualization GUI designed specifically for Bioconductor SingleCellExperiment and SummarizedExperiment objects.  
+The setup step does the differential expression testing for all cluster solutions, and saves it in the file format necessary for the visualization to run.  To perform the setup, download and run [PrepareInputs.R](PrepareInputs.R).  Note that you will need to change some of the variables in the script to reflect your data/computer, as well as installing any missing libraries.  This script is designed to take your *Seurat* output and generate all the differential expression information necessary for the visualization tool, which will be saved in a directory of your choosing.  If you have your analysis outputs in another format (i.e. Bioconductor's SingleCellExperiment class), you can use the code used to pull the relevant bits out of the *Seurat* object as a template for loading your data into the visualization tool.  I aim to include automatic loading for the SingleCellExperiment class shortly, but in the meantime you can check out [iSEE](https://bioconductor.org/packages/release/bioc/html/iSEE.html), which is a GUI designed specifically for Bioconductor.  
 
 ### Run
 After you've run PrepareInputs.R, download [RunVizScript.R](RunVizScript.R) and [app.R](app.R).  You will again need to change some variables and install any missing libraries in RunVizScript.R.  You shouldn't need to touch app.R unless you're interested in modifying the Shiny visualization itself.  Running RunVizScript.R will load your data into the visualization software, and will open the Shiny UI in a web browser.  Have fun exploring your data!
@@ -27,11 +26,11 @@ These are .RData files ready to be run in scClustViz by downloading and pointing
 
 
 ## Cell Reports 2017
-The data from the 2017 Cell Reports paper [Developmental Emergence of Adult Neural Stem Cells as Revealed by Single-Cell Transcriptional Profiling](https://doi.org/10.1016/j.celrep.2017.12.017) by Yuzwa *et al.* are available to explore by downloading the following files, and pointing RunVizScript.R to the file path:
--   [E11.5 Cerebral Cortex](meCortex/e11/e11_Cortical_Only_forViz.RData)  
--   [E13.5 Cerebral Cortex](meCortex/e13/e13_Cortical_Only_forViz.RData)  
--   [E15.5 Cerebral Cortex](meCortex/e15/e15_Cortical_Only_forViz.RData)  
--   [E17.5 Cerebral Cortex](meCortex/e17/e17_Cortical_Only_forViz.RData)  
+The data from the 2017 Cell Reports paper [Developmental Emergence of Adult Neural Stem Cells as Revealed by Single-Cell Transcriptional Profiling](https://doi.org/10.1016/j.celrep.2017.12.017) by Yuzwa *et al.* are available to explore using online instances of the scClustViz tool using the links below:
+-   [E11.5 Cerebral Cortex](https://innesbt.shinyapps.io/e11cortex/) - [file for download](meCortex/e11/e11_Cortical_Only_forViz.RData)  
+-   [E13.5 Cerebral Cortex](https://innesbt.shinyapps.io/e13cortex/) - [file for download](meCortex/e13/e13_Cortical_Only_forViz.RData)  
+-   [E15.5 Cerebral Cortex](https://innesbt.shinyapps.io/e15cortex/) - [file for download](meCortex/e15/e15_Cortical_Only_forViz.RData)  
+-   [E17.5 Cerebral Cortex](https://innesbt.shinyapps.io/e17cortex/) - [file for download](meCortex/e17/e17_Cortical_Only_forViz.RData)  
 
 These are DropSeq data from timepoints spanning neurogenesis and filtered for cortically-derived cells, processed on an earlier version of the pipeline and imported into scClustViz using PrepareInputs.  
 

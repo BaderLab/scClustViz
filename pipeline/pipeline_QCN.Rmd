@@ -63,7 +63,7 @@ rainbow2 <- function(n,a=1) {
 
 # Cell filtering
 
-```{r load_data, echo=T}
+```{r load_data_10Xchromium, echo=T}
 ebRaw <- counts(read10xCounts(input_dataPath,col.names=T))
 ebRaw <- ebRaw[,Matrix::colSums(ebRaw) > 0]
 ebRaw <- ebRaw[Matrix::rowSums(ebRaw) > 0,]

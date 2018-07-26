@@ -3,7 +3,7 @@ ui <- fixedPage(
   fixedRow(
     titlePanel(paste("scClustViz -",dataTitle)),
     includeMarkdown(paste0(dataPath,"intro.md"))
-    ),
+  ),
   hr(),
   
   ######## Clustering Solution Selection ########
@@ -54,9 +54,18 @@ ui <- fixedPage(
     titlePanel("Dataset and Cluster Metadata Inspection"),
     p(paste("Here you can explore your dataset as a whole: cluster assignments for all",
             "cells; metadata overlays for cell projections; and figures for comparing",
-            "both numeric and categorical metadata.")),
+            "both numeric and categorical metadata. The top two figures show cells",
+            "projected into 2D space, where proximity indicates transcriptional similarity.",
+            "On the left you can see cluster assignments and the nearest neighbours used in",
+            "the differential expression calculations. If cell type marker genes were",
+            "provided in RunVizScript.R, it will also show predicted cell type annotations.",
+            "On the right you can add a metadata overlay to the cell projection. Below",
+            "you can view relationships in the metadata as a scatterplot or compare clusterwise",
+            "distributions of metadata as bar- or box-plots. If you select a cluster of interest",
+            "(by clicking on a cell in the top-left plot, or from the list two sections down)",
+            "it will be highlighted for comparison in these figures.")),
     strong(paste("You can select any cluster for further assessment by clicking on a cell",
-            "from that cluster in the first figure on the left.")),
+                 "from that cluster in the top-left figure.")),
     h1()
   ),
   fixedRow(
@@ -89,26 +98,13 @@ ui <- fixedPage(
   hr(),
   
   fixedRow(
-    column(2,selectInput(
-      "mdScatterX","X axis:",
-      choices=colnames(md)[!sapply(md,function(X) is.factor(X) | is.character(X))],
-      selected="total_counts")
-    ),
-    column(2,selectInput(
-      "mdScatterY","Y axis:",
-      choices=colnames(md)[!sapply(md,function(X) is.factor(X) | is.character(X))],
-      selected="total_features")),
-    column(2,checkboxGroupInput("scatterLog",inline=T,label="Log scale",
-                                choices=c("X axis"="x","Y axis"="y"))),
+    column(2,selectInput("mdScatterX","X axis:",choices=colnames(md),selected="total_counts")),
+    column(2,selectInput("mdScatterY","Y axis:",choices=colnames(md),selected="total_features")),
+    column(2,uiOutput("scatterLog")),
     
-    column(3,selectInput(
-      "mdFactorData","Metadata (factor):",
-      choices=colnames(md)[sapply(md,function(X) is.factor(X) | is.character(X))],
-      selected=grep("phase",
-                    colnames(md)[sapply(md,function(X) is.factor(X) | is.character(X))],
-                    value=T,ignore.case=T)[1])),
-    column(3,radioButtons("mdFactorRA","Factor counts per cluster:",inline=T,
-                          choices=list("Absolute"="absolute","Relative"="relative")))
+    column(3,selectInput("mdFactorData","Metadata:",choices=colnames(md),
+      selected=grep("phase",colnames(md),value=T,ignore.case=T)[1])),
+    column(3,uiOutput("mdFactorOpts"))
   ),
   fixedRow(
     column(6,plotOutput("mdScatter",height="560px")),
@@ -120,23 +116,60 @@ ui <- fixedPage(
   ),
   hr(),
   
-  ######## Cluster-wise Gene Stats #########
+  ######## Differentially Expressed Genes per Cluster #########
   fixedRow(
-    titlePanel("Cluster-wise Gene Stats"),
-    p(paste()),
+    titlePanel("Differentially Expressed Genes per Cluster"),
+    p(HTML(paste("Here you can explore the significantly differentially expressed genes per",
+            "cluster. '<b>DE vs Rest</b>' refers to positively differentially expressed genes",
+            "when comparing a cluster to the rest of the cells as a whole. '<b>Marker genes</b>'",
+            "refers to genes positively differentially expressed versus all other clusters",
+            "in a series of pairwise tests. '<b>DE vs neighbour</b>' refers to genes positively",
+            "differentially expressed versus the nearest neighbouring cluster, as measured",
+            "by number of differentially expressed genes between clusters. In all cases,",
+            "Wilcoxon rank-sum tests are used, with a",percent(WRSTalpha),"false detection",
+            "rate threshold."))),
+    p(paste("The heatmap is generated using the differentially expressed genes from the test",
+            "and number of genes selected below. Differentially expressed gene lists can be",
+            "downloaded as tab-separated text files by selecting the test type and cluster,",
+            "and clicking 'Download gene list'.  Genes used in the heatmap can be viewed in",
+            "the gene expression plots below as well.")),
     h1()
     
   ),
+  
   fixedRow(
     column(2,uiOutput("heatDEtype")),
+    column(6,uiOutput("DEgeneSlider")),
     column(2,uiOutput("DEclustSelect")),
     column(2,downloadButton("deGeneSave","Download gene list"),
-           downloadButton("heatmapSave","Save as PDF"),align="right"), 
-    column(6,uiOutput("DEgeneSlider"))
+           downloadButton("heatmapSave","Save as PDF"),align="right")
   ),
-  fixedRow(plotOutput("heatmap",height="600px")),
+  fixedRow(plotOutput("heatmap",height="640px")),
   hr(),
   
+  ######### Gene Expression Distributions per Cluster #########
+  fixedRow(
+    titlePanel("Gene Expression Distributions per Cluster"),
+    p(paste("Here you can investigate the expression of individual genes per cluster and",
+            "across all clusters. The first plot shows mean expression of genes in a cluster",
+            "as a function of their detection rate and transcript count when detected. The",
+            "x-axis indicates the proportion of cells in the cluster in which each gene was",
+            "detected (transcript count > 0), while the y-axis shows the mean normalized",
+            "transcript count for each gene from the cells in the cluster in which that gene",
+            "was detected. You can select the cluster to view from the menu below, and genes",
+            "can be labelled in the figure based on the cell-type markers provided in",
+            "RunVizScipt.R, the differentially expressed genes from the selected cluster in",
+            "the above heatmap, or by searching for them in the box below the figure.")),
+    p(paste("Clicking on the first plot will populate the list of genes near the point clicked,",
+            "which can be found above the next figure. By selecting a gene from this list,",
+            "you can compare the expression of that gene across all clusters in the second figure.",
+            "This list can also be populated using the gene search feature. Plotting options",
+            "for the second figure include the option to overlay normalized transcript count",
+            "from each cell in the cluster over their respective boxplots ('Include scatterplot'),",
+            "and the inclusion of the percentile rank of that gene's expression per cluster as",
+            "small triangles on the plot using the right y-axis ('Include gene rank').")),
+    h1()
+  ),
   fixedRow(
     column(3,uiOutput("genePlotClustSelect")),
     column(9,if (length(cellMarkers) > 0) {
@@ -151,34 +184,149 @@ ui <- fixedPage(
     })
   ),
   fixedRow(align="right",
-    plotOutput("clusterGenes",height="600px",click="cgClick"),
-    downloadButton("clusterGenesSave","Save as PDF")
+           plotOutput("clusterGenes",height="600px",click="cgClick"),
+           downloadButton("clusterGenesSave","Save as PDF")
   ),
+  
+  #### Gene expression comparison ####
   fixedRow(
     column(3,radioButtons("searchType",label="Search by:",
                           choices=c("Gene list (comma-separated)"="comma",
                                     "Regular expression"="regex"))),
     column(8,uiOutput("geneSearchBox")),
     column(1,actionButton("GOIgo","Search",icon=icon("search")))
-  ),tags$style(type='text/css', "button#GOIgo { margin-top: 25px; }"),
+  ),tags$style(type='text/css', "button#GOIgo { margin-top: 25px;  margin-left: -25px; }"),
   fixedRow(
-    column(4,radioButtons("boxplotGene",inline=T,
+    column(2,uiOutput("cgSelect")),
+    column(5,radioButtons("boxplotGene",inline=T,
                           label="Genes of interest (to populate list):",
-                          choices=c("From click on plot above"="click",
+                          choices=c("From click on plots above or below"="click",
                                     "From gene search"="search"))),
-    column(4,uiOutput("cgSelect")),
-    column(4,checkboxGroupInput("bxpOpts",label="Plotting options:",
-                                selected=c("sct","rnk"),inline=T,
+    column(5,checkboxGroupInput("bxpOpts",label="Figure options:",
+                                selected=c("sct","rnk","notch"),inline=T,
                                 choices=list("Include scatterplot"="sct",
-                                             "Include gene rank"="rnk")))
+                                             "Include gene rank"="rnk",
+                                             "Show notch"="notch")))
   ),
   fixedRow(plotOutput("geneTest",height="500px"),
            downloadButton("geneTestSave","Save as PDF")
   ),
   hr(),
   
+  ######## Cluster comparison #########
+  fixedRow(
+    titlePanel("Cluster/Set Comparison of Gene Statistics"),
+    p(HTML(paste("Here you can directly compare gene expression statistics between clusters.",
+                 "Any clusters from the currently selected cluster solution can be compared,",
+                 "and you can switch cluster solutions from the menu here for convenience.",
+                 "The stats that can be compared are mean normalized transcript count per",
+                 "cluster (<b>Mean gene expression</b>), proportion of cells in a cluster in",
+                 "which each gene was detected (<b>Detection rate</b>), and mean normalized",
+                 "transcript count in cells of the cluster in which the gene was detected",
+                 "(<b>Mean detected gene expression</b>). Genes can be labelled based on",
+                 "differential expression from the heatmap above, or using the gene search",
+                 "feature above."))),
+    p(paste("The most different genes in the current comparison can also be labelled. This",
+            "calculation can simply be subtracting the gene stat of the x-axis cluster from",
+            "that of the y-axis, or distance (residual) from the line of best fit. The latter",
+            "calculation may be of value if there is concern that a technical factor such as",
+            "library size is confounding a direct comparison between clusters. In either case,",
+            "the resulting values can be downloaded as a ranked list where positive values are",
+            "higher in the cluster on the y-axis, and negative values are higher in the x-axis",
+            "cluster. Since this list ranks all genes in the experiment, it could be used as an",
+            "input for GSEA.")),
+    h1()
+  ),
+  fixedRow(
+    column(7,plotOutput("setScatter",height="640px",click="scatterClick")),
+    column(5,
+           fixedRow(
+             column(10,uiOutput("resSelect2")),
+             column(2,actionButton("go2","View",icon("play"),
+                                   style="color: #fff; background-color: #008000"))
+           ),
+           fixedRow(column(12,uiOutput("saveButton2"))),
+           fixedRow(
+             column(6,uiOutput("setScatterY")),
+             column(6,uiOutput("setScatterX"))
+           ),
+           fixedRow(
+             column(7,radioButtons("scatterInput",label="Gene stat to display:",
+                                   choices=c("Mean gene expression"="MTC",
+                                             "Detection rate"="DR",
+                                             "Mean detected gene expression"="MDTC"))),
+             column(5,radioButtons("scatterLine",label="Difference calculation:",
+                                   choices=c("Subtraction"="sub","From line of best fit"="lbf")))
+           ),
+           fixedRow(column(12,radioButtons("diffLabelType",label="Label genes by:",
+                                           choices=c("Most different by calculation"="diff",
+                                                     "Top DE genes (from heatmap)"="de",
+                                                     "Genes symbols from search box above"="search"),
+                                           inline=T))),
+           fixedRow(column(12,uiOutput("diffLabelSelect"))),
+           fixedRow(
+             column(4,checkboxInput("scatterLabelAngle",label="Flip label angle",value=F)),
+             column(4,downloadButton("setScatterSave","Save as PDF"),align="right"),
+             column(4,downloadButton("setComparisonSave","Download ranked list"))
+           )
+    )
+  ),tags$style(type='text/css',paste("button#go2 { margin-top: 25px;  margin-left: -25px; }",
+                                     "button#updateForViz2 { margin-top: -25px; }")),
+  
+  hr(),
+  
+  ######## Custom sets for DE #########
+  fixedRow(titlePanel("Manually Select Cells for DE Testing")),
+  fixedRow(
+    column(8,plotOutput("tsneSelDE",brush="tsneBrush",height="750px")),
+    column(4,
+           p(paste("Here you can select cells to further explore using the figures above.",
+                   "Click and drag to select cells, and use the buttons below to add them",
+                   "to a set of cells. When your sets are ready, name the comparison and",
+                   "click the 'Calculate differential gene expression' button. Once the",
+                   "calculation is done the comparison will be added to the cluster list",
+                   "at the top of the page and the current cluster solution will be updated",
+                   "to show this comparison. The comparison can be saved by clicking 'Save",
+                   "this comparison to disk' next to either cluster solution menu.")),
+           hr(),
+           selectInput("tsneSelDEcol","Metadata overlay:",choices=c("",colnames(md))),
+           hr(),
+           column(6,htmlOutput("textSetA"),
+                  actionButton("addCellsA","Set A: Add Cells",icon("plus"),
+                               style="color: #fff; background-color: #a50026"),
+                  actionButton("removeCellsA","Set A: Remove Cells",icon("minus"),
+                               style="color: #a50026; background-color: #fff; border-color: #a50026")
+           ),
+           column(6,htmlOutput("textSetB"),
+                  actionButton("addCellsB","Set B: Add Cells",icon("plus"),
+                               style="color: #fff; background-color: #313695"),
+                  actionButton("removeCellsB","Set B: Remove Cells",icon("minus"),
+                               style="color: #313695; background-color: #fff; border-color: #313695")
+           ),
+           htmlOutput("textOverlap"),
+           hr(),
+           textInput("DEsetName","Short name for this comparison:",
+                     placeholder="A-z0-9 only please"),
+           actionButton("calcDE","Calculate differential gene expression",icon("play")),
+           hr(),
+           span(textOutput("calcText"),style="color:red")
+    )
+  ),
+  hr(),
+  
   ######## Distribution of genes of interest #########
-  fixedRow(titlePanel("Distribution of Genes of Interest")),
+  fixedRow(
+    titlePanel("Cell Distribution of Genes of Interest"),
+    p(paste("Here you can overlay gene expression values for individual genes of interest",
+            "on the cell projection. Search for your gene using the search box below,",
+            "then select your gene(s) of interest from the dropdown 'Select genes' menu.",
+            "You can select multiple genes, but note that for each cell only the gene",
+            "expression of the gene with the highest expression in that cell will be displayed.",
+            "You have the option to include the cluster labels from the first cell projection",
+            "figure in these plots, and to colour the clusters themselves. There are two",
+            "copies of this figure for ease of comparison between genes of interest.")),
+    h1()
+  ),
   fixedRow(
     column(2,radioButtons("searchType1",label="Search by:",
                           choices=c("Gene list"="comma",
@@ -222,45 +370,6 @@ ui <- fixedPage(
     column(6,align="left",downloadButton("goiPlot1Save","Save as PDF")),
     column(6,align="right",downloadButton("goiPlot2Save","Save as PDF"))
   ),
-  hr(),
-  
-  ######## Custom sets for DE #########
-  fixedRow(titlePanel("Select cells for direct comparison")),
-  fixedRow(
-    column(6,
-           plotOutput("tsneSelDE",brush="tsneBrush",height="580px")),
-    column(6,
-           p(paste("Here you can select cells to further explore using the figures above.",
-                   "Click and drag to select cells, and use the buttons below to add them",
-                   "to a set of cells. When your sets are ready, name the comparison and",
-                   "click the 'Calculate differential gene expression' button. Once the",
-                   "calculation is done the comparison will be added to the cluster list",
-                   "at the top of the page. Once you've selected the comparison from the",
-                   "cluster list, it can be saved by clicking 'Save this comparison to disk'.")),
-           hr(),
-           selectInput("tsneSelDEcol","Metadata overlay:",choices=c("",colnames(md))),
-           hr(),
-           column(6,htmlOutput("textSetA"),
-                  actionButton("addCellsA","Set A: Add Cells",icon("plus"),
-                               style="color: #fff; background-color: #a50026"),
-                  actionButton("removeCellsA","Set A: Remove Cells",icon("minus"),
-                               style="color: #a50026; background-color: #fff; border-color: #a50026")
-           ),
-           column(6,htmlOutput("textSetB"),
-                  actionButton("addCellsB","Set B: Add Cells",icon("plus"),
-                               style="color: #fff; background-color: #313695"),
-                  actionButton("removeCellsB","Set B: Remove Cells",icon("minus"),
-                               style="color: #313695; background-color: #fff; border-color: #313695")
-           ),
-           htmlOutput("textOverlap"),
-           hr(),
-           textInput("DEsetName","Short name for this comparison:",
-                     placeholder="A-z0-9 only please"),
-           actionButton("calcDE","Calculate differential gene expression",icon("play")),
-           hr(),
-           span(textOutput("calcText"),style="color:red")
-    )
-  ),
   h1()
 )
 
@@ -272,15 +381,15 @@ server <- function(input,output,session) {
                       deTissue=deTissue,
                       deMarker=deMarker)
   
-  clustCols <- reactive({
-    if (grepl("^Comp",input$res)) {
+  clustCols <- function(res) {
+    if (grepl("^Comp",res)) {
       c(brewer.pal(3,"PRGn")[c(1,3)],"grey80")
-    } else if (length(levels(d$cl[,input$res])) <= 8) {
-      brewer.pal(length(levels(d$cl[,input$res])),"Dark2")[1:length(levels(d$cl[,input$res]))]
+    } else if (length(levels(d$cl[,res])) <= 8) {
+      brewer.pal(length(levels(d$cl[,res])),"Dark2")[1:length(levels(d$cl[,input$res]))]
     } else {
-      rainbow2(length(levels(d$cl[,input$res])))
+      rainbow2(length(levels(d$cl[,res])))
     }
-  })
+  }
   
   
   ######## Cluster Resolution Selection ########
@@ -299,7 +408,8 @@ server <- function(input,output,session) {
     return(temp)
   })
   output$resSelect <- renderUI({
-    selectInput("res","Resolution:",choices=clustList(),selected=savedRes)
+    if (is.null(res())) { temp_sel <- savedRes} else { temp_sel <- res() }
+    selectInput("res","Resolution:",choices=clustList(),selected=temp_sel)
   })
   output$saveButton <- renderUI({
     if (grepl("^Comp",input$res)) {
@@ -373,7 +483,7 @@ server <- function(input,output,session) {
       text(.5,.5,paste("Silhouette plot cannot be computed",
                        "with less than two clusters.",sep="\n"))
     } else {
-      plot(tempSil,beside=T,border=NA,main=NA,col=clustCols(),do.n.k=T)
+      plot(tempSil,beside=T,border=NA,main=NA,col=clustCols(input$res),do.n.k=T)
     }
   }
   
@@ -390,8 +500,10 @@ server <- function(input,output,session) {
     }
   )
   
-  #### res buttons ####
-  res <- eventReactive(input$go,input$res,ignoreNULL=F)
+  #### Resolution selection buttons ####
+  res <- reactiveVal() 
+  observeEvent(input$go,res(input$res),ignoreNULL=F)
+  observeEvent(input$go2,res(input$res2),ignoreNULL=F)
   
   observeEvent(input$save,{
     savedRes <<- input$res #<<- updates variable outside scope of function (ie. global environment)
@@ -431,15 +543,15 @@ server <- function(input,output,session) {
          xlim=range(dr_viz[,1]),ylim=range(dr_viz[,2]))
     if (any(ci())) {
       points(dr_viz[!ci(),],pch=21,
-             col=alpha(clustCols()[clusts()],0.2)[!ci()],
-             bg=alpha(clustCols()[clusts()],0.1)[!ci()])
+             col=alpha(clustCols(res())[clusts()],0.2)[!ci()],
+             bg=alpha(clustCols(res())[clusts()],0.1)[!ci()])
       points(dr_viz[ci(),],pch=21,
-             col=alpha(clustCols()[clusts()],1)[ci()],
-             bg=alpha(clustCols()[clusts()],0.5)[ci()])
+             col=alpha(clustCols(res())[clusts()],1)[ci()],
+             bg=alpha(clustCols(res())[clusts()],0.5)[ci()])
     } else {
       points(dr_viz,pch=21,
-             col=alpha(clustCols()[clusts()],1),
-             bg=alpha(clustCols()[clusts()],0.5))
+             col=alpha(clustCols(res())[clusts()],1),
+             bg=alpha(clustCols(res())[clusts()],0.5))
     }
     if (hiC() != "") {
       mtext(side=3,line=-1,text=paste("Cluster",hiC(),"-",
@@ -478,9 +590,9 @@ server <- function(input,output,session) {
   
   
   clusterSelect <- reactiveValues(cl=NULL)
-
+  
   observeEvent(input$tsneClick,{ clusterSelect$cl <- input$tsneClick })
-
+  
   cSelected <- reactive({
     t <- nearPoints(as.data.frame(dr_viz),clusterSelect$cl,xvar="tSNE_1",yvar="tSNE_2",threshold=5)
     t2 <- d$cl[rownames(t)[1],res()]
@@ -586,73 +698,92 @@ server <- function(input,output,session) {
     }
   )
   
-  #### Metadata Factor Barplot ####
-  plot_mdFactor <- function() {
-    id <- switch(input$mdFactorRA,
-                 "relative"=tapply(md[,input$mdFactorData],clusts(),
-                                   function(X) table(X) / length(X)),
-                 "absolute"=tapply(md[,input$mdFactorData],clusts(),table))
-    if (is.list(id)) { id <- do.call(cbind,id) }
-    idylab <- switch(input$mdFactorRA,
-                     "relative"="Proportion of cells per cluster",
-                     "absolute"="Number of cells per cluster")
-    if (length(levels(md[,input$mdFactorData])) <= 8) {
-      idcol <- brewer.pal(length(levels(md[,input$mdFactorData])),
-                          "Dark2")[1:length(levels(md[,input$mdFactorData]))]
+  #### Metadata Scatterplot ####
+  output$scatterLog <- renderUI({
+    if ((is.factor(md[,input$mdScatterX]) | is.character(md[,input$mdScatterX])) |
+        (is.factor(md[,input$mdScatterY]) | is.character(md[,input$mdScatterY]))) {
+      checkboxGroupInput("scatterLog",inline=F,label=NULL,
+                         choices=c("Log x axis"="x","Log y axis"="y","Show notch"="notch"),
+                         selected="notch")
     } else {
-      idcol <- rainbow2(length(levels(md[,input$mdFactorData])))
-    }
-    par(mar=c(3,3,4,1),mgp=2:0)
-    barplot(id,col=idcol,ylab=idylab,
-            legend.text=levels(md[,input$mdFactorData]),
-            args.legend=list(x="topright",horiz=T,inset=c(0,-.08),bty="n"))
-    mtext(input$mdFactorData,side=3,adj=0,font=2,line=1,cex=1.2)
-  }
-  
-  output$mdFactor <- renderPlot({
-    if (length(res()) > 0) {
-      print(plot_mdFactor())
+      checkboxGroupInput("scatterLog",inline=F,label=NULL,
+                         choices=c("Log x axis"="x","Log y axis"="y"))
     }
   })
   
-  output$mdFactorSave <- downloadHandler(
-    filename="mdFactor.pdf",
-    content=function(file) {
-      pdf(file,width=7,height=7)
-      print(plot_mdFactor())
-      dev.off()
-    }
-  )
-  
-  #### Metadata Scatterplot ####
   plot_mdScatter <- function() {
-    layout(matrix(c(2,1,0,3),2),c(5,1),c(1,5))
-    par(mar=c(3,3,0,0),mgp=2:0,cex=1.1)
-    if (all(ci())) {
-      plot(md[,input$mdScatterX],md[,input$mdScatterY],
-           log=paste(input$scatterLog,collapse=""),
-           pch=21,col=alpha("red",0.4),bg=alpha("red",0.2),
-           xlab=input$mdScatterX,ylab=input$mdScatterY)
+    if ((is.factor(md[,input$mdScatterX]) | is.character(md[,input$mdScatterX])) &
+         (is.factor(md[,input$mdScatterY]) | is.character(md[,input$mdScatterY]))) {
+      plot(x=NA,y=NA,xlim=0:1,ylim=0:1,xaxt="n",yaxt="n",xlab=NA,ylab=NA)
+      text(.5,.5,"This figure is not designed to compare to categorical variables.")
+    } else if (is.factor(md[,input$mdScatterX]) | is.character(md[,input$mdScatterX])) {
+      par(mar=c(3,3,2,1),mgp=2:0)
+      if (any(ci())) {
+        temp1 <- tapply(md[!ci(),input$mdScatterY],as.factor(md[!ci(),input$mdScatterX]),c)
+        temp2 <- tapply(md[ci(),input$mdScatterY],as.factor(md[ci(),input$mdScatterX]),c)
+        plot(x=NULL,y=NULL,ylim=range(md[,input$mdScatterY]),
+             xlim=c(0,length(levels(as.factor(md[,input$mdScatterX]))) * 3),
+             log=sub("notch","",paste(input$scatterLog,collapse="")),xaxt="n",
+             xlab=input$mdScatterX,ylab=input$mdScatterY)
+        boxplot(temp1,add=T,xaxt="n",notch="notch" %in% input$scatterLog,
+                at=seq(1,length(levels(as.factor(md[,input$mdScatterX]))) * 3,by=3))
+        boxplot(temp2,add=T,xaxt="n",notch="notch" %in% input$scatterLog,border="red",
+                at=seq(2,length(levels(as.factor(md[,input$mdScatterX]))) * 3,by=3))
+        axis(side=1,at=seq(1.5,length(levels(as.factor(md[,input$mdScatterX]))) * 3,by=3),
+             labels=names(temp1))
+        legend("top",bty="n",xpd=NA,inset=c(0,-.05),pch=0,col="red",
+               legend=paste("Cluster",hiC(),"-",d$clusterID[[res()]][hiC()]))
+      } else {
+        boxplot(tapply(md[,input$mdScatterY],as.factor(md[,input$mdScatterX]),c),
+                xlab=input$mdScatterX,ylab=input$mdScatterY,
+                log=sub("notch","",paste(input$scatterLog,collapse="")),
+                notch="notch" %in% input$scatterLog)
+      }
+    } else if (is.factor(md[,input$mdScatterY]) | is.character(md[,input$mdScatterY])) {
+      par(mar=c(3,3,2,1),mgp=2:0)
+      if (any(ci())) {
+        temp1 <- tapply(md[!ci(),input$mdScatterX],as.factor(md[!ci(),input$mdScatterY]),c)
+        temp2 <- tapply(md[ci(),input$mdScatterX],as.factor(md[ci(),input$mdScatterY]),c)
+        plot(x=NULL,y=NULL,xlim=range(md[,input$mdScatterX]),
+             ylim=c(0,length(levels(as.factor(md[,input$mdScatterY]))) * 3),
+             log=sub("notch","",paste(input$scatterLog,collapse="")),yaxt="n",
+             xlab=input$mdScatterX,ylab=input$mdScatterY)
+        boxplot(temp1,add=T,horizontal=T,yaxt="n",notch="notch" %in% input$scatterLog,
+                at=seq(1,length(levels(as.factor(md[,input$mdScatterY]))) * 3,by=3))
+        boxplot(temp2,add=T,horizontal=T,yaxt="n",notch="notch" %in% input$scatterLog,border="red",
+                at=seq(2,length(levels(as.factor(md[,input$mdScatterY]))) * 3,by=3))
+        axis(side=2,at=seq(1.5,length(levels(as.factor(md[,input$mdScatterY]))) * 3,by=3),
+             labels=names(temp1))
+        legend("top",bty="n",xpd=NA,inset=c(0,-.05),pch=0,col="red",
+               legend=paste("Cluster",hiC(),"-",d$clusterID[[res()]][hiC()]))
+      } else {
+        boxplot(tapply(md[,input$mdScatterX],as.factor(md[,input$mdScatterY]),c),
+                horizontal=T,xlab=input$mdScatterX,ylab=input$mdScatterY,
+                log=sub("notch","",paste(input$scatterLog,collapse="")),
+                notch="notch" %in% input$scatterLog)
+      }
     } else {
+      layout(matrix(c(2,1,0,3),2),c(5,1),c(1,5))
+      par(mar=c(3,3,0,0),mgp=2:0,cex=1.1)
       plot(md[!ci(),input$mdScatterX],md[!ci(),input$mdScatterY],
-           log=paste(input$scatterLog,collapse=""),
+           log=sub("notch","",paste(input$scatterLog,collapse="")),
            pch=21,col=alpha("black",0.2),bg=alpha("black",0.1),
            xlab=input$mdScatterX,ylab=input$mdScatterY)
       points(md[ci(),input$mdScatterX],md[ci(),input$mdScatterY],
              pch=21,col=alpha("red",0.4),bg=alpha("red",0.2))
+      if (any(ci())) {
+        legend("topleft",bty="n",pch=21,col="red",pt.bg=alpha("red",0.5),
+               legend=paste("Cluster",hiC(),"-",d$clusterID[[res()]][hiC()]))
+      }
+      if ("x" %in% input$scatterLog) { tempLX <- "x" } else { tempLX <- "" }
+      if ("y" %in% input$scatterLog) { tempLY <- "y" } else { tempLY <- "" }
+      par(mar=c(0,3,1,0))
+      boxplot(tapply(md[,input$mdScatterX],ci(),c),log=tempLX,
+              horizontal=T,xaxt="n",yaxt="n",border=c("black","red"))
+      par(mar=c(3,0,0,1))
+      boxplot(tapply(md[,input$mdScatterY],ci(),c),log=tempLY,
+              horizontal=F,xaxt="n",yaxt="n",border=c("black","red"))
     }
-    if (any(ci())) {
-      legend("topleft",bty="n",pch=21,col="red",pt.bg=alpha("red",0.5),
-             legend=paste("Cluster",hiC(),"-",d$clusterID[[res()]][hiC()]))
-    }
-    if ("x" %in% input$scatterLog) { tempLX <- "x" } else { tempLX <- "" }
-    if ("y" %in% input$scatterLog) { tempLY <- "y" } else { tempLY <- "" }
-    par(mar=c(0,3,1,0))
-    boxplot(tapply(md[,input$mdScatterX],ci(),c),log=tempLX,
-            horizontal=T,xaxt="n",yaxt="n",border=c("black","red"))
-    par(mar=c(3,0,0,1))
-    boxplot(tapply(md[,input$mdScatterY],ci(),c),log=tempLY,
-            horizontal=F,xaxt="n",yaxt="n",border=c("black","red"))
   }
   
   output$mdScatter <- renderPlot({
@@ -670,47 +801,107 @@ server <- function(input,output,session) {
     }
   )
   
-  
-  ######## Cluster-wise Gene Stats #########
-  
-  #### Heatmap genes ####
-  output$heatDEtype <- renderUI({
-    if (grepl("^Comp",input$res)) {
-      temp <- list("DE vs rest"="deTissue",
-                   "Set A vs Set B"="deMarker")
+  #### Metadata Factor Barplot ####
+  output$mdFactorOpts <- renderUI({
+    if (is.factor(md[,input$mdFactorData]) | is.character(md[,input$mdFactorData])) {
+      radioButtons("mdFactorRA","Factor counts per cluster:",inline=T,
+                   choices=list("Absolute"="absolute","Relative"="relative"))
     } else {
-      temp <- list("DE vs rest"="deTissue",
-                   "Marker genes"="deMarker",
-                   "DE vs neighbour"="deNeighb")
+      checkboxGroupInput("mdFactorOpts",inline=T,label="Figure options",
+                         choices=c("Log scale"="y","Show notch"="notch"),selected="notch")
     }
-    radioButtons("heatG","Heapmap Genes:",choices=temp)
+  })
+  
+  plot_mdFactor <- function() {
+    if (is.factor(md[,input$mdFactorData]) | is.character(md[,input$mdFactorData])) {
+      id <- switch(input$mdFactorRA,
+                   "relative"=tapply(md[,input$mdFactorData],clusts(),
+                                     function(X) table(X) / length(X)),
+                   "absolute"=tapply(md[,input$mdFactorData],clusts(),table))
+      if (is.list(id)) { id <- do.call(cbind,id) }
+      idylab <- switch(input$mdFactorRA,
+                       "relative"="Proportion of cells per cluster",
+                       "absolute"="Number of cells per cluster")
+      if (length(levels(md[,input$mdFactorData])) <= 8) {
+        idcol <- brewer.pal(length(levels(md[,input$mdFactorData])),
+                            "Dark2")[1:length(levels(md[,input$mdFactorData]))]
+      } else {
+        idcol <- rainbow2(length(levels(md[,input$mdFactorData])))
+      }
+      par(mar=c(3,3,2,1),mgp=2:0)
+      barplot(id,col=idcol,ylab=idylab,
+              legend.text=levels(md[,input$mdFactorData]),
+              args.legend=list(x="topright",horiz=T,inset=c(0,-.08),bty="n"))
+      mtext(input$mdFactorData,side=3,adj=0,font=2,line=1,cex=1.2)
+    } else {
+      par(mar=c(3,3,2,1),mgp=2:0)
+      boxplot(tapply(md[,input$mdFactorData],cl[,res()],c),
+              ylab=input$mdFactorData,notch="notch" %in% input$mdFactorOpts,
+              log=sub("notch","",paste(input$mdFactorOpts,collapse="")),
+              border=clustCols(res()),col=alpha(clustCols(res()),0.3))
+    }
+  }
+  
+  output$mdFactor <- renderPlot({
+    if (length(res()) > 0) {
+      print(plot_mdFactor())
+    }
+  })
+  
+  output$mdFactorSave <- downloadHandler(
+    filename="mdFactor.pdf",
+    content=function(file) {
+      pdf(file,width=7,height=7)
+      print(plot_mdFactor())
+      dev.off()
+    }
+  )
+  
+  
+  ######## Differentially Expressed Genes per Cluster #########
+  
+  output$heatDEtype <- renderUI({
+    if (!is.null(res())) {
+      if (grepl("^Comp",res())) {
+        temp <- list("DE vs rest"="deTissue",
+                     "Set A vs Set B"="deMarker")
+      } else {
+        temp <- list("DE vs rest"="deTissue",
+                     "Marker genes"="deMarker",
+                     "DE vs neighbour"="deNeighb")
+      }
+      radioButtons("heatG","Heapmap Genes:",choices=temp,selected="deMarker")
+    }
   })
   
   output$DEgeneSlider <- renderUI({
     if (length(res()) > 0) {
-      switch(
-        input$heatG,
-        deTissue=
-          sliderInput("DEgeneCount",min=1,max=max(sapply(d$deTissue[[res()]],nrow)),
-                      value=5,step=1,ticks=T,width="100%",
-                      label=HTML(paste(
-                        "Positive differential gene expression of cluster over tissue",
-                        "# of genes per cluster to show",sep="<br/>"
-                      ))),
-        deMarker=
-          sliderInput("DEgeneCount",min=1,max=max(sapply(d$deMarker[[res()]],nrow)),
-                      value=5,step=1,ticks=T,width="100%",
-                      label=HTML(paste(
-                        "Positive differential gene expression between cluster and all other clusters",
-                        "# of genes per cluster to show",sep="<br/>"
-                      ))),
-        deNeighb=
-          sliderInput("DEgeneCount",min=1,max=max(sapply(deNeighb[[res()]],nrow)),
-                      value=5,step=1,ticks=T,width="100%",
-                      label=HTML(paste(
-                        "Positive differential gene expression between cluster and nearest neighbour",
-                        "# of genes per cluster to show",sep="<br/>"
-                      ))))
+      if (input$heatG == "deTissue") {
+        sliderInput("DEgeneCount",min=1,max=max(sapply(d$deTissue[[res()]],nrow)),
+                    value=5,step=1,ticks=T,width="100%",
+                    label=HTML(paste(
+                      "Positive differential gene expression of cluster over tissue",
+                      "# of genes per cluster to show",sep="<br/>")))
+      } else if (input$heatG == "deMarker") {
+        if (grepl("^Comp",res())) {
+          temp_label <- HTML(paste(
+            "Positive differential gene expression between sets",
+            "# of genes per set to show",sep="<br/>"))
+        } else {
+          temp_label <- HTML(paste(
+            "Positive differential gene expression between cluster and all other clusters",
+            "# of genes per cluster to show",sep="<br/>"))
+        }
+        sliderInput("DEgeneCount",min=1,max=max(sapply(d$deMarker[[res()]],nrow)),
+                    value=5,step=1,ticks=T,width="100%",
+                    label=temp_label)
+      } else if (input$heatG == "deNeighb") {
+        sliderInput("DEgeneCount",min=1,max=max(sapply(deNeighb[[res()]],nrow)),
+                    value=5,step=1,ticks=T,width="100%",
+                    label=HTML(paste(
+                      "Positive differential gene expression between cluster and nearest neighbour",
+                      "# of genes per cluster to show",sep="<br/>")))
+      }
     }
   })
   
@@ -791,7 +982,8 @@ server <- function(input,output,session) {
                 margins=c(9,12),lhei=c(2,10),lwid=c(1,11),trace="none",
                 keysize=1.5,density.info="none",key.par=list(mar=c(3,.5,2,.5),mgp=2:0),
                 cexCol=1 + 1/log2(nrow(clustMeans())),cexRow=1 + 1/log2(ncol(clustMeans())),
-                RowSideColors=clustCols(),labRow=tempLabRow,rowsep=sepClust(),col=viridis(100,d=-1))
+                RowSideColors=clustCols(res()),labRow=tempLabRow,
+                rowsep=sepClust(),col=viridis(100,d=-1))
     }
   }
   
@@ -821,15 +1013,8 @@ server <- function(input,output,session) {
     }
   )
   
-
-  #### clusterGenes ####
-  output$genePlotClustSelect <- renderUI({
-    if (length(res()) > 0) {
-      selectInput("genePlotClust","Cluster:",selected=cSelected(),
-                  choices=c("",levels(clusts())[!levels(clusts()) == "Unselected"]))
-    }
-  })
   
+  #### Gene search box ####
   output$geneSearchBox <- renderUI({
     if (input$searchType == "comma") {
       textInput("GOI",width="100%",
@@ -841,9 +1026,6 @@ server <- function(input,output,session) {
                 label="Search for genes by regular expression and click Search")
     }
   })
-
-  cellMarkCols <- reactive(rainbow2(length(cellMarkers)))
-  
   GOI <- eventReactive(input$GOIgo,{
     if (input$searchType == "comma") {
       tempGeneList <- strsplit(input$GOI,split="[\\s,]",perl=T)[[1]]
@@ -853,6 +1035,17 @@ server <- function(input,output,session) {
     }
   },
   ignoreNULL=F)
+  
+  
+  #### Gene expression in cluster ####
+  output$genePlotClustSelect <- renderUI({
+    if (length(res()) > 0) {
+      selectInput("genePlotClust","Cluster:",selected=cSelected(),
+                  choices=c("",levels(clusts())[!levels(clusts()) == "Unselected"]))
+    }
+  })
+  
+  cellMarkCols <- reactive(rainbow2(length(cellMarkers)))
   
   plot_clusterGenes <- function() {
     doubleDot <- function(col1,col2) {
@@ -883,6 +1076,7 @@ server <- function(input,output,session) {
     if (hiC() == "") {
       plot(x=NA,y=NA,xlim=0:1,ylim=0:1,xaxt="n",yaxt="n",xlab=NA,ylab=NA)
       text(.5,.5,paste("Click a cell from a cluster on the tSNE plot above",
+                       "or select a cluster from the drop-down list above left",
                        "to see gene expression for that cluster.",sep="\n"))
     } else {
       temp_ylab <- switch(as.character(exponent == exp(1)),
@@ -893,13 +1087,13 @@ server <- function(input,output,session) {
              !((d$CGS[[res()]][[hiC()]]$cMu | d$CGS[[res()]][[hiC()]]$cMs) & 
                  d$CGS[[res()]][[hiC()]]$overCut),],
            col=alpha("black",0.3),
-           xlab="Proportion of cells detecting gene",
-           ylab=paste("Mean normalized gene expression of detected genes",temp_ylab))
+           xlab="Proportion of cells in which gene was detected",
+           ylab=paste("Mean normalized gene expression where detected",temp_ylab))
       title(paste0("Cluster ", hiC(),": ",d$clusterID[[res()]][hiC()]),cex=1.2)
       mtext(paste("Cells:",sum(clusts()==hiC()),
                   "   Genes detected:",length(d$CGS[[res()]][[hiC()]]$DR)),side=3,line=0,cex=0.9)
-      box(col=clustCols()[hiC()],lwd=2)
-
+      box(col=clustCols(res())[hiC()],lwd=2)
+      
       if (input$cgLegend == "markers") {
         for (x in which(d$CGS[[res()]][[hiC()]]$cMu)) {
           my.symbols(x=d$CGS[[res()]][[hiC()]]$DR[x],
@@ -944,7 +1138,17 @@ server <- function(input,output,session) {
                srt=315,cex=1.5,font=2,adj=c(1.1,-.1),col="darkred",
                labels=d$CGS[[res()]][[hiC()]]$genes[degl])
         }
-        
+        temp_n <- nrow(switch(input$heatG,
+                              deTissue=d$deTissue,
+                              deMarker=d$deMarker,
+                              deNeighb=deNeighb)[[res()]][[hiC()]])
+        temp_lab <- switch(input$heatG,
+                           deTissue=" DE genes vs rest of cells in sample",
+                           deMarker=" marker genes",
+                           deNeighb=" DE genes vs nearest neighbouring cluster")
+        legend("top",bty="n",pch=16,col="darkred",
+               legend=paste0(temp_n,temp_lab," (showing top ",
+                             min(temp_n,input$DEgeneCount),")"))
       } else if (input$cgLegend == "search" & length(GOI()) > 0) {
         degl <- which(rownames(nge) %in% GOI())
         points(x=d$CGS[[res()]][[hiC()]]$DR[degl],y=d$CGS[[res()]][[hiC()]]$MDTC[degl],
@@ -971,27 +1175,32 @@ server <- function(input,output,session) {
     }
   )
   
-  #### Gene Stats Plot ####
-  cgGeneOpts <- reactive({
+  #### Gene expression comparison ####
+  clickGenes <- reactiveVal() 
+  observeEvent(input$cgClick,{
     t <- nearPoints(d$CGS[[res()]][[hiC()]],input$cgClick,xvar="DR",yvar="MDTC")
-    return(t$genes)
+    clickGenes(t$genes)
+  })
+  observeEvent(input$scatterClick,{
+    t <- nearPoints(compDF(),input$scatterClick,xvar="x",yvar="y")
+    clickGenes(t$genes)
   })
   
   output$cgSelect <- renderUI({
     if (length(res()) > 0) {
       if (input$boxplotGene == "click") {
-        selectInput("cgGene",choices=sort(cgGeneOpts()),label="Select gene from list:")
+        selectInput("cgGene",choices=sort(clickGenes()),label="Select gene from list:")
       } else if (input$boxplotGene == "search") {
         selectInput("cgGene",choices=sort(GOI()),label="Select gene from list:")
       }
     }
   })
-
+  
   plot_geneTest <- function() {
     if (input$cgGene == "") {
       plot(x=NA,y=NA,xlim=0:1,ylim=0:1,xaxt="n",yaxt="n",xlab=NA,ylab=NA)
       text(.5,.5,paste("Select a gene by either clicking on the plot above",
-                       "or entering regular expression capturing your gene symbol of interest",
+                       "or searching for genes of interest in the search bar above,",
                        "then pick the gene from the list just above this figure",
                        "to see a comparison of that gene's expression across all clusters.",sep="\n"))
     } else {
@@ -1003,7 +1212,7 @@ server <- function(input,output,session) {
       par(mar=c(3,3,0,3),mgp=2:0)
       suppressWarnings(boxplot(vector("list",length(levels(clusts()))),
                                ylim=range(nge[input$cgGene,]),
-                               ylab=paste(input$cgGene,"gene expression",temp_ylab),
+                               ylab=paste(input$cgGene,"normalized gene expression",temp_ylab),
                                xlab=NA,xaxt="n"))
       mtext(levels(clusts())[temp_pos],side=1,line=0,at=seq_along(temp_pos))
       mtext("Clusters, ordered by heatmap dendrogram",side=1,line=1)
@@ -1014,16 +1223,16 @@ server <- function(input,output,session) {
               side=1,line=2,font=2) 
       }
       if ("sct" %in% input$bxpOpts) {
-        bxpCol <- alpha(clustCols(),.2)
+        bxpCol <- alpha(clustCols(res()),.2)
       } else {
-        bxpCol <- alpha(clustCols(),.8)
+        bxpCol <- alpha(clustCols(res()),.8)
       }
       for (i in temp_pos) {
-        boxplot(nge[input$cgGene,clusts() == levels(clusts())[i]],
-                col=bxpCol[i],at=which(temp_pos == i),add=T,notch=T,outline=F)
+        boxplot(nge[input$cgGene,clusts() == levels(clusts())[i]],add=T,
+                at=which(temp_pos == i),notch="notch" %in% input$bxpOpts,col=bxpCol[i],outline=F)
         if ("sct" %in% input$bxpOpts) {
           points(jitter(rep(which(temp_pos == i),sum(clusts() == levels(clusts())[i])),amount=.2),
-                 nge[input$cgGene,clusts() == levels(clusts())[i]],pch=20,col=alpha(clustCols()[i],.4))
+                 nge[input$cgGene,clusts() == levels(clusts())[i]],pch=20,col=alpha(clustCols(res())[i],.4))
         }
       }
       if ("rnk" %in% input$bxpOpts) {
@@ -1058,163 +1267,192 @@ server <- function(input,output,session) {
   )
   
   
-  ######## Distribution of genes of interest #########
-  output$geneSearchBox1 <- renderUI({
-    if (input$searchType1 == "comma") {
-      textInput("GOI1",width="100%",
-                label=paste("Enter list of genes"))
-    } else if (input$searchType1 == "regex") {
-      textInput("GOI1",value=demoRegex,width="100%",
-                label="Enter regular expression")
-    }
+  ######## Cluster comparison #########
+  output$resSelect2 <- renderUI({
+    selectInput("res2","Resolution:",choices=clustList(),selected=res(),width="100%")
   })
-
-  GOI1 <- eventReactive(input$GOI1go,{
-    if (input$searchType1 == "comma") {
-      tempGeneList <- ""
-      try({
-        tempGeneList <- strsplit(input$GOI1,split="[\\s,]",perl=T)[[1]]
-      },silent=T)
-      return(rownames(nge)[which(toupper(rownames(nge)) %in% toupper(tempGeneList))])
-    } else if (input$searchType1 == "regex") {
-      return(grep(input$GOI1,rownames(nge),value=T,ignore.case=T))
-    }
-  },ignoreNULL=F)
-
-  output$GOI1select <- renderUI({ 
-    selectInput("goi1",label="Select genes:",choices=sort(GOI1()),multiple=T)
+  output$saveButton2 <- renderUI({
+    if (grepl("^Comp",input$res2)) {
+      actionButton("updateForViz2","Save this comparison to disk",icon("save"))
+    } 
   })
-  
-  output$geneSearchBox2 <- renderUI({
-    if (input$searchType2 == "comma") {
-      textInput("GOI2",width="100%",
-                label=paste("Search by list of genes"))
-    } else if (input$searchType2 == "regex") {
-      textInput("GOI2",value=demoRegex,width="100%",
-                label="Search by regular expression")
-    }
-  })
-  
-  GOI2 <- eventReactive(input$GOI2go,{
-    if (input$searchType2 == "comma") {
-      tempGeneList <- ""
-      try({
-        tempGeneList <- strsplit(input$GOI2,split="[\\s,]",perl=T)[[1]]
-      },silent=T)
-      return(rownames(nge)[which(toupper(rownames(nge)) %in% toupper(tempGeneList))])
-    } else if (input$searchType2 == "regex") {
-      return(grep(input$GOI2,rownames(nge),value=T,ignore.case=T))
-    }
-  },ignoreNULL=F)
-  
-  output$GOI2select <- renderUI({ 
-    selectInput("goi2",label="Select genes:",choices=sort(GOI2()),multiple=T)
-  })
-
-  plot_tsneClust <- function() {
-    par(mar=c(3,3,4,1),mgp=2:0)
-    plot(dr_viz,pch=21,
-         col=alpha(clustCols()[clusts()],1),
-         bg=alpha(clustCols()[clusts()],0.5),
-         xlab="tSNE_1",ylab="tSNE_2",
-         main=paste("tSNE at",res(),"using",ncol(dr_clust),"PCs"))
-  }
-
-  plot_goi <- function(goi) {
-    if (length(goi) < 1) {
-      plot(x=NA,y=NA,xlim=0:1,ylim=0:1,xaxt="n",yaxt="n",xlab=NA,ylab=NA)
-      text(.5,.5,paste("To search for your gene(s) of interest type a",
-                       "search term (regex allowed) in the box above", 
-                       "then select the gene(s) from the drop-down list",
-                       "in the \"Gene:\" box above right.",sep="\n"))
+  output$setScatterY <- renderUI({
+    if ("Unselected" %in% levels(clusts())) {
+      selectInput("ssY",label="Cluster on Y-axis",selected="Set A",
+                  choices=levels(clusts())[!levels(clusts()) == "Unselected"])
     } else {
-      if (length(goi) > 5) { goiL <- 5 } else { goiL <- length(goi) }
-      if (goiL > 1) {
-        gv <- apply(nge[goi,],2,max)
-      } else {
-        gv <- nge[goi,]
-      }
-      cv <- cut(gv,breaks=100,labels=F)
-      par(mar=c(3,3,goiL+1,1),mgp=2:0)
-      plot(dr_viz,pch=21,cex=1.3,xlab="tSNE_1",ylab="tSNE_2",
-           col=viridis(100,.7,d=-1)[cv],bg=viridis(100,.3,d=-1)[cv])
-      temp_yrange <- max(dr_viz[,2]) - min(dr_viz[,2])
-      segments(x0=seq(quantile(range(dr_viz[,1]),.55),
-                      quantile(range(dr_viz[,1]),.95),length.out=1000),
-               y0=max(dr_viz[,2]) + temp_yrange * .045,
-               y1=max(dr_viz[,2]) + temp_yrange * .065,
-               col=viridis(1000,d=-1),xpd=NA)
-      text(x=c(quantile(range(dr_viz[,1]),.55),
-               quantile(range(dr_viz[,1]),.75),
-               quantile(range(dr_viz[,1]),.95)),
-           y=rep(max(dr_viz[,2]) + temp_yrange * .06,3),
-           labels=c(round(min(gv),2),"Max expression per cell",round(max(gv),2)),pos=2:4,xpd=NA)
-      try(tempGeneName <- 
-            select(get(egDB),keys=goi,keytype="SYMBOL",column="GENENAME")$GENENAME,silent=T)
-      if (exists("tempGeneName")) { 
-        if (length(tempGeneName) > 4) { 
-          tempGeneName[5] <- "and more..."; tempGeneName <- tempGeneName[1:5] 
-        }
-        title(paste(tempGeneName,collapse="\n"),line=0.25,adj=.01,font.main=1)
-      }
+      selectInput("ssY",label="Cluster on Y-axis",choices=c("",levels(clusts())),selected=hiC())
     }
-  }
-  
-  output$goiPlot1 <- renderPlot({
-    if (input$plotClust1 == "clust" & length(res()) > 0) {
-      print(plot_tsneClust())
-      if (input$plotLabel1) { print(plot_tsne_labels()) }
-    } else if (input$plotClust1 == "goi") {
-      print(plot_goi(input$goi1))
-      if (input$plotLabel1 & length(res()) > 0 & length(input$goi1) > 0) {
-        print(plot_tsne_labels())
+  })
+  output$setScatterX <- renderUI({
+    if ("Unselected" %in% levels(clusts())) {
+      selectInput("ssX",label="Cluster on X-axis",selected="Set B",
+                  choices=levels(clusts())[!levels(clusts()) == "Unselected"])
+    } else {
+      selectInput("ssX",label="Cluster on X-axis",choices=c("",levels(clusts())),
+                  selected=unique(gsub(pattern="^vs\\.|\\.[A-Za-z]+?$","",
+                                       colnames(deNeighb[[res()]][[hiC()]]))))
+    }
+  })
+  output$diffLabelSelect <- renderUI({
+    if (input$diffLabelType == "diff") {
+      sliderInput("diffCount",min=1,max=100,value=5,step=1,width="100%",
+                  label="Number of genes to label")
+    } else if (input$diffLabelType == "de") {
+      if (input$heatG == "deTissue") {
+        sliderInput("diffCount",value=5,step=1,ticks=T,width="100%",
+                    min=1,max=max(sapply(d$deTissue[[res()]][c(input$ssX,input$ssY)],nrow)),
+                    label="DE vs rest: # of genes to label")
+      } else if (input$heatG == "deMarker") {
+        if (grepl("^Comp",res())) {
+          temp_label <- "Set A vs Set B: # of genes to label"
+        } else {
+          temp_label <- "Marker genes: # of genes to label"
+        }
+        sliderInput("diffCount",
+                    min=1,max=max(sapply(d$deMarker[[res()]][c(input$ssX,input$ssY)],nrow)),
+                    value=5,step=1,ticks=T,width="100%",
+                    label=temp_label)
+      } else if (input$heatG == "deNeighb") {
+        sliderInput("diffCount",value=5,step=1,ticks=T,width="100%",
+                    min=1,max=max(sapply(deNeighb[[res()]][c(input$ssX,input$ssY)],nrow)),
+                    label="DE vs neighbour: # of genes to label")
       }
     }
   })
   
-  output$goiPlot1Save <- downloadHandler(
-    filename="goi1.pdf",
+  compDF <- reactive({
+    data.frame(x=d$CGS[[res()]][[input$ssX]][,input$scatterInput],
+               y=d$CGS[[res()]][[input$ssY]][,input$scatterInput],
+               genes=d$CGS[[res()]][[input$ssX]]$genes)
+  })
+  
+  LBF <- reactive({
+    lm(y~x,data=compDF())
+  })
+  
+  diffRanked <- reactive({
+    if (input$scatterLine == "sub") {
+      temp <- d$CGS[[res()]][[input$ssY]][,input$scatterInput] - 
+        d$CGS[[res()]][[input$ssX]][,input$scatterInput]
+      names(temp) <- rownames(d$CGS[[res()]][[input$ssY]])
+      return(sort(temp,decreasing=T))
+    } else if (input$scatterLine == "lbf") {
+      temp <- LBF()$residuals
+      names(temp) <- rownames(d$CGS[[res()]][[input$ssY]])
+      return(sort(temp,decreasing=T))
+    }
+  })
+  
+  plot_setScatter <- function() {
+    if (!is.null(res())) {
+      if (input$ssX %in% levels(clusts()) & input$ssY %in% levels(clusts())) {
+        temp_exp <- switch(as.character(exponent == exp(1)),
+                           "TRUE"="(natural log scale)",
+                           "FALSE"=paste0("(log",exponent," scale)"))
+        temp_label <- switch(input$scatterInput,
+                             "MTC"=paste("Mean normalized gene expression",temp_exp),
+                             "MDTC"=paste("Mean normalized gene expression where detected",temp_exp),
+                             "DR"="Proportion of cells in which gene was detected")
+        par(mar=c(3,3,2,1),mgp=2:0)
+        plot(d$CGS[[res()]][[input$ssX]][,input$scatterInput],
+             d$CGS[[res()]][[input$ssY]][,input$scatterInput],
+             xlab=paste0(input$ssX,": ",temp_label),
+             ylab=paste0(input$ssY,": ",temp_label),
+             main=paste(switch(input$scatterInput,
+                               "MTC"="Mean gene expression",
+                               "MDTC"="Mean detected gene expression",
+                               "DR"="Detection rate"),
+                        "comparison:",input$ssY,"vs.",input$ssX),
+             pch=20,col=alpha("black",0.3))
+        lines(x=c(par("usr")[1],par("usr")[2]),y=c(par("usr")[3],par("usr")[3]),
+              lwd=2,col=clustCols(res())[which(levels(clusts()) == input$ssX)],xpd=NA)
+        lines(x=c(par("usr")[1],par("usr")[1]),y=c(par("usr")[3],par("usr")[4]),
+              lwd=2,col=clustCols(res())[which(levels(clusts()) == input$ssY)],xpd=NA)
+        if (input$scatterLabelAngle) {
+          temp_srt <- 315
+          temp_adjX <- c(-0.15,0.5)
+          temp_adjY <- c(1.15,0.5)
+        } else {
+          temp_srt <- 45
+          temp_adjX <- c(-0.15,0.5)
+          temp_adjY <- c(-0.15,0.5)
+        }
+        if (input$scatterLine == "sub") {
+          abline(0,1)
+        } else if (input$scatterLine == "lbf") {
+          abline(LBF())
+        }
+        if (input$diffLabelType == "diff") {
+          points(d$CGS[[res()]][[input$ssX]][names(head(diffRanked(),input$diffCount)),input$scatterInput],
+                 d$CGS[[res()]][[input$ssY]][names(head(diffRanked(),input$diffCount)),input$scatterInput],
+                 pch=16,col=alpha(clustCols(res())[which(levels(clusts()) == input$ssY)],0.8))
+          text(d$CGS[[res()]][[input$ssX]][names(head(diffRanked(),input$diffCount)),input$scatterInput],
+               d$CGS[[res()]][[input$ssY]][names(head(diffRanked(),input$diffCount)),input$scatterInput],
+               labels=names(head(diffRanked(),input$diffCount)),srt=temp_srt,adj=temp_adjY,
+               col=clustCols(res())[which(levels(clusts()) == input$ssY)],font=2)
+          points(d$CGS[[res()]][[input$ssX]][names(tail(diffRanked(),input$diffCount)),input$scatterInput],
+                 d$CGS[[res()]][[input$ssY]][names(tail(diffRanked(),input$diffCount)),input$scatterInput],
+                 pch=16,col=alpha(clustCols(res())[which(levels(clusts()) == input$ssX)],0.8))
+          text(d$CGS[[res()]][[input$ssX]][names(tail(diffRanked(),input$diffCount)),input$scatterInput],
+               d$CGS[[res()]][[input$ssY]][names(tail(diffRanked(),input$diffCount)),input$scatterInput],
+               labels=names(tail(diffRanked(),input$diffCount)),srt=temp_srt,adj=temp_adjX,
+               col=clustCols(res())[which(levels(clusts()) == input$ssX)],font=2)
+        } else if (input$diffLabelType == "de") {
+          degX <- rownames(switch(input$heatG,
+                                  deTissue=d$deTissue[[res()]],
+                                  deMarker=d$deMarker[[res()]],
+                                  deNeighb=deNeighb[[res()]])[[input$ssX]])[1:input$diffCount]
+          if (length(degX) > 0) {
+            points(d$CGS[[res()]][[input$ssX]][degX,input$scatterInput],
+                   d$CGS[[res()]][[input$ssY]][degX,input$scatterInput],
+                   pch=16,col=alpha(clustCols(res())[which(levels(clusts()) == input$ssX)],0.8))
+            text(d$CGS[[res()]][[input$ssX]][degX,input$scatterInput],
+                 d$CGS[[res()]][[input$ssY]][degX,input$scatterInput],
+                 labels=degX,srt=temp_srt,adj=temp_adjX,
+                 col=clustCols(res())[which(levels(clusts()) == input$ssX)],font=2)
+          }
+          degY <- rownames(switch(input$heatG,
+                                  deTissue=d$deTissue[[res()]],
+                                  deMarker=d$deMarker[[res()]],
+                                  deNeighb=deNeighb[[res()]])[[input$ssY]])[1:input$diffCount]
+          if (length(degY) > 0) {
+            points(d$CGS[[res()]][[input$ssX]][degY,input$scatterInput],
+                   d$CGS[[res()]][[input$ssY]][degY,input$scatterInput],
+                   pch=16,col=alpha(clustCols(res())[which(levels(clusts()) == input$ssY)],0.8))
+            text(d$CGS[[res()]][[input$ssX]][degY,input$scatterInput],
+                 d$CGS[[res()]][[input$ssY]][degY,input$scatterInput],
+                 labels=degY,srt=temp_srt,adj=temp_adjY,
+                 col=clustCols(res())[which(levels(clusts()) == input$ssY)],font=2)
+          }
+        } else if (input$diffLabelType == "search" & length(GOI()) > 0) {
+          points(d$CGS[[res()]][[input$ssX]][GOI(),input$scatterInput],
+                 d$CGS[[res()]][[input$ssY]][GOI(),input$scatterInput],
+                 pch=16,col=alpha("darkred",0.8))
+          text(d$CGS[[res()]][[input$ssX]][GOI(),input$scatterInput],
+               d$CGS[[res()]][[input$ssY]][GOI(),input$scatterInput],
+               labels=GOI(),srt=temp_srt,adj=temp_adjX,col="darkred",font=2)
+        }
+      }
+    }
+  }
+  
+  output$setScatter <- renderPlot(print(plot_setScatter()))
+  
+  output$setScatterSave <- downloadHandler(
+    filename="setScatter.pdf",
     content=function(file) {
       pdf(file,width=7,height=7)
-      if (input$plotClust1 == "clust" & length(res()) > 0) {
-        print(plot_tsneClust())
-        if (input$plotLabel1) { print(plot_tsne_labels()) }
-      } else if (input$plotClust1 == "goi") {
-        print(plot_goi(input$goi1))
-        if (input$plotLabel1 & length(res()) > 0 & length(input$goi1) > 0) {
-          print(plot_tsne_labels())
-        }
-      }
+      print(plot_setScatter())
       dev.off()
     }
   )
   
-  output$goiPlot2 <- renderPlot({
-    if (input$plotClust2 == "clust" & length(res()) > 0) {
-      print(plot_tsneClust())
-      if (input$plotLabel2) { print(plot_tsne_labels()) }
-    } else if (input$plotClust2 == "goi") {
-      print(plot_goi(input$goi2))
-      if (input$plotLabel2 & length(res()) > 0 & length(input$goi2) > 0) {
-        print(plot_tsne_labels())
-      }
-    }
-  })
-  
-  output$goiPlot2Save <- downloadHandler(
-    filename="goi2.pdf",
+  output$setComparisonSave <- downloadHandler(
+    filename=function() { paste0(input$ssY,"vs",input$ssX,"_",
+                                 input$scatterInput,"_",input$scatterLine,".txt") },
     content=function(file) {
-      pdf(file,width=7,height=7)
-      if (input$plotClust2 == "clust" & length(res()) > 0) {
-        print(plot_tsneClust())
-        if (input$plotLabel2) { print(plot_tsne_labels()) }
-      } else if (input$plotClust2 == "goi") {
-        print(plot_goi(input$goi2))
-        if (input$plotLabel2 & length(res()) > 0 & length(input$goi2) > 0) {
-          print(plot_tsne_labels())
-        }
-      }
-      dev.off()
+      write.table(as.data.frame(diffRanked()),file,quote=F,sep="\t",row.names=T,col.names=F)
     }
   )
   
@@ -1345,7 +1583,8 @@ server <- function(input,output,session) {
         if (length(cellMarkers) < 1) {
           d$clusterID[[newRes]] <- sapply(d$CGS[[newRes]],function(Z) return(""))
         } else if (!any(unlist(cellMarkers) %in% rownames(nge))) {
-          warning("None of the provided cellMarkers are found in the data (check your gene IDs against rownames in your data).")
+          warning(paste("None of the provided cellMarkers are found in the data",
+                        "(check your gene IDs against rownames in your data)."))
           d$clusterID[[newRes]] <- sapply(d$CGS[[newRes]],function(Z) return(""))
         } else {
           d$clusterID[[newRes]] <- c(names(cellMarkers)[sapply(d$CGS[[newRes]][1:2],function(Y) 
@@ -1384,7 +1623,7 @@ server <- function(input,output,session) {
         
         #### deMarker - DE per cluster vs each other cluster #### 
         incProgress(amount=1/6,detail="Calculating Set A vs Set B")
-
+        
         deM_dDR <- DR["Set A",] - DR["Set B",]
         deM_logGER <- MTC["Set A",] - MTC["Set B",]
         deM_genesUsed <- switch(threshType,
@@ -1393,7 +1632,7 @@ server <- function(input,output,session) {
         if (length(deM_genesUsed) < 1) {
           stop("Gene filtering threshold is set too high.")
         }
-
+        
         deM_pVal <- apply(nge[deM_genesUsed,],1,function(X) 
           wilcox.test(X[d$cl[,newRes] == "Set A"],
                       X[d$cl[,newRes] == "Set B"])$p.value)
@@ -1402,18 +1641,18 @@ server <- function(input,output,session) {
                                 logGER=deM_logGER[deM_genesUsed],
                                 pVal=deM_pVal)[order(deM_pVal),]
         temp_deVS$qVal <- p.adjust(temp_deVS$pVal,"fdr")
-
+        
         d$deMarker[[newRes]] <- list(
           "Set A"=temp_deVS[temp_deVS[,threshType] > 0 & temp_deVS$qVal <= WRSTalpha,],
           "Set B"=temp_deVS[temp_deVS[,threshType] < 0 & temp_deVS$qVal <= WRSTalpha,]
         )
         d$deMarker[[newRes]][["Set B"]]$dDR <- d$deMarker[[newRes]][["Set B"]]$dDR * -1
         d$deMarker[[newRes]][["Set B"]]$logGER <- d$deMarker[[newRes]][["Set B"]]$logGER * -1
-
+        
         selectedSets$a <- selectedSets$b <- NULL
       },message="DE calculations:")      
-
       
+      res(newRes) # Automatically update the view to show the calculated results.
     }
   })
   observeEvent(input$updateForViz, {
@@ -1433,8 +1672,168 @@ server <- function(input,output,session) {
       "Saving ",dataTitle,"_selDE_",sub("Comp.","",input$res,fixed=T),".RData to ",dataPath))
   })
   
+  
+  ######## Distribution of genes of interest #########
+  output$geneSearchBox1 <- renderUI({
+    if (input$searchType1 == "comma") {
+      textInput("GOI1",width="100%",
+                label=paste("Enter list of genes"))
+    } else if (input$searchType1 == "regex") {
+      textInput("GOI1",value=demoRegex,width="100%",
+                label="Enter regular expression")
+    }
+  })
+  
+  GOI1 <- eventReactive(input$GOI1go,{
+    if (input$searchType1 == "comma") {
+      tempGeneList <- ""
+      try({
+        tempGeneList <- strsplit(input$GOI1,split="[\\s,]",perl=T)[[1]]
+      },silent=T)
+      return(rownames(nge)[which(toupper(rownames(nge)) %in% toupper(tempGeneList))])
+    } else if (input$searchType1 == "regex") {
+      return(grep(input$GOI1,rownames(nge),value=T,ignore.case=T))
+    }
+  },ignoreNULL=F)
+  
+  output$GOI1select <- renderUI({ 
+    selectInput("goi1",label="Select genes:",choices=sort(GOI1()),multiple=T)
+  })
+  
+  output$geneSearchBox2 <- renderUI({
+    if (input$searchType2 == "comma") {
+      textInput("GOI2",width="100%",
+                label=paste("Search by list of genes"))
+    } else if (input$searchType2 == "regex") {
+      textInput("GOI2",value=demoRegex,width="100%",
+                label="Search by regular expression")
+    }
+  })
+  
+  GOI2 <- eventReactive(input$GOI2go,{
+    if (input$searchType2 == "comma") {
+      tempGeneList <- ""
+      try({
+        tempGeneList <- strsplit(input$GOI2,split="[\\s,]",perl=T)[[1]]
+      },silent=T)
+      return(rownames(nge)[which(toupper(rownames(nge)) %in% toupper(tempGeneList))])
+    } else if (input$searchType2 == "regex") {
+      return(grep(input$GOI2,rownames(nge),value=T,ignore.case=T))
+    }
+  },ignoreNULL=F)
+  
+  output$GOI2select <- renderUI({ 
+    selectInput("goi2",label="Select genes:",choices=sort(GOI2()),multiple=T)
+  })
+  
+  plot_tsneClust <- function() {
+    par(mar=c(3,3,4,1),mgp=2:0)
+    plot(dr_viz,pch=21,
+         col=alpha(clustCols(res())[clusts()],1),
+         bg=alpha(clustCols(res())[clusts()],0.5),
+         xlab="tSNE_1",ylab="tSNE_2",
+         main=paste("tSNE at",res(),"using",ncol(dr_clust),"PCs"))
+  }
+  
+  plot_goi <- function(goi) {
+    if (length(goi) < 1) {
+      plot(x=NA,y=NA,xlim=0:1,ylim=0:1,xaxt="n",yaxt="n",xlab=NA,ylab=NA)
+      text(.5,.5,paste("To search for your gene(s) of interest type a",
+                       "list of genes or regex in the box above", 
+                       "then select the gene(s) from the drop-down list",
+                       "in the \"Select genes:\" box above right.",sep="\n"))
+    } else {
+      if (length(goi) > 5) { goiL <- 5 } else { goiL <- length(goi) }
+      if (goiL > 1) {
+        gv <- apply(nge[goi,],2,max)
+      } else {
+        gv <- nge[goi,]
+      }
+      cv <- cut(gv,breaks=100,labels=F)
+      par(mar=c(3,3,goiL+1,1),mgp=2:0)
+      plot(dr_viz,pch=21,cex=1.3,xlab="tSNE_1",ylab="tSNE_2",
+           col=viridis(100,.7,d=-1)[cv],bg=viridis(100,.3,d=-1)[cv])
+      temp_yrange <- max(dr_viz[,2]) - min(dr_viz[,2])
+      segments(x0=seq(quantile(range(dr_viz[,1]),.55),
+                      quantile(range(dr_viz[,1]),.95),length.out=1000),
+               y0=max(dr_viz[,2]) + temp_yrange * .045,
+               y1=max(dr_viz[,2]) + temp_yrange * .065,
+               col=viridis(1000,d=-1),xpd=NA)
+      text(x=c(quantile(range(dr_viz[,1]),.55),
+               quantile(range(dr_viz[,1]),.75),
+               quantile(range(dr_viz[,1]),.95)),
+           y=rep(max(dr_viz[,2]) + temp_yrange * .06,3),
+           labels=c(round(min(gv),2),"Max expression per cell",round(max(gv),2)),pos=2:4,xpd=NA)
+      try(tempGeneName <- 
+            select(get(egDB),keys=goi,keytype="SYMBOL",column="GENENAME")$GENENAME,silent=T)
+      if (exists("tempGeneName")) { 
+        if (length(tempGeneName) > 4) { 
+          tempGeneName[5] <- "and more..."; tempGeneName <- tempGeneName[1:5] 
+        }
+        title(paste(tempGeneName,collapse="\n"),line=0.25,adj=.01,font.main=1)
+      }
+    }
+  }
+  
+  output$goiPlot1 <- renderPlot({
+    if (input$plotClust1 == "clust" & length(res()) > 0) {
+      print(plot_tsneClust())
+      if (input$plotLabel1) { print(plot_tsne_labels()) }
+    } else if (input$plotClust1 == "goi") {
+      print(plot_goi(input$goi1))
+      if (input$plotLabel1 & length(res()) > 0 & length(input$goi1) > 0) {
+        print(plot_tsne_labels())
+      }
+    }
+  })
+  
+  output$goiPlot1Save <- downloadHandler(
+    filename="goi1.pdf",
+    content=function(file) {
+      pdf(file,width=7,height=7)
+      if (input$plotClust1 == "clust" & length(res()) > 0) {
+        print(plot_tsneClust())
+        if (input$plotLabel1) { print(plot_tsne_labels()) }
+      } else if (input$plotClust1 == "goi") {
+        print(plot_goi(input$goi1))
+        if (input$plotLabel1 & length(res()) > 0 & length(input$goi1) > 0) {
+          print(plot_tsne_labels())
+        }
+      }
+      dev.off()
+    }
+  )
+  
+  output$goiPlot2 <- renderPlot({
+    if (input$plotClust2 == "clust" & length(res()) > 0) {
+      print(plot_tsneClust())
+      if (input$plotLabel2) { print(plot_tsne_labels()) }
+    } else if (input$plotClust2 == "goi") {
+      print(plot_goi(input$goi2))
+      if (input$plotLabel2 & length(res()) > 0 & length(input$goi2) > 0) {
+        print(plot_tsne_labels())
+      }
+    }
+  })
+  
+  output$goiPlot2Save <- downloadHandler(
+    filename="goi2.pdf",
+    content=function(file) {
+      pdf(file,width=7,height=7)
+      if (input$plotClust2 == "clust" & length(res()) > 0) {
+        print(plot_tsneClust())
+        if (input$plotLabel2) { print(plot_tsne_labels()) }
+      } else if (input$plotClust2 == "goi") {
+        print(plot_goi(input$goi2))
+        if (input$plotLabel2 & length(res()) > 0 & length(input$goi2) > 0) {
+          print(plot_tsne_labels())
+        }
+      }
+      dev.off()
+    }
+  )
+  
+  
 }
-
-
 ########## ShinyApp ##########
 shinyApp(ui = ui, server = server)
