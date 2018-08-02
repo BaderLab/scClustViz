@@ -1671,6 +1671,22 @@ server <- function(input,output,session) {
     },message=paste0(
       "Saving ",dataTitle,"_selDE_",sub("Comp.","",input$res,fixed=T),".RData to ",dataPath))
   })
+  observeEvent(input$updateForViz2, {
+    withProgress({
+      new_cl <- d$cl[input$res]
+      new_CGS <- list()
+      for (i in names(d$CGS[[input$res]])) {
+        new_CGS[[input$res]][[i]] <- 
+          d$CGS[[input$res]][[i]][colnames(d$CGS[[input$res]][[i]]) %in% c("DR","MDTC","MTC")]
+      }
+      new_deTissue <- d$deTissue[input$res]
+      new_deMarker <- d$deMarker[input$res]
+      incProgress(.5)
+      save(new_cl,new_CGS,new_deTissue,new_deMarker,
+           file=paste0(dataPath,dataTitle,"_selDE_",sub("Comp.","",input$res,fixed=T),".RData"))
+    },message=paste0(
+      "Saving ",dataTitle,"_selDE_",sub("Comp.","",input$res,fixed=T),".RData to ",dataPath))
+  })
   
   
   ######## Distribution of genes of interest #########
