@@ -1322,9 +1322,12 @@ server <- function(input,output,session) {
   })
   
   compDF <- reactive({
-    data.frame(x=d$CGS[[res()]][[input$ssX]][,input$scatterInput],
-               y=d$CGS[[res()]][[input$ssY]][,input$scatterInput],
-               genes=d$CGS[[res()]][[input$ssX]]$genes)
+    data.frame(y=d$CGS[[res()]][[input$ssY]][,input$scatterInput] - 
+                 d$CGS[[res()]][[input$ssX]][,input$scatterInput],
+               x=rowMeans(cbind(d$CGS[[res()]][[input$ssX]][,input$scatterInput],
+                                d$CGS[[res()]][[input$ssY]][,input$scatterInput])),
+               genes=d$CGS[[res()]][[input$ssX]]$genes,
+               row.names=d$CGS[[res()]][[input$ssX]]$genes)
   })
   
   LBF <- reactive({
@@ -1351,52 +1354,52 @@ server <- function(input,output,session) {
                            "TRUE"="(natural log scale)",
                            "FALSE"=paste0("(log",exponent," scale)"))
         temp_label <- switch(input$scatterInput,
-                             "MTC"=paste("Mean normalized gene expression",temp_exp),
-                             "MDTC"=paste("Mean normalized gene expression where detected",temp_exp),
-                             "DR"="Proportion of cells in which gene was detected")
+                             "MTC"=paste("mean normalized gene expression",temp_exp),
+                             "MDTC"=paste("mean normalized gene expression where detected",temp_exp),
+                             "DR"="proportion of cells in which gene was detected")
         par(mar=c(3,3,2,1),mgp=2:0)
-        plot(d$CGS[[res()]][[input$ssX]][,input$scatterInput],
-             d$CGS[[res()]][[input$ssY]][,input$scatterInput],
-             xlab=paste0(input$ssX,": ",temp_label),
-             ylab=paste0(input$ssY,": ",temp_label),
-             main=paste(switch(input$scatterInput,
-                               "MTC"="Mean gene expression",
-                               "MDTC"="Mean detected gene expression",
-                               "DR"="Detection rate"),
-                        "comparison:",input$ssY,"vs.",input$ssX),
+        plot(y~x,data=compDF(),
+             ylab=paste0("Difference in ",temp_label," (",input$ssY," - ",input$ssX,")"),
+             xlab=paste0("Average of ",temp_label," between ",input$ssY," & ",input$ssX),
+             main=paste0("MA plot of ",
+                         switch(input$scatterInput,
+                                "MTC"="mean gene expression",
+                                "MDTC"="mean detected gene expression",
+                                "DR"="detection rate"),
+                         " (",input$ssY," vs. ",input$ssX,")"),
              pch=20,col=alpha("black",0.3))
         lines(x=c(par("usr")[1],par("usr")[2]),y=c(par("usr")[3],par("usr")[3]),
               lwd=2,col=clustCols(res())[which(levels(clusts()) == input$ssX)],xpd=NA)
-        lines(x=c(par("usr")[1],par("usr")[1]),y=c(par("usr")[3],par("usr")[4]),
+        lines(x=c(par("usr")[1],par("usr")[2]),y=c(par("usr")[4],par("usr")[4]),
               lwd=2,col=clustCols(res())[which(levels(clusts()) == input$ssY)],xpd=NA)
         if (input$scatterLabelAngle) {
-          temp_srt <- 315
+          temp_srtX <- 315
+          temp_srtY <- 45
           temp_adjX <- c(-0.15,0.5)
-          temp_adjY <- c(1.15,0.5)
+          temp_adjY <- c(-0.15,0.5)
         } else {
-          temp_srt <- 45
+          temp_srtX <- 45
+          temp_srtY <- 315
           temp_adjX <- c(-0.15,0.5)
           temp_adjY <- c(-0.15,0.5)
         }
         if (input$scatterLine == "sub") {
-          abline(0,1)
+          abline(h=0)
         } else if (input$scatterLine == "lbf") {
           abline(LBF())
         }
         if (input$diffLabelType == "diff") {
-          points(d$CGS[[res()]][[input$ssX]][names(head(diffRanked(),input$diffCount)),input$scatterInput],
-                 d$CGS[[res()]][[input$ssY]][names(head(diffRanked(),input$diffCount)),input$scatterInput],
+          temp_tY <- names(head(diffRanked(),input$diffCount))
+          temp_tX <- names(tail(diffRanked(),input$diffCount))
+          points(y~x,data=compDF()[temp_tY,],
                  pch=16,col=alpha(clustCols(res())[which(levels(clusts()) == input$ssY)],0.8))
-          text(d$CGS[[res()]][[input$ssX]][names(head(diffRanked(),input$diffCount)),input$scatterInput],
-               d$CGS[[res()]][[input$ssY]][names(head(diffRanked(),input$diffCount)),input$scatterInput],
-               labels=names(head(diffRanked(),input$diffCount)),srt=temp_srt,adj=temp_adjY,
+          text(compDF()[temp_tY,"x"],compDF()[temp_tY,"y"],
+               labels=temp_tY,srt=temp_srtY,adj=temp_adjY,
                col=clustCols(res())[which(levels(clusts()) == input$ssY)],font=2)
-          points(d$CGS[[res()]][[input$ssX]][names(tail(diffRanked(),input$diffCount)),input$scatterInput],
-                 d$CGS[[res()]][[input$ssY]][names(tail(diffRanked(),input$diffCount)),input$scatterInput],
+          points(y~x,data=compDF()[temp_tX,],
                  pch=16,col=alpha(clustCols(res())[which(levels(clusts()) == input$ssX)],0.8))
-          text(d$CGS[[res()]][[input$ssX]][names(tail(diffRanked(),input$diffCount)),input$scatterInput],
-               d$CGS[[res()]][[input$ssY]][names(tail(diffRanked(),input$diffCount)),input$scatterInput],
-               labels=names(tail(diffRanked(),input$diffCount)),srt=temp_srt,adj=temp_adjX,
+          text(compDF()[temp_tX,"x"],compDF()[temp_tX,"y"],
+               labels=temp_tX,srt=temp_srtX,adj=temp_adjX,
                col=clustCols(res())[which(levels(clusts()) == input$ssX)],font=2)
         } else if (input$diffLabelType == "de") {
           degX <- rownames(switch(input$heatG,
@@ -1404,12 +1407,9 @@ server <- function(input,output,session) {
                                   deMarker=d$deMarker[[res()]],
                                   deNeighb=deNeighb[[res()]])[[input$ssX]])[1:input$diffCount]
           if (length(degX) > 0) {
-            points(d$CGS[[res()]][[input$ssX]][degX,input$scatterInput],
-                   d$CGS[[res()]][[input$ssY]][degX,input$scatterInput],
+            points(y~x,data=compDF()[degX,],
                    pch=16,col=alpha(clustCols(res())[which(levels(clusts()) == input$ssX)],0.8))
-            text(d$CGS[[res()]][[input$ssX]][degX,input$scatterInput],
-                 d$CGS[[res()]][[input$ssY]][degX,input$scatterInput],
-                 labels=degX,srt=temp_srt,adj=temp_adjX,
+            text(compDF()[degX,"x"],compDF()[degX,"y"],labels=degX,srt=temp_srtX,adj=temp_adjX,
                  col=clustCols(res())[which(levels(clusts()) == input$ssX)],font=2)
           }
           degY <- rownames(switch(input$heatG,
@@ -1417,21 +1417,16 @@ server <- function(input,output,session) {
                                   deMarker=d$deMarker[[res()]],
                                   deNeighb=deNeighb[[res()]])[[input$ssY]])[1:input$diffCount]
           if (length(degY) > 0) {
-            points(d$CGS[[res()]][[input$ssX]][degY,input$scatterInput],
-                   d$CGS[[res()]][[input$ssY]][degY,input$scatterInput],
+            points(y~x,data=compDF()[degY,],
                    pch=16,col=alpha(clustCols(res())[which(levels(clusts()) == input$ssY)],0.8))
-            text(d$CGS[[res()]][[input$ssX]][degY,input$scatterInput],
-                 d$CGS[[res()]][[input$ssY]][degY,input$scatterInput],
-                 labels=degY,srt=temp_srt,adj=temp_adjY,
+            text(compDF()[degY,"x"],compDF()[degY,"y"],
+                 labels=degY,srt=temp_srtY,adj=temp_adjY,
                  col=clustCols(res())[which(levels(clusts()) == input$ssY)],font=2)
           }
         } else if (input$diffLabelType == "search" & length(GOI()) > 0) {
-          points(d$CGS[[res()]][[input$ssX]][GOI(),input$scatterInput],
-                 d$CGS[[res()]][[input$ssY]][GOI(),input$scatterInput],
-                 pch=16,col=alpha("darkred",0.8))
-          text(d$CGS[[res()]][[input$ssX]][GOI(),input$scatterInput],
-               d$CGS[[res()]][[input$ssY]][GOI(),input$scatterInput],
-               labels=GOI(),srt=temp_srt,adj=temp_adjX,col="darkred",font=2)
+          points(y~x,data=compDF()[GOI()],pch=16,col=alpha("darkred",0.8))
+          text(compDF()[GOI(),"x"],compDF()[GOI(),"y"],
+               labels=GOI(),srt=temp_srtX,adj=temp_adjX,col="darkred",font=2)
         }
       }
     }
