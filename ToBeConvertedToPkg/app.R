@@ -1554,14 +1554,14 @@ server <- function(input,output,session) {
         incProgress(amount=1/6,detail="Mean detected gene expression per set")
         MDTC <- apply(nge[,setCells],1,function(X) 
           tapply(X,d$cl[,newRes][setCells],function(Y) {
-            temp <- mean.logX(Y[Y>0])
+            temp <- meanLogX(Y[Y>0])
             if (is.na(temp)) { temp <- 0 }
             return(temp)
           }))
         
         incProgress(amount=1/6,detail="Mean gene expression per set")
         MTC <- apply(nge,1,function(X) 
-          tapply(X,d$cl[,newRes],mean.logX))
+          tapply(X,d$cl[,newRes],meanLogX))
         
         d$CGS[[newRes]] <- sapply(levels(d$cl[,newRes])[1:2],function(X) 
           data.frame(DR=DR[X,],MDTC=MDTC[X,],MTC=MTC[X,]),simplify=F)
@@ -1591,7 +1591,7 @@ server <- function(input,output,session) {
         #### deTissue - DE per cluster vs all other data ####
         incProgress(amount=1/6,detail="DE vs tissue logGER calculations")
         deT_logGER <- sapply(levels(d$cl[,newRes])[1:2],function(i) 
-          MTC[i,] - apply(nge[,d$cl[,newRes] != i],1,mean.logX))
+          MTC[i,] - apply(nge[,d$cl[,newRes] != i],1,meanLogX))
         deT_genesUsed <- apply(deT_logGER,2,function(X) which(X > logGERthresh))  
         if (any(sapply(deT_genesUsed,length) < 1)) {
           stop(paste0("logGERthresh should be set to less than ",

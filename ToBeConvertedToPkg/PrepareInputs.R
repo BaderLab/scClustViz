@@ -39,7 +39,7 @@ speciesSymbol <- "mgi_symbol" ##  Gene IDs will be converted to MGI symbols if i
 
 
 ######## Functions ########
-mean.logX <- function(data,ex=exponent,pc=pseudocount) { log(mean(ex^data - pc) + 1/ncol(nge),base=ex) }
+meanLogX <- function(data,ex=exponent,pc=pseudocount) { log(mean(ex^data - pc) + 1/ncol(nge),base=ex) }
 ##  ^ Adding a pseudocount of 1 to the logMean prior to logGER calculations skews the result quite dramatically,
 ##  so instead we add a small pseudocount to avoid +/- inf results when means are zero, without the same skewing.
 ##  Adding a very small (ie 1e-99) number means that means of zero get set to a large negative log-mean, 
@@ -155,12 +155,12 @@ for (res in colnames(cl)) {
   DR <- pbapply(nge,1,function(X) tapply(X,cl[,res],function(Y) sum(Y>0)/length(Y)))
   print("-- Mean detected gene expression per cluster --")
   MDTC <- pbapply(nge,1,function(X) tapply(X,cl[,res],function(Y) {
-    temp <- mean.logX(Y[Y>0])
+    temp <- meanLogX(Y[Y>0])
     if (is.na(temp)) { temp <- 0 }
     return(temp)
   }))
   print("-- Mean gene expression per cluster --")
-  MTC <- pbapply(nge,1,function(X) tapply(X,cl[,res],mean.logX))
+  MTC <- pbapply(nge,1,function(X) tapply(X,cl[,res],meanLogX))
   CGS[[res]] <- sapply(levels(cl[,res]),function(X) 
     data.frame(DR=DR[X,],MDTC=MDTC[X,],MTC=MTC[X,]),simplify=F)
   
@@ -169,7 +169,7 @@ for (res in colnames(cl)) {
   print(paste("Calculating DE vs tissue for",res,"with",length(levels(cl[,res])),"clusters"))
   print("-- logGER calculations --")
   deT_logGER <- pbsapply(levels(cl[,res]),function(i) 
-    MTC[i,] - apply(nge[,cl[,res] != i],1,mean.logX))
+    MTC[i,] - apply(nge[,cl[,res] != i],1,meanLogX))
   deT_genesUsed <- apply(deT_logGER,2,function(X) which(X > logGERthresh))  
   if (any(sapply(deT_genesUsed,length) < 1)) {
     stop(paste0("logGERthresh should be set to less than ",

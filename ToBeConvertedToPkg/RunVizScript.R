@@ -62,8 +62,8 @@ library(RColorBrewer)
 library(TeachingDemos)
 
 egDB <- switch(species,
-               mouse={ library(org.Mm.eg.db); "org.Mm.eg.db" },
-               human={ library(org.Hs.eg.db); "org.Hs.eg.db" },
+               mouse={ requireNamespace(org.Mm.eg.db); "org.Mm.eg.db" },
+               human={ requireNamespace(org.Hs.eg.db); "org.Hs.eg.db" },
                stop("
 Set species please!  
 If not mouse/human, add your species' annotation database from Bioconductor:  
@@ -71,7 +71,7 @@ source('https://bioconductor.org/biocLite.R')
 biocLite('org.Xx.eg.db')
 "))
 
-mean.logX <- function(data,ex=exponent,pc=pseudocount) { log(mean(ex^data - pc) + 1/ncol(nge),base=ex) }
+meanLogX <- function(data,ex=exponent,pc=pseudocount) { log(mean(ex^data - pc) + 1/ncol(nge),base=ex) }
 rainbow2 <- function(n,a=1) {
   require(scales)
   hues = seq(15, 375, length = n + 1)
