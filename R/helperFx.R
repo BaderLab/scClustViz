@@ -25,6 +25,8 @@
 #' (default=2)
 #' 
 #' @param pc The pseudocount used when converting the data to log-scale initially. (default=1)
+#' 
+#' @export
 
 meanLogX <- function(data,ncell,ex=2,pc=1) { 
   log(mean(ex^data - pc) + 1/ncell,base=ex)
@@ -37,6 +39,8 @@ meanLogX <- function(data,ncell,ex=2,pc=1) {
 #' eyes than the R default.
 #' 
 #' @param n Number of colours to include.
+#' 
+#' @export
 
 rainbow2 <- function(n) {
   hues = seq(15, 375, length = n + 1)

@@ -42,8 +42,10 @@
 #'   clusters.
 #' 
 #' @return The function returns a list containing the results of differential expression 
-#'   testing for all sets of cluster solutions. This output is passed to the Shiny app. 
-#'   The list contains the following elements:
+#'   testing for all sets of cluster solutions. \emph{Saving both the input (the object passed 
+#'   to the \code{il} argument) and the output of this function to an RData file is all 
+#'   the preparation necessary for running the scClustViz Shiny app itself.}
+#'   The output list of this function contains the following elements:
 #'   \describe{
 #'     \item{CGS}{} 
 #'     \item{deTissue}{} 
@@ -66,7 +68,7 @@
 #'       file="for_scClustViz.RData")
 #'  # Save these objects so you'll never have to run this slow function again!
 #'  
-#'  runShiny(il=data_for_scClustViz,dl=DE_for_scClustViz)
+#'  runShiny(filePath="for_scClustViz.RData",annotationDB=org.Mm.eg.db)
 #' }
 #' 
 #' @seealso \code{\link{readFromSeurat}} or \code{\link{readFromManual}} for reading in 
@@ -92,15 +94,17 @@ clusterWiseDEtest <- function(il,testAll=TRUE,
     print("")
     print(paste("Calculating cluster gene summary statistics for",res))
     print("-- Gene detection rate per cluster --")
-    DR <- pbapply(il[["nge"]],1,function(X) tapply(X,il[["cl"]][,res],function(Y) sum(Y>0)/length(Y)))
+    DR <- pbapply::pbapply(il[["nge"]],1,function(X) tapply(X,il[["cl"]][,res],function(Y) sum(Y>0)/length(Y)))
     print("-- Mean detected gene expression per cluster --")
-    MDTC <- pbapply(il[["nge"]],1,function(X) tapply(X,il[["cl"]][,res],function(Y) {
-      temp <- meanLogX(Y[Y>0])
+    MDTC <- pbapply::pbapply(il[["nge"]],1,function(X) tapply(X,il[["cl"]][,res],function(Y) {
+      temp <- meanLogX(Y[Y>0],ncell=ncol(il[["nge"]]),ex=exponent,pc=pseudocount)
       if (is.na(temp)) { temp <- 0 }
       return(temp)
     }))
     print("-- Mean gene expression per cluster --")
-    MTC <- pbapply(il[["nge"]],1,function(X) tapply(X,il[["cl"]][,res],meanLogX))
+    MTC <- pbapply::pbapply(il[["nge"]],1,function(X) 
+      tapply(X,il[["cl"]][,res],function(Y) 
+        meanLogX(Y,ncell=ncol(il[["nge"]]),ex=exponent,pc=pseudocount)))
     out[["CGS"]][[res]] <- sapply(levels(il[["cl"]][,res]),function(X) 
       data.frame(DR=DR[X,],MDTC=MDTC[X,],MTC=MTC[X,]),simplify=F)
     
@@ -108,8 +112,9 @@ clusterWiseDEtest <- function(il,testAll=TRUE,
     print("")
     print(paste("Calculating DE vs tissue for",res,"with",length(levels(il[["cl"]][,res])),"clusters"))
     print("-- logGER calculations --")
-    deT_logGER <- pbsapply(levels(il[["cl"]][,res]),function(i) 
-      MTC[i,] - apply(il[["nge"]][,il[["cl"]][,res] != i],1,meanLogX))
+    deT_logGER <- pbapply::pbsapply(levels(il[["cl"]][,res]),function(i) 
+      MTC[i,] - apply(il[["nge"]][,il[["cl"]][,res] != i],1,function(Y) 
+        meanLogX(Y,ncell=ncol(il[["nge"]]),ex=exponent,pc=pseudocount)))
     deT_genesUsed <- apply(deT_logGER,2,function(X) which(X > logGERthresh))  
     if (any(sapply(deT_genesUsed,length) < 1)) {
       stop(paste0("logGERthresh should be set to less than ",
@@ -119,7 +124,7 @@ clusterWiseDEtest <- function(il,testAll=TRUE,
                   " and the remaining data."))
     }
     print("-- Wilcoxon rank sum calculations --")
-    deT_pVal <- pbsapply(levels(il[["cl"]][,res]),function(i)
+    deT_pVal <- pbapply::pbsapply(levels(il[["cl"]][,res]),function(i)
       apply(il[["nge"]][deT_genesUsed[[i]],],1,function(X) 
         wilcox.test(X[il[["cl"]][,res] == i],X[il[["cl"]][,res] != i])$p.value),simplify=F)
     out[["deTissue"]][[res]] <- sapply(levels(il[["cl"]][,res]),function(i) 
@@ -145,7 +150,7 @@ clusterWiseDEtest <- function(il,testAll=TRUE,
     if (any(sapply(deM_genesUsed,length) < 1)) {
       stop("Gene filtering threshold is set too high.")
     }
-    deM_pVal <- pbsapply(colnames(combos),function(i)
+    deM_pVal <- pbapply::pbsapply(colnames(combos),function(i)
       apply(il[["nge"]][deM_genesUsed[[i]],],1,function(X) 
         wilcox.test(X[il[["cl"]][,res] == combos[1,i]],
                     X[il[["cl"]][,res] == combos[2,i]])$p.value),simplify=F)
