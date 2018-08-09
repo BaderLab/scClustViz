@@ -242,6 +242,8 @@ readFromManual <- function(nge,md,cl,dr_clust,dr_viz,
                            convertGeneIDs=FALSE,
                            mart=NULL,geneRowNames=NULL,speciesSymbol=NULL) {
   out <- list()
+  
+  #### FIX THIS ####
   if (convertGeneIDs) {
     if (!requireNamespace("biomaRt",quietly=T)) {
       stop("To convert gene IDs, the bioconductor biomaRt package must be installed.")

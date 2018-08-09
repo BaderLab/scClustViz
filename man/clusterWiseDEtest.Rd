@@ -5,12 +5,18 @@
 \title{Cluster-wise differential expression testing}
 \usage{
 clusterWiseDEtest(il, testAll = TRUE, exponent = 2, pseudocount = 1,
-  FDR = 0.01, threshType = "dDR", dDRthresh = 0.15,
+  FDRthresh = 0.01, threshType = "dDR", dDRthresh = 0.15,
   logGERthresh = 1)
 }
 \arguments{
 \item{il}{The list outputted by one of the importData functions (either 
 \code{\link{readFromSeurat}} or \code{\link{readFromManual}}).}
+
+\item{testAll}{Logical value indicating whether to test all cluster solutions 
+(\code{TRUE}) or stop testing once a cluster solution has been found where there is 
+no differentially expressed genes found between at least one pair of nearest 
+neighbouring clusters (\code{FALSE}). \emph{If set to (\code{FALSE}), only the 
+cluster solutions tested will appear in the scClustViz shiny app.}}
 
 \item{exponent}{The log base of your normalized input data. Seurat normalization uses 
 the natural log (set this to exp(1)), while other normalization methods generally use 
@@ -19,7 +25,7 @@ log2 (set this to 2).}
 \item{pseudocount}{The pseudocount added to all log-normalized values in your input 
 data. Most methods use a pseudocount of 1 to eliminate log(0) errors.}
 
-\item{FDR}{The false discovery rate to use as a threshold for determining statistical 
+\item{FDRthresh}{The false discovery rate to use as a threshold for determining statistical 
 significance of differential expression calculated by the Wilcoxon rank-sum test.}
 
 \item{threshType}{Filtering genes for use in differential expression testing can be 
@@ -40,8 +46,10 @@ clusters.}
 }
 \value{
 The function returns a list containing the results of differential expression 
-  testing for all sets of cluster solutions. This output is passed to the Shiny app. 
-  The list contains the following elements:
+  testing for all sets of cluster solutions. \emph{Saving both the input (the object passed 
+  to the \code{il} argument) and the output of this function to an RData file is all 
+  the preparation necessary for running the scClustViz Shiny app itself.}
+  The output list of this function contains the following elements:
   \describe{
     \item{CGS}{} 
     \item{deTissue}{} 
@@ -71,7 +79,7 @@ expression testing is done using the Wilcoxon rank-sum test implemented in the b
       file="for_scClustViz.RData")
  # Save these objects so you'll never have to run this slow function again!
  
- runShiny(il=data_for_scClustViz,dl=DE_for_scClustViz)
+ runShiny(filePath="for_scClustViz.RData",annotationDB=org.Mm.eg.db)
 }
 
 }

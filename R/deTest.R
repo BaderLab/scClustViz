@@ -13,7 +13,7 @@
 #'   (\code{TRUE}) or stop testing once a cluster solution has been found where there is 
 #'   no differentially expressed genes found between at least one pair of nearest 
 #'   neighbouring clusters (\code{FALSE}). \emph{If set to (\code{FALSE}), only the 
-#'   cluster solutions tested will appear in the scClustViz shiny app.
+#'   cluster solutions tested will appear in the scClustViz shiny app.}
 #' 
 #' @param exponent The log base of your normalized input data. Seurat normalization uses 
 #'   the natural log (set this to exp(1)), while other normalization methods generally use 
@@ -22,7 +22,7 @@
 #' @param pseudocount The pseudocount added to all log-normalized values in your input 
 #'   data. Most methods use a pseudocount of 1 to eliminate log(0) errors.
 #' 
-#' @param FDR The false discovery rate to use as a threshold for determining statistical 
+#' @param FDRthresh The false discovery rate to use as a threshold for determining statistical 
 #'   significance of differential expression calculated by the Wilcoxon rank-sum test.
 #' 
 #' @param threshType Filtering genes for use in differential expression testing can be 
@@ -81,7 +81,7 @@
 
 
 clusterWiseDEtest <- function(il,testAll=TRUE,
-                              exponent=2,pseudocount=1,FDR=0.01,
+                              exponent=2,pseudocount=1,FDRthresh=0.01,
                               threshType="dDR",dDRthresh=0.15,logGERthresh=1) {
   
   out <- list(CGS=list(),deTissue=list(),deVS=list(),
@@ -133,8 +133,8 @@ clusterWiseDEtest <- function(il,testAll=TRUE,
     tempQval <- tapply(p.adjust(do.call(rbind,out[["deTissue"]][[res]])$pVal,"fdr"),
                        rep(names(sapply(out[["deTissue"]][[res]],nrow)),sapply(out[["deTissue"]][[res]],nrow)),c)
     for (i in names(out[["deTissue"]][[res]])) { 
-      out[["deTissue"]][[res]][[i]] <- out[["deTissue"]][[res]][[i]][tempQval[[i]] <= FDR,]
-      out[["deTissue"]][[res]][[i]]$qVal <- tempQval[[i]][tempQval[[i]] <= FDR] 
+      out[["deTissue"]][[res]][[i]] <- out[["deTissue"]][[res]][[i]][tempQval[[i]] <= FDRthresh,]
+      out[["deTissue"]][[res]][[i]]$qVal <- tempQval[[i]][tempQval[[i]] <= FDRthresh] 
     }
     
     #### deMarker - DE per cluster vs each other cluster #### 
@@ -169,10 +169,10 @@ clusterWiseDEtest <- function(il,testAll=TRUE,
           next
         } else if (which(combos[[X]] == i) == 1) {
           temp[[combos[[X]][2]]] <- temp_deVS[[X]][temp_deVS[[X]][,threshType] > 0 & 
-                                                     temp_deVS[[X]]$qVal <= FDR,]
+                                                     temp_deVS[[X]]$qVal <= FDRthresh,]
         } else if (which(combos[[X]] == i) == 2) {
           temp[[combos[[X]][1]]] <- temp_deVS[[X]][temp_deVS[[X]][,threshType] < 0 &
-                                                     temp_deVS[[X]]$qVal <= FDR,]
+                                                     temp_deVS[[X]]$qVal <= FDRthresh,]
           temp[[combos[[X]][1]]]$dDR <- temp[[combos[[X]][1]]]$dDR * -1
           temp[[combos[[X]][1]]]$logGER <- temp[[combos[[X]][1]]]$logGER * -1
         }

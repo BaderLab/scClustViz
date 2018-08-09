@@ -10,9 +10,12 @@ License: What license is it under?
 Encoding: UTF-8
 LazyData: true
 RoxygenNote: 6.1.0
-Suggests: Seurat,
-    biomaRt,
-    org.Hs.eg.db,
-    org.Mm.eg.db
-Imports: pbapply,
-    cluster
+Suggests: 
+Imports: scales,
+    cluster,
+    RColorBrewer,
+    gplots,
+    TeachingDemos,
+    viridis,
+    pbapply
+Depends: shiny

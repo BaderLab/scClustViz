@@ -4,27 +4,24 @@
 \alias{readFromSeurat}
 \title{Read in data from a Seurat object automatically}
 \usage{
-readFromSeurat(inD, convertGeneIDs = FALSE, mart = NULL,
-  geneRowNames = NULL, speciesSymbol = NULL)
+readFromSeurat(inD, convertGeneIDs = FALSE, annotationDB = NULL,
+  geneRowNames = NULL)
 }
 \arguments{
 \item{inD}{A Seurat object containing slots as outlined in Details.}
 
 \item{convertGeneIDs}{A logical indicating whether to convert rownames of
 \code{inD@data} to official gene symbols (suggested for ease of data
-interpretation).}
+interpretation). Will perform a one-to-one mapping where possible using the 
+\code{AnnotationDbi} Bioconductor package and provided database (see arguments).}
 
-\item{mart}{A biomaRt \code{mart} object for use during the gene ID conversion with 
-both mart and dataset specified. See example code below. (only required if
+\item{annotationDB}{An \code{AnnotationDb}-derived object containing identifier 
+mappings for the species in the data. See examples. (Only required if 
 \code{convertGeneIDs = TRUE}).}
 
-\item{geneRowNames}{The biomaRt descriptor for the current gene name IDs (rownames of
-@data, ie. "ensembl_gene_id"). See \code{biomaRt::listAttributes(mart)} for biomaRt
-descriptors. (only required if \code{convertGeneIDs = TRUE}).}
-
-\item{speciesSymbol}{The biomaRt descriptor for the official gene symbol to be
-converted to (ie. "mgi_symbol" for mouse or "hgnc_symbol" for human). (only required
-if \code{convertGeneIDs = TRUE}).}
+\item{geneRowNames}{The column name (\code{see AnnotationDbi::columns()}) containing 
+the current gene ID type (rownames) of the data. (Only required if 
+\code{convertGeneIDs = TRUE}).}
 }
 \value{
 The function returns a list containing input data necessary for both the 
@@ -83,24 +80,23 @@ differential expression testing function, as well as in the Shiny app itself.
  
  
  # Assuming your data is from mouse and the rownames are currently ensembl IDs.
- my_mart <- biomaRt::useMart(mart="ensembl",
-                             dataset="mmusculus_gene_ensembl")
+ library(org.Mm.eg.db)
+ columns(org.Mm.eg.db)
  data_for_scClustViz <- readFromSeurat(your_seurat_object,
                                        convertGeneIDs=T,
-                                       mart=my_mart,
-                                       geneRowNames="ensembl_gene_id",
-                                       speciesSymbol="mgi_symbol")
+                                       annotationDB="org.Mm.eg.db",
+                                       geneRowNames="ENSEMBL")
  rm(your_seurat_object) 
  # All the data scClustViz needs is in 'data_for_scClustViz'.
  
  
  # Assuming your data is from human and the rownames are currently NCBI gene IDs.
- my_mart <- biomaRt::useMart(mart="ensembl",dataset="hsapiens_gene_ensembl")
+ library(org.Hs.eg.db)
+ columns(org.Hs.eg.db)
  data_for_scClustViz <- readFromSeurat(your_seurat_object,
                                        convertGeneIDs=T,
-                                       mart=my_mart,
-                                       geneRowNames="entrezgene",
-                                       speciesSymbol="hgnc_symbol")
+                                       annotationDB="org.Hs.eg.db",
+                                       geneRowNames="ENTREZID")
  rm(your_seurat_object) 
  # All the data scClustViz needs is in 'data_for_scClustViz'.
 }
