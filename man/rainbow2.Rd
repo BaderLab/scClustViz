@@ -4,10 +4,12 @@
 \alias{rainbow2}
 \title{Generates a rainbow colour-scale}
 \usage{
-rainbow2(n)
+rainbow2(n, a = 1)
 }
 \arguments{
 \item{n}{Number of colours to include.}
+
+\item{a}{Transparency value passed to \link{scales::alpha}.}
 }
 \description{
 Generates a slightly desaturated rainbow colour-scale that's a little easier on the

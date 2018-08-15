@@ -4,107 +4,63 @@
 \alias{readFromSeurat}
 \title{Read in data from a Seurat object automatically}
 \usage{
-readFromSeurat(inD, convertGeneIDs = FALSE, annotationDB = NULL,
-  geneRowNames = NULL)
+readFromSeurat(inD)
 }
 \arguments{
 \item{inD}{A Seurat object containing slots as outlined in Details.}
-
-\item{convertGeneIDs}{A logical indicating whether to convert rownames of
-\code{inD@data} to official gene symbols (suggested for ease of data
-interpretation). Will perform a one-to-one mapping where possible using the 
-\code{AnnotationDbi} Bioconductor package and provided database (see arguments).}
-
-\item{annotationDB}{An \code{AnnotationDb}-derived object containing identifier 
-mappings for the species in the data. See examples. (Only required if 
-\code{convertGeneIDs = TRUE}).}
-
-\item{geneRowNames}{The column name (\code{see AnnotationDbi::columns()}) containing 
-the current gene ID type (rownames) of the data. (Only required if 
-\code{convertGeneIDs = TRUE}).}
 }
 \value{
-The function returns a list containing input data necessary for both the 
-  cluster-wise differential expression testing function and the Shiny app itself. 
-  The list contains the following elements:
-  \describe{
+The function returns a list containing input data necessary for both the
+  cluster-wise differential expression testing function and the Shiny app itself. The
+  list contains the following elements: 
+  \describe{ 
     \item{nge}{The normalized gene expression matrix.} 
     \item{md}{The metadata dataframe, not including cluster assignments.} 
     \item{cl}{The cluster assignment dataframe, containing cluster assignments for each
       resolution tested. The columns will be sorted in order of increasing resolution 
-      (k, number of clusters).}
-    \item{dr_clust}{The cell embeddings used in the clustering, from PCA.}
+      (k, number of clusters).} 
+    \item{dr_clust}{The cell embeddings used in the clustering, from PCA.} 
     \item{dr_viz}{The cell embeddings used for visualization in 2D, from tSNE.} 
   }
 }
 \description{
-Loads the necessary data from a Seurat object for use in both the cluster-wise 
+Loads the necessary data from a Seurat object for use in both the cluster-wise
 differential expression testing function, as well as in the Shiny app itself.
 }
 \section{Seurat object slots}{
  The following slots are expected in the Seurat object. If
   you're using Seurat v1.x, the equivalent slots are expected (this code takes
   advantage of \code{UpdateSeuratObject} to find the relevant data in older Seurat
-  objects.)
-  \describe{
+  objects.) 
+  \describe{ 
     \item{@data}{Holds the normalized gene expression matrix.}
-    \item{@meta.data}{Holds the metadata, including cluster assignments. Cluster
+    \item{@meta.data}{Holds the metadata, including cluster assignments. \emph{Cluster 
       assignment columns of the metadata should be titled with their resolution 
-      parameters, as is the default in Seurat (ie. "res.0.8"). If no cell cycle 
-      prediction method was used (determined by searching the metadata headings for 
-      "cycle|phase|G2M"), Seurat has a function to predict cell cycle phase from 
-      expression of canonical marker genes. These genes are stored as HGNC symbols, 
-      but if your data is mouse it will try case-insensitive matches to homologues (in 
-      which case you will see a warning in AddModuleScore indicating that it attempted 
-      to match case). As a consequence of this, these predictions will only run if the
-      row names of the data are or have been converted to official gene symbols.}
-    \item{@dr$pca@cell.embeddings}{Holds the results of the PCA run by Seurat. The
+      parameters, as is the default in Seurat (ie. "res.0.8").} } 
+    \item{@dr$pca@cell.embeddings}{Holds the results of the PCA run by Seurat. The 
       cell embeddings are used for the silhouette plot in the Shiny app. If Seurat v2.x 
-      or greater was used, only the PC dimensions used in clustering will be considered
-      in silhouette calculations. If an alternative dimensionality reduction method was
+      or greater was used, only the PC dimensions used in clustering will be considered 
+      in silhouette calculations. If an alternative dimensionality reduction method was 
       used prior to clustering, use \code{readFromManual} to manually specify the 
       desired cell embeddings.}
-    \item{@dr$tsne@cell.embeddings}{Holds the results of the tSNE run by Seurat. The
+    \item{@dr$tsne@cell.embeddings}{Holds the results of the tSNE run by Seurat. The 
       cell embeddings are used for cell visualizations in the Shiny app. If an 
       alternative 2D projection method was used, use \code{readFromManual} to manually 
-      specify the desired cell embeddings.}
+      specify the desired cell embeddings.} 
   }
 }
 
 \examples{
 \dontrun{
- data_for_scClustViz <- readFromSeurat(your_seurat_object,
-                                       convertGeneIDs=F)
- rm(your_seurat_object) 
- # All the data scClustViz needs is in 'data_for_scClustViz'.
- 
- 
- # Assuming your data is from mouse and the rownames are currently ensembl IDs.
- library(org.Mm.eg.db)
- columns(org.Mm.eg.db)
- data_for_scClustViz <- readFromSeurat(your_seurat_object,
-                                       convertGeneIDs=T,
-                                       annotationDB="org.Mm.eg.db",
-                                       geneRowNames="ENSEMBL")
- rm(your_seurat_object) 
- # All the data scClustViz needs is in 'data_for_scClustViz'.
- 
- 
- # Assuming your data is from human and the rownames are currently NCBI gene IDs.
- library(org.Hs.eg.db)
- columns(org.Hs.eg.db)
- data_for_scClustViz <- readFromSeurat(your_seurat_object,
-                                       convertGeneIDs=T,
-                                       annotationDB="org.Hs.eg.db",
-                                       geneRowNames="ENTREZID")
- rm(your_seurat_object) 
+ data_for_scClustViz <- readFromSeurat(your_seurat_object)
+ rm(your_seurat_object)
  # All the data scClustViz needs is in 'data_for_scClustViz'.
 }
 
 }
 \seealso{
-https://satijalab.org/seurat/ for more information on the Seurat package, and 
-  \code{\link{readFromManual}} for loading data by manually passing the requisite data 
+https://satijalab.org/seurat/ for more information on the Seurat package, and
+  \code{\link{readFromManual}} for loading data by manually passing the requisite data
   objects.
 
 Other importData functions: \code{\link{readFromManual}}

@@ -39,8 +39,10 @@ meanLogX <- function(data,ncell,ex=2,pc=1) {
 #' eyes than the R default.
 #' 
 #' @param n Number of colours to include.
+#' 
+#' @param a Transparency value passed to \link{scales::alpha}.
 
-rainbow2 <- function(n) {
+rainbow2 <- function(n,a=1) {
   hues = seq(15, 375, length = n + 1)
-  hcl(h = hues, l = 60, c = 100)[1:n]
+  scales::alpha(hcl(h = hues, l = 60, c = 100)[1:n],a)
 }

@@ -4,8 +4,7 @@
 \alias{readFromManual}
 \title{Read in data manually by passing the requested objects}
 \usage{
-readFromManual(nge, md, cl, dr_clust, dr_viz, convertGeneIDs = FALSE,
-  mart = NULL, geneRowNames = NULL, speciesSymbol = NULL)
+readFromManual(nge, md, cl, dr_clust, dr_viz)
 }
 \arguments{
 \item{md}{A dataframe containing cell metadata, not including cluster assignments.}
@@ -19,25 +18,6 @@ clustering (ie. PCA), with rows of cells (with rownames), and columns of dimensi
 This will be used to calculate euclidean distance between cells for the silhouette 
 plot, so it will be more relevant if the scale of each dimension is weighted by the 
 variance it explains.}
-
-\item{dr_viz}{A matrix of cell embeddings in 2D space used for visualization (ie. 
-tSNE), with rows of cells (with rownames), and 2 columns of dimensions.}
-
-\item{convertGeneIDs}{A logical indicating whether to convert rownames of
-\code{inD@data} to official gene symbols (suggested for ease of data
-interpretation).}
-
-\item{mart}{A biomaRt \code{mart} object for use during the gene ID conversion with 
-both mart and dataset specified. See example code in \code{\link{readFromSeurat}}. 
-(only required if \code{convertGeneIDs = TRUE}).}
-
-\item{geneRowNames}{The biomaRt descriptor for the current gene name IDs (rownames of
-@data, ie. "ensembl_gene_id"). See \code{biomaRt::listAttributes(mart)} for biomaRt
-descriptors. (only required if \code{convertGeneIDs = TRUE}).}
-
-\item{speciesSymbol}{The biomaRt descriptor for the official gene symbol to be
-converted to (ie. "mgi_symbol" for mouse or "hgnc_symbol" for human). (only required
-if \code{convertGeneIDs = TRUE}).}
 
 \item{ngs}{A matrix (can be a sparse matrix from the Matrix package) of normalized gene
 expression per cell.  Genes on the rows, with row names as gene names (suggest using
@@ -62,9 +42,7 @@ Creates the data object expected by the cluster-wise differential expression tes
 function and the Shiny app. The user must provide the input objects as arguments.
 }
 \seealso{
-\code{\link{readFromSeurat}} for loading data from a Seurat object, and 
-  examples of how \code{biomaRt} is used to convert gene IDs to gene symbols when 
-  \code{convertGeneIDs = TRUE}.
+\code{\link{readFromSeurat}} for loading data from a Seurat object.
 
 Other importData functions: \code{\link{readFromSeurat}}
 }

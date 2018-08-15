@@ -6,10 +6,14 @@ output:
   pdf_document:
     toc: yes
 ---
-# Quality control and normalization
+# Incorporating scClustViz into your analysis pipeline
+In this vignette we will show how scClustViz can be incorporated into existing analysis pipelines using this example 
+
+
+## Quality control and normalization
 
 ```{r Setup, echo=T}
-input_dataPath <- "../scClustViz_files/neurons_900_filtered_gene_bc_matrices/filtered_gene_bc_matrices/mm10/" 
+input_dataPath <- "../../../scClustViz_files/neurons_900_filtered_gene_bc_matrices/filtered_gene_bc_matrices/mm10/" 
 ##  Path to 10X output directory (containing .mtx file)
 ##  i.e. http://cf.10xgenomics.com/samples/cell-exp/2.1.0/neurons_900/neurons_900_filtered_gene_bc_matrices.tar.gz
 dataPath <- "../scClustViz_files/demo_10Xneurons900/" 
@@ -25,20 +29,14 @@ library(Matrix)
 library(scales)
 library(viridis)
 library(RColorBrewer)
-library(biomaRt)      # from Bioconductor
 library(scran)        # from Bioconductor
 library(DropletUtils) # from Bioconductor
 
 
-if (Sys.info()["sysname"] == "Windows") { sys <- "D:/" } else { sys <- "~/" }
 if (dataSpecies == "mouse") {
-  mart <- useMart("ensembl","mmusculus_gene_ensembl")
-  speciesSymbol <- "mgi_symbol"
   speciesMito <- "^mt-"
   cycloneSpeciesMarkers <- "mouse_cycle_markers.rds"
 } else if (dataSpecies == "human") {
-  mart <- useMart("ensembl","hsapiens_gene_ensembl")
-  speciesSymbol <- "hgnc_symbol"
   speciesMito <- "^MT-"
   cycloneSpeciesMarkers <- "human_cycle_markers.rds"
 } else { print("Set species please!") }
@@ -54,19 +52,20 @@ plotHistHoriz <- function(input,col="grey80",add=F) {
        xright=tempH$counts,ytop=tempH$breaks[-1],col=col)
 }
 
-rainbow2 <- function(n,a=1) {
-  require(scales)
-  hues = seq(15, 375, length = n + 1)
-  alpha(hcl(h = hues, l = 60, c = 100)[1:n],a)
-}
 ```
 
-# Cell filtering
+## Cell filtering
 
 ```{r load_data_10Xchromium, echo=T}
 ebRaw <- counts(read10xCounts(input_dataPath,col.names=T))
 ebRaw <- ebRaw[,Matrix::colSums(ebRaw) > 0]
 ebRaw <- ebRaw[Matrix::rowSums(ebRaw) > 0,]
+
+mart <- useEnsembl("ensembl","mmusculus_gene_ensembl")
+symbolMap <- getBM(c("ensembl_gene_id","mgi_symbol"),
+                   filters="ensembl_gene_id",values=rownames(ebRaw),mart=mart)
+mitoGenes <- symbolMap[grep(speciesMito,symbolMap$mgi_symbol),"ensembl_gene_id"]
+
 
 ##  Check rownames at this point.  This workflow expects MGI or HGNC gene symbols as the 
 ##  rownames.  If the data was aligned to a reference genome that used ensembl gene IDs or
@@ -162,7 +161,7 @@ title(main="STAMPs from cells by UMIs per STAMP")
 This is to check the cell filtering done in CellRanger.  If you have cells with small library sizes, or a fairly horizontal line in the knee plot, you might consider revisiting the filtering for "cells" vs empty droplets.  
 
 
-## Mitochondrial gene content  
+### Mitochondrial gene content  
 
 Filtering cells based on the proportion of mitochondrial gene transcripts per cell.  A high proportion of mitochondrial gene transcripts are indicative of poor quality cells, probably due to compromised cell membranes.  Removal of these cells should not decrease the complexity of the overall dataName (measured by number of genes detected), while removing a source of noise.  
 
@@ -242,7 +241,7 @@ par(mar=c(3,0,0,0))
 plotHistHoriz(cellStats$mitoPct)
 ```
 
-## Outlier filtering  
+### Outlier filtering  
 
 Doublet rate is best controlled experimentally, by reducing the concentration of the cells in the input suspension.  Filtering for doublets by library size doesn't really work, since the dispersion of library sizes means that doublets containing two "small" cells will still have a smaller library size than one "large" cell.  However, it is important to manually inspect the relationship between library size and gene detection rates per cell to identify obvious outliers.  Outliers can be identified systematically using a sufficiently extreme number of median absolute deviations from the median, assuming a moderately normal distribution.  Since library sizes tend to be log-normal, we use log-transformed library size to identify outliers.
 
@@ -347,7 +346,7 @@ if (any(outToRemove)) {
 It's never a bad idea to inspect libraries before removing them, or at least ensuring that by removing them you are not losing genes from the analysis (which might imply that those cells were a unique population/cell-type).  
 
 
-## Outlier inspection 
+### Outlier inspection 
 
 ```{r what_are_those_cells, echo=T,fig.height=4.2,fig.width=8.4}
 if (any(outToInspect)) {
@@ -497,7 +496,7 @@ Cyclone generates individual scores for each cell cycle phase.  G1 and G2/M are 
 Later in the pipeline we will also attempt to predict cell cycle using the method from *Seurat*.  
 
 
-## Filter out low abundance genes
+## Gene filtering
 
 Noisy genes must be removed to prevent them from skewing normalization.  The filtering method in *Seurat* removes only genes detected in very few cells, which is sufficient for normalization while removing as few genes as possible.
 
@@ -547,7 +546,7 @@ rm(list=ls()[!ls() %in% c("ebRawSF","dataName","dataPath","plotHistHoriz","rainb
 gc()
 ```
 
-# Normalization  
+## Normalization  
 
 Next step is normalization.  Marioni proposed a normalization technique that attempts to generate cell-specific size factors that are robust to differential expression between genes in a heterogenous sample, unlike simple library-size normalization (https://genomebiology.biomedcentral.com/articles/10.1186/s13059-016-0947-7).  This method correlates strongly with library size normalization for homogenous samples, but solves a series of linear equations to deconvolute cell-specific size factors for normalization.  In order to better handle heterogenous data, they suggest separating the data by simple heirarchical clustering of a Spearman correlation-based distance metric so that they can normalize the separate subpopulations separately to prevent the suppression of true differential expression during normalization.  
 
@@ -676,7 +675,7 @@ rm(list=ls()[!ls() %in% c("ebN","dataPath")])
 gc()
 ```
 
-# Highly variable genes  
+## Highly variable genes  
 Identification of highly variable genes is done by assuming most endogenous genes are not variably expressed, and fitting a curve to these genes when comparing variance to mean. This curve is presumed to represent technical variation, and thus highly variable genes are those with variance significantly greater than this curve. The method used here from *scran* isn’t that different in logic to the *Seurat* method, but fitting a spline is just a little more refined way of going about it than Seurat’s binning method.
 
 ```{r HVG2, echo=T,fig.height=6.3,fig.width=8.4}
