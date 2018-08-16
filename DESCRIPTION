@@ -1,9 +1,10 @@
 Package: scClustViz
 Type: Package
 Title: Differential Expression-based scRNAseq Cluster Assessment and Viewing
-Version: 0.1.0
-Authors@R: c(as.person("Brendan T Innes <brendan.innes@mail.utoronto.ca> [aut,cre]"),
-             as.person("Gary D Bader [aut,ths]"))
+Version: 0.2.0
+Date: 2018-08-16
+Authors@R: c(as.person("Brendan T. Innes <brendan.innes@mail.utoronto.ca> [aut,cre]"),
+             as.person("Gary D. Bader [aut,ths]"))
 Description: An interactive R Shiny tool for visualizing single-cell RNAseq clustering 
     results from the Seurat R package or any other analysis pipeline. Its main goal is 
     two-fold: A: to help select a biologically appropriate resolution or K from clustering

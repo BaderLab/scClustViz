@@ -68,7 +68,7 @@
 #'       file="for_scClustViz.RData")
 #'  # Save these objects so you'll never have to run this slow function again!
 #'  
-#'  runShiny(filePath="for_scClustViz.RData",annotationDB=org.Mm.eg.db)
+#'  runShiny(filePath="for_scClustViz.RData")
 #' }
 #' 
 #' @seealso \code{\link{readFromSeurat}} or \code{\link{readFromManual}} for reading in 
@@ -83,6 +83,8 @@
 clusterWiseDEtest <- function(il,testAll=TRUE,
                               exponent=2,pseudocount=1,FDRthresh=0.01,
                               threshType="dDR",dDRthresh=0.15,logGERthresh=1) {
+  temp_warn <- options("warn")
+  options(warn=-1)
   
   out <- list(CGS=list(),deTissue=list(),deVS=list(),
               deMarker=list(),deDist=list(),deNeighb=list())
@@ -204,8 +206,6 @@ clusterWiseDEtest <- function(il,testAll=TRUE,
       if (min(sapply(out[["deNeighb"]][[res]],nrow)) < 1) { break }
     }
   }
+  options(warn=temp_warn$warn)
   return(out)
 }
-
-#### removing cluster solutions not tested above. ####
-# il[["cl"]] <- il[["cl"]][names(out[["deNeighb"]])] 

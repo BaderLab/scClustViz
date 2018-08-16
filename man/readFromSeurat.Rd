@@ -52,9 +52,18 @@ differential expression testing function, as well as in the Shiny app itself.
 
 \examples{
 \dontrun{
- data_for_scClustViz <- readFromSeurat(your_seurat_object)
- rm(your_seurat_object)
+ data_for_scClustViz <- readFromSeurat(your_seurat_object,
+                                       convertGeneIDs=F)
+ rm(your_seurat_object) 
  # All the data scClustViz needs is in 'data_for_scClustViz'.
+ 
+ DE_for_scClustViz <- clusterWiseDEtest(data_for_scClustViz)
+ 
+ save(data_for_scClustViz,DE_for_scClustViz,
+      file="for_scClustViz.RData")
+ # Save these objects so you'll never have to run this slow function again!
+ 
+ runShiny(filePath="for_scClustViz.RData")
 }
 
 }

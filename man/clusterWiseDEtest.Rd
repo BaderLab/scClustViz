@@ -79,7 +79,7 @@ expression testing is done using the Wilcoxon rank-sum test implemented in the b
       file="for_scClustViz.RData")
  # Save these objects so you'll never have to run this slow function again!
  
- runShiny(filePath="for_scClustViz.RData",annotationDB=org.Mm.eg.db)
+ runShiny(filePath="for_scClustViz.RData")
 }
 
 }
