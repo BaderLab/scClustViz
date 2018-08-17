@@ -107,7 +107,7 @@ Then run the scClustViz Shiny app to view your dataset of choice! Replace "e13" 
 library(scClustViz)
 runShiny(
          # Load input file (E13.5 data) from package directory.
-         filePath=system.file("e13cortical_forViz.RData",package="MouseCortex"),
+         filePath=system.file("e13cortical.RData",package="MouseCortex"),
          # Save any further analysis performed in the app to the 
          # working directory rather than library directory.
          outPath=".",
