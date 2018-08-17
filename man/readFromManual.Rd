@@ -7,39 +7,71 @@
 readFromManual(nge, md, cl, dr_clust, dr_viz)
 }
 \arguments{
-\item{md}{A dataframe containing cell metadata, not including cluster assignments.}
+\item{nge}{A matrix (can be a sparse matrix from the Matrix package) of
+normalized gene expression per cell.  Genes on the rows, with row names as
+gene names (suggest using official gene symbols, will convert if requested
+- see \code{convertGeneIDs})}
 
-\item{cl}{A dataframe containing cell cluster assignments, where every column is the 
-result of a clustering run with different parameters. The columns will be sorted in 
-order of increasing resolution (k, number of clusters).}
+\item{md}{A dataframe containing cell metadata, not including cluster
+assignments.}
 
-\item{dr_clust}{A matrix of cell embeddings in the reduced-dimensional space used for 
-clustering (ie. PCA), with rows of cells (with rownames), and columns of dimensions. 
-This will be used to calculate euclidean distance between cells for the silhouette 
-plot, so it will be more relevant if the scale of each dimension is weighted by the 
-variance it explains.}
+\item{cl}{A dataframe containing cell cluster assignments, where every column
+is the result of a clustering run with different parameters. The columns
+will be sorted in order of increasing resolution (k, number of clusters).}
 
-\item{ngs}{A matrix (can be a sparse matrix from the Matrix package) of normalized gene
-expression per cell.  Genes on the rows, with row names as gene names (suggest using
-official gene symbols, will convert if requested - see \code{convertGeneIDs})}
+\item{dr_clust}{A matrix of cell embeddings in the reduced-dimensional space
+used for clustering (ie. PCA), with rows of cells (with rownames), and
+columns of dimensions. This will be used to calculate euclidean distance
+between cells for the silhouette plot, so it will be more relevant if the
+scale of each dimension is weighted by the variance it explains.}
+
+\item{dr_viz}{A nx2 matrix of cell embeddings in two-dimensional space used
+for visualization of cells, with rows of cells (with rownames), and 2
+columns of dimensions. This is typically a tSNE projection, but any 2D
+embedding of cells is accepted.}
 }
 \value{
-The function returns a list containing input data necessary for both the 
-  cluster-wise differential expression testing function and the Shiny app itself. 
-  The list contains the following elements:
-  \describe{
+The function returns a list containing input data necessary for both
+  the cluster-wise differential expression testing function and the Shiny app
+  itself. The list contains the following elements: 
+  \describe{ 
     \item{nge}{The normalized gene expression matrix.} 
     \item{md}{The metadata dataframe, not including cluster assignments.} 
-    \item{cl}{The cluster assignment dataframe, containing cluster assignments for each
-      resolution tested. The columns will be sorted in order of increasing resolution 
-      (k, number of clusters).}
-    \item{dr_clust}{The cell embeddings used in the clustering, from PCA.}
-    \item{dr_viz}{The cell embeddings used for visualization in 2D, from tSNE.} 
+    \item{cl}{The cluster assignment dataframe, containing cluster 
+      assignments for each resolution tested. The columns will be sorted in 
+      order of increasing resolution (k, number of clusters).}
+    \item{dr_clust}{The cell embeddings used in the clustering.}
+    \item{dr_viz}{The cell embeddings used for visualization in 2D.}
   }
 }
 \description{
-Creates the data object expected by the cluster-wise differential expression testing 
-function and the Shiny app. The user must provide the input objects as arguments.
+Creates the data object expected by the cluster-wise differential expression
+testing function and the Shiny app. The user must provide the input objects
+as arguments.
+}
+\examples{
+\dontrun{
+ ### Reading in data from a SingleCellExperiment class ###
+ clusterAssignments <- grepl("^Clust",colnames(colData(mySCE)))
+ # A logical vector separating the cluster assignments from the rest of the
+ # cell metadata in the colData slot. This is an example that you will have
+ # to change to reflect your cluster assignment column names.
+ data_for_scClustViz <- readFromManual(nge=logcounts(mySCE),
+                                       md=colData(mySCE)[,!clusterAssignments],
+                                       cl=colData(mySCE)[,clusterAssignments],
+                                       dr_clust=reducedDim(mySCE,"PCA"),
+                                       dr_viz=reductedDim(mySCE,"tSNE"))
+ # All the data scClustViz needs is in 'data_for_scClustViz'.
+
+ DE_for_scClustViz <- clusterWiseDEtest(data_for_scClustViz)
+
+ save(data_for_scClustViz,DE_for_scClustViz,
+      file="for_scClustViz.RData")
+ # Save these objects so you'll never have to run this slow function again!
+
+ runShiny(filePath="for_scClustViz.RData")
+}
+
 }
 \seealso{
 \code{\link{readFromSeurat}} for loading data from a Seurat object.

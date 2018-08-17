@@ -44,56 +44,59 @@
 #'   function will try to predict the appropriate keytype of the rownames (this
 #'   takes a bit of time).
 #'
-#' @param exponent Default = 2. The log base of your normalized input data.
-#'   Seurat normalization uses the natural log (set this to exp(1)), while other
-#'   normalization methods generally use log2 (set this to 2). This is used if
+#' @param exponent Default = Taken from \code{clusterWiseDEtest} output. The log
+#'   base of your normalized input data. Seurat normalization uses the natural
+#'   log (set this to exp(1)), while other normalization methods generally use
+#'   log2 (set this to 2). This is used if you use the function for testing
+#'   differential gene expression between custom sets, and is set automatically
+#'   to match the parameters used in \code{clusterWiseDEtest}.
+#'
+#' @param pseudocount Default = Taken from \code{clusterWiseDEtest} output. The
+#'   pseudocount added to all log-normalized values in your input data. Most
+#'   methods use a pseudocount of 1 to eliminate log(0) errors. This is used if
 #'   you use the function for testing differential gene expression between
-#'   custom sets, and should be set to the same parameters as in
+#'   custom sets, and is set automatically to match the parameters used in
 #'   \code{clusterWiseDEtest}.
 #'
-#' @param pseudocount Default = 1. The pseudocount added to all log-normalized
-#'   values in your input data. Most methods use a pseudocount of 1 to eliminate
-#'   log(0) errors. This is used if you use the function for testing
-#'   differential gene expression between custom sets, and should be set to the
-#'   same parameters as in \code{clusterWiseDEtest}.
+#' @param FDRthresh Default = Taken from \code{clusterWiseDEtest} output. The
+#'   false discovery rate to use as a threshold for determining statistical
+#'   significance of differential expression calculated by the Wilcoxon rank-sum
+#'   test. This is used if you use the function for testing differential gene
+#'   expression between custom sets, and is set automatically to match the
+#'   parameters used in \code{clusterWiseDEtest}.
 #'
-#' @param FDRthresh Default = 0.01. The false discovery rate to use as a
-#'   threshold for determining statistical significance of differential
-#'   expression calculated by the Wilcoxon rank-sum test. This is used if you
-#'   use the function for testing differential gene expression between custom
-#'   sets, and should be set to the same parameters as in
-#'   \code{clusterWiseDEtest}.
+#' @param threshType Default = Taken from \code{clusterWiseDEtest} output.
+#'   Filtering genes for use in differential expression testing can be done
+#'   multiple ways. We use an expression ratio filter for comparing each cluster
+#'   to the rest of the tissue as a whole, but find that difference in detection
+#'   rates works better when comparing clusters to each other. You can set
+#'   threshType to \code{"logGER"} to use a gene expression ratio for all gene
+#'   filtering, or leave it as default (\code{"dDR"}) to use difference in
+#'   detection rate as the thresholding method when comparing clusters to each
+#'   other. This is used if you use the function for testing differential gene
+#'   expression between custom sets, and is set automatically to match the
+#'   parameters used in \code{clusterWiseDEtest}.
 #'
-#' @param threshType Default = "dDR". Filtering genes for use in differential
-#'   expression testing can be done multiple ways. We use an expression ratio
-#'   filter for comparing each cluster to the rest of the tissue as a whole, but
-#'   find that difference in detection rates works better when comparing
-#'   clusters to each other. You can set threshType to \code{"logGER"} to use a
-#'   gene expression ratio for all gene filtering, or leave it as default
-#'   (\code{"dDR"}) to use difference in detection rate as the thresholding
-#'   method when comparing clusters to each other. This is used if you use the
-#'   function for testing differential gene expression between custom sets, and
-#'   should be set to the same parameters as in \code{clusterWiseDEtest}.
+#' @param dDRthresh Default = Taken from \code{clusterWiseDEtest} output.
+#'   Magnitude of detection rate difference of a gene between clusters to use as
+#'   filter for determining which genes to test for differential expression
+#'   between clusters. This is used if you use the function for testing
+#'   differential gene expression between custom sets, and is set automatically
+#'   to match the parameters used in \code{clusterWiseDEtest}.
 #'
-#' @param dDRthresh Default = 0.15. Magnitude of detection rate difference of a
-#'   gene between clusters to use as filter for determining which genes to test
-#'   for differential expression between clusters. This is used if you use the
-#'   function for testing differential gene expression between custom sets, and
-#'   should be set to the same parameters as in \code{clusterWiseDEtest}.
-#'
-#' @param logGERthresh Default = 1. Magnitude of gene expression ratio for a
-#'   gene between clusters to use as filter for determining which genes to test
-#'   for differential expression between clusters. This is used if you use the
-#'   function for testing differential gene expression between custom sets, and
-#'   should be set to the same parameters as in \code{clusterWiseDEtest}.
+#' @param logGERthresh Default = Taken from \code{clusterWiseDEtest} output.
+#'   Magnitude of gene expression ratio for a gene between clusters to use as
+#'   filter for determining which genes to test for differential expression
+#'   between clusters. This is used if you use the function for testing
+#'   differential gene expression between custom sets, and is set automatically
+#'   to match the parameters used in \code{clusterWiseDEtest}.
 #'
 #' @return The function causes the scClustViz Shiny GUI app to open in a
 #'   seperate window.
 #'
 #' @examples
 #' \dontrun{
-#'  data_for_scClustViz <- readFromSeurat(your_seurat_object,
-#'                                        convertGeneIDs=F)
+#'  data_for_scClustViz <- readFromSeurat(your_seurat_object)
 #'  rm(your_seurat_object)
 #'  # All the data scClustViz needs is in 'data_for_scClustViz'.
 #'
@@ -111,7 +114,7 @@
 #'  runShiny(system.file("e13cortical_forViz.RData",package="MouseCortex"),
 #'           # Load input file (E13.5 data) from package directory.
 #'           outPath=".",
-#'           # Save any further analysis performed in the app to the 
+#'           # Save any further analysis performed in the app to the
 #'           # working directory rather than library directory.
 #'           annotationDB="org.Mm.eg.db",
 #'           # This is an optional argument, but will add annotations.
@@ -131,10 +134,10 @@
 #'           )
 #' }
 #'
-#' @seealso \code{\link{readFromSeurat}} or \code{\link{readFromManual}} for reading in
-#'   data to generate the first input object for this function, and
-#'   \code{\link{clusterWiseDEtest}} to do the differential expression testing to generate
-#'   the second input object for this function.
+#' @seealso \code{\link{readFromSeurat}} or \code{\link{readFromManual}} for
+#'   reading in data to generate the first input object for this function, and
+#'   \code{\link{clusterWiseDEtest}} to do the differential expression testing
+#'   to generate the second input object for this function.
 #'
 #' @import shiny
 #' @importFrom scales alpha
@@ -145,8 +148,8 @@
 runShiny <- function(filePath,outPath,
                      cellMarkers=list(),
                      annotationDB,rownameKeytype,
-                     exponent=2,pseudocount=1,FDRthresh=0.01,
-                     threshType="dDR",dDRthresh=0.15,logGERthresh=1) {
+                     exponent,pseudocount,FDRthresh,
+                     threshType,dDRthresh,logGERthresh) {
   # ^ Load data from file ------------------------------------------------------------------
   while(T) {
     if (exists(".lastFileCall")) {
@@ -165,9 +168,9 @@ runShiny <- function(filePath,outPath,
       break
     }
   }
-  # The above weird-ass loop checks to see if the file has already been loaded
-  # (if this function has been run previously this session), otherwise loads the
-  # file.
+  # The above weird-ass loop (or weird ass-loop if you prefer) checks to see if
+  # the file has already been loaded (if this function has been run previously
+  # this session), otherwise loads the file.
   
   temp_objNames <- sapply(.lastFileCall[[filePath]],function(X) names(get(X)),simplify=F)
   for (L in names(temp_objNames)) {
@@ -180,6 +183,14 @@ runShiny <- function(filePath,outPath,
   # needed in the Shiny app, and saves the objects in the function environment
   # under the names the shiny app expects.
   
+  # Load parameters from clusterWiseDEtest output
+  if (missing(exponent)) { exponent <- params$exponent }
+  if (missing(pseudocount)) { pseudocount <- params$pseudocount }
+  if (missing(FDRthresh)) { FDRthresh <- params$FDRthresh }
+  if (missing(threshType)) { threshType <- params$threshType }
+  if (missing(dDRthresh)) { dDRthresh <- params$dDRthresh }
+  if (missing(logGERthresh)) { logGERthresh <- params$logGERthresh }
+
   cl <- cl[names(deNeighb)]
   # Ensures that only clusters that were tested for differential expression are
   # displayed. This prevents a whole pile of errors.
