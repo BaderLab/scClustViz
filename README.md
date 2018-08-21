@@ -97,38 +97,17 @@ install.packages("devtools")
 # install scClustViz
 devtools::install_github("BaderLab/scClustViz")
 # install MouseCortex (demo data from Yuzwa et al, Cell Reports 2017)
-devtools::install_github("BaderLab/MouseCortex") # this takes a few minutes
+devtools::install_github("BaderLab/MouseCortex") # this takes a minute or two
 # install mouse cell annotations from bioconductor (optional)
 source("https://bioconductor.org/biocLite.R")
 biocLite("org.Mm.eg.db")
 ```
-Then run the scClustViz Shiny app to view your dataset of choice! Replace "e13" in the filename with e11, e15, or e17 to view your timepoint of interest.
+Then run the scClustViz Shiny app to view your dataset of choice! 
+There's a wrapper function in the MouseCortex package that handles the call to scClustViz, so it's nice and simple. 
+If you're interested, `?runShiny` has example code showing the function call used by the wrapper function.
 ```{r}
-library(scClustViz)
-runShiny(
-         # Load input file (E13.5 data) from package directory.
-         filePath=system.file("e13cortical.RData",package="MouseCortex"),
-         # Save any further analysis performed in the app to the 
-         # working directory rather than library directory.
-         outPath=".",
-         # This is an optional argument, but will add annotations.
-         annotationDB="org.Mm.eg.db",
-         # This is a list of canonical marker genes per expected cell type.
-         # The app uses this list to automatically annotate clusters.
-         cellMarkers=list("Cortical precursors"=c("Mki67","Sox2","Pax6",
-                                                  "Pcna","Nes","Cux1","Cux2"),
-                          "Interneurons"=c("Gad1","Gad2","Npy","Sst","Lhx6",
-                                           "Tubb3","Rbfox3","Dcx"),
-                          "Cajal-Retzius neurons"="Reln",
-                          "Intermediate progenitors"="Eomes",
-                          "Projection neurons"=c("Tbr1","Satb2","Fezf2",
-                                                 "Bcl11b","Tle4","Nes",
-                                                 "Cux1","Cux2","Tubb3",
-                                                 "Rbfox3","Dcx")
-                          )
-         
-         )
-
+library(MouseCortex)
+viewMouseCortex("e13")
 ```
 
 

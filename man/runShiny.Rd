@@ -121,10 +121,11 @@ is being compared in the tests, see the "Value" section.
 
  ### Using example data from the MouseCortex package ###
  devtools::install_github("BaderLab/MouseCortex")
- library(org.Mm.eg.db)
- runShiny(system.file("e13cortical_forViz.RData",package="MouseCortex"),
+ viewMouseCortex("e13") 
+ # MouseCortex has a wrapper function which calls the following:
+ runShiny(system.file("e13/e13.RData",package="MouseCortex"),
           # Load input file (E13.5 data) from package directory.
-          outPath=".",
+          outPath="./",
           # Save any further analysis performed in the app to the
           # working directory rather than library directory.
           annotationDB="org.Mm.eg.db",

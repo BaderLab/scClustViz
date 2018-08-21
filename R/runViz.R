@@ -110,10 +110,11 @@
 #'
 #'  ### Using example data from the MouseCortex package ###
 #'  devtools::install_github("BaderLab/MouseCortex")
-#'  library(org.Mm.eg.db)
-#'  runShiny(system.file("e13cortical_forViz.RData",package="MouseCortex"),
+#'  viewMouseCortex("e13") 
+#'  # MouseCortex has a wrapper function which calls the following:
+#'  runShiny(system.file("e13/e13.RData",package="MouseCortex"),
 #'           # Load input file (E13.5 data) from package directory.
-#'           outPath=".",
+#'           outPath="./",
 #'           # Save any further analysis performed in the app to the
 #'           # working directory rather than library directory.
 #'           annotationDB="org.Mm.eg.db",
@@ -197,19 +198,29 @@ runShiny <- function(filePath,outPath,
   
   # ^^ dataPath & dataTitle --------------------------------------------------------------
   temp_dataPath <- strsplit(filePath,"/|\\\\")
-  if (missing(outPath)) {
-    dataPath <- sub(temp_dataPath[[1]][length(temp_dataPath[[1]])],"",filePath)
-    if (dataPath == "") { dataPath <- "./" }
-  } else {
-    dataPath <- outPath
-  }
+  dataPath <- sub(temp_dataPath[[1]][length(temp_dataPath[[1]])],"",filePath)
+  if (dataPath == "") { dataPath <- "./" }
   dataTitle <- sub("\\.[^.]+$","",tail(temp_dataPath[[1]],1))
   rm(temp_dataPath)
+  if (!missing(outPath)) {
+    if (!grepl("[/\\]$",outPath)) { outPath <- paste0(outPath,"/") }
+  }
+  
   # Seperates the file name (which becomes the dataTitle) from the path (which
   # becomes dataPath). This is used when saving and loading various things in
   # the app (default cluster solution, custom set DE results).
   
   # ^^ Load saved comparisons (if any) ---------------------------------------------------
+  if (!missing(outPath)) { #Load from both dataPath and outPath if outPath exists.
+    for (selDEfile in grep(paste0("^",dataTitle,".+selDE.+RData$"),list.files(outPath),value=T)) {
+      temp <- load(paste0(outPath,selDEfile))
+      cl <- cbind(cl,new_cl)
+      CGS <- append(CGS,new_CGS)
+      deTissue <- append(deTissue,new_deTissue)
+      deMarker <- append(deMarker,new_deMarker)
+      rm(list=temp)
+    }
+  }
   for (selDEfile in grep(paste0("^",dataTitle,".+selDE.+RData$"),list.files(dataPath),value=T)) {
     temp <- load(paste0(dataPath,selDEfile))
     cl <- cbind(cl,new_cl)
@@ -226,19 +237,36 @@ runShiny <- function(filePath,outPath,
   # separate address in memory. CHECK ON THIS!
   
   # ^^ Load default cluster solution (if any) --------------------------------------------
+  savedRes <- NULL
   if (file.exists(paste0(dataPath,dataTitle,"_savedRes.RData"))) {
     load(paste0(dataPath,dataTitle,"_savedRes.RData"))
-  } else {
-    savedRes <- NULL
   }
-  # Load the default cluster solution from the same directory as the input file.
+  if (!missing(outPath)) {
+    if (file.exists(paste0(outPath,dataTitle,"_savedRes.RData"))) {
+      load(paste0(outPath,dataTitle,"_savedRes.RData"))
+    }
+  }
+  # Load the default cluster solution from the user-provided filepath (outPath)
+  # preferentially, otherwise load from the same directory as the input file. If
+  # neither exist, set to NULL.  This is actually accomplished by overwriting
+  # the initial NULL up to two times if they both exist, but since it's a single
+  # character string it's not appreciably slower.
   
   # ^^ Generate blank preamble if none saved ---------------------------------------------
-  if (!file.exists(paste0(dataPath,"intro.md"))) {
-    write(paste0(dataTitle,": You can add to this preamble by editting ",dataPath,"intro.md"),
-          file=paste0(dataPath,"intro.md"))
+  introPath <- paste0(dataPath,dataTitle,"_intro.md")
+  if (!missing(outPath)) {
+    if (file.exists(paste0(outPath,dataTitle,"_intro.md"))) {
+      introPath <- paste0(outPath,dataTitle,"_intro.md")
+    }
   }
   # Generate a section of preamble text in markdown that the user can edit.
+  if (!file.exists(introPath)) {
+    write(paste0(dataTitle,": You can add to this preamble by editting ",introPath),
+          file=introPath)
+  }
+  
+  # Done loading, now set dataPath so that things saved go to the right place.
+  if (!missing(outPath)) { dataPath <- outPath }
   
   # ^ Map rownames to gene symbol ----------------------------------------------------
   if (!missing(annotationDB)) {
@@ -328,7 +356,7 @@ runShiny <- function(filePath,outPath,
   ui <- fixedPage(
     fixedRow(
       titlePanel(paste("scClustViz -",dataTitle)),
-      includeMarkdown(paste0(dataPath,"intro.md"))
+      includeMarkdown(introPath)
     ),
     hr(),
     
