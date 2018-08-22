@@ -90,14 +90,14 @@ runShiny(filePath="for_scClustViz.RData")
 ## Demo with Embryonic Mouse Cerebral Cortex Data
 The data from the 2017 Cell Reports paper [Developmental Emergence of Adult Neural Stem Cells as Revealed by Single-Cell Transcriptional Profiling](https://doi.org/10.1016/j.celrep.2017.12.017) by Yuzwa *et al.* are available to explore by installing the R package [MouseCortex](https://github.com/BaderLab/MouseCortex). These are DropSeq data from timepoints spanning neurogenesis and filtered for cortically-derived cells, processed on an earlier version of the pipeline outlined below (using scran for normalization and Seurat for clustering) and imported into scClustViz using the steps outlined above.
 
-Install scClustViz and MouseCortex using devtools as follows:
+Install MouseCortex using devtools as follows:
 ```{r}
 # install devtools
 install.packages("devtools")
-# install scClustViz
-devtools::install_github("BaderLab/scClustViz")
+
 # install MouseCortex (demo data from Yuzwa et al, Cell Reports 2017)
 devtools::install_github("BaderLab/MouseCortex") # this takes a minute or two
+
 # install mouse cell annotations from bioconductor (optional)
 source("https://bioconductor.org/biocLite.R")
 biocLite("org.Mm.eg.db")
