@@ -116,30 +116,6 @@ library(MouseCortex)
 viewMouseCortex("e13")
 ```
 
-### Human Liver
-The data from the 2018 Nature Communications paper [Developmental Emergence of Adult Neural Stem Cells as Revealed by Single-Cell Transcriptional Profiling](https://doi.org/10.1016/j.celrep.2017.12.017) by Yuzwa *et al.* are available to explore by installing the R package [MouseCortex](https://github.com/BaderLab/MouseCortex). These are DropSeq data from timepoints spanning neurogenesis and filtered for cortically-derived cells, processed on an earlier version of the pipeline outlined below (using scran for normalization and Seurat for clustering) and imported into scClustViz using the steps outlined above.
-
-Install MouseCortex using devtools as follows:
-```{r}
-# install devtools
-install.packages("devtools")
-
-# install MouseCortex (demo data from Yuzwa et al, Cell Reports 2017)
-devtools::install_github("BaderLab/MouseCortex") # this takes a minute or two
-
-# install mouse cell annotations from bioconductor (optional)
-source("https://bioconductor.org/biocLite.R")
-biocLite("org.Mm.eg.db")
-```
-Then run the scClustViz Shiny app to view your dataset of choice! 
-There's a wrapper function in the MouseCortex package that handles the call to scClustViz, so it's nice and simple. 
-If you're interested, `?runShiny` has example code showing the function call used by the wrapper function.
-```{r}
-library(MouseCortex)
-viewMouseCortex("e13")
-```
-
-
 ### Share Your Data With scClustViz
 Building an R package is a relatively easy task thanks to RStudio and the roxygen2 and devtools packages. The following vignette will show you how to take your saved output from the scClustViz setup and share it as an R package on github as seen in the data packages above. It is entirely based on the invaluable book [R packages](http://r-pkgs.had.co.nz/) by Hadley Wickham.  
 First, you must have generated your input file for the `runShiny` command in scClustViz by following the steps in the [usage guide](#scclustviz-usage-guide) above.  
