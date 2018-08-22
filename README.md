@@ -8,7 +8,6 @@ An interactive R Shiny tool for visualizing single-cell RNAseq clustering result
     -   [Run the Shiny app](#run-the-shiny-app)  
 -   [Data Packages](#data-packages)
     -   [Embryonic Mouse Cerebral Cortex](#embryonic-mouse-cerebral-cortex)
-    -   [Human Liver](#human-liver)
     -   [Share Your Data With scClustViz](#share-your-data-with-scclustviz)
 -   [scRNAseq analysis pipeline](#scrnaseq-analysis-pipeline)  
 -   [Contact](#contact)  
