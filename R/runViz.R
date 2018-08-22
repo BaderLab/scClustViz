@@ -277,7 +277,7 @@ runShiny <- function(filePath,outPath,
     if (missing(rownameKeytype)) {
       rownameKeytype <- "SYMBOL"
     }
-    if (sum(rownames(nge) %in% keys(org.Mm.eg.db,rownameKeytype)) / nrow(nge) < 0.8) {
+    if (sum(rownames(nge) %in% keys(annotationDB,rownameKeytype)) / nrow(nge) < 0.8) {
       print("Less than 80% of rownames map to official gene symbols.")
       print("Automatically determining keytype from rownames...")
       temp_keyMatch <- pbapply::pbsapply(AnnotationDbi::keytypes(annotationDB),function(X) 
