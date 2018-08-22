@@ -496,11 +496,15 @@ runShiny <- function(filePath,outPath,
         "rate threshold."
       ))),
       p(paste(
-        "The heatmap is generated using the differentially expressed genes from the test",
-        "and number of genes selected below. Differentially expressed gene lists can be",
-        "downloaded as tab-separated text files by selecting the test type and cluster,",
-        "and clicking 'Download gene list'.  Genes used in the heatmap can be viewed in",
-        "the gene expression plots below as well."
+        "The dotplot is generated using the differentially expressed genes from the test",
+        "and number of genes selected below. A dotplot is a modified heatmap where each",
+        "dot encodes both detection rate and average gene expression in detected cells",
+        "for a gene in a cluster. Darker colour indicates higher average gene expression",
+        "from the cells in which the gene was detected, and larger dot diameter indicates",
+        "that the gene was detected in greater proportion of cells from the cluster.",
+        "Differentially expressed gene lists can be downloaded as tab-separated text files",
+        "by selecting the test type and cluster, and clicking 'Download gene list'.",
+        "Genes used in the dotplot can be viewed in the gene expression plots below as well."
       )),
       h1()
       
@@ -1244,7 +1248,7 @@ runShiny <- function(filePath,outPath,
                        "Marker genes"="deMarker",
                        "DE vs neighbour"="deNeighb")
         }
-        radioButtons("heatG","Heapmap Genes:",choices=temp,selected="deMarker")
+        radioButtons("heatG","Dotplot Genes:",choices=temp,selected="deMarker")
       }
     })
     
