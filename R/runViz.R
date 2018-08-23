@@ -586,6 +586,64 @@ runShiny <- function(filePath,outPath,
     ),
     hr(),
     
+    # ^ Distribution of genes of interest --------------------------------------------------
+    fixedRow(
+      titlePanel("Cell Distribution of Genes of Interest"),
+      p(paste("Here you can overlay gene expression values for individual genes of interest",
+              "on the cell projection. Search for your gene using the search box below,",
+              "then select your gene(s) of interest from the dropdown 'Select genes' menu.",
+              "You can select multiple genes, but note that for each cell only the gene",
+              "expression of the gene with the highest expression in that cell will be displayed.",
+              "You have the option to include the cluster labels from the first cell projection",
+              "figure in these plots, and to colour the clusters themselves. There are two",
+              "copies of this figure for ease of comparison between genes of interest.")),
+      h1()
+    ),
+    fixedRow(
+      column(2,radioButtons("searchType1",label="Search by:",
+                            choices=c("Gene list"="comma",
+                                      "Regular expression"="regex"))),
+      column(3,uiOutput("geneSearchBox1")),
+      column(1,actionButton("GOI1go","Search",icon=icon("search"))),
+      
+      column(2,radioButtons("searchType2",label="Search by:",
+                            choices=c("Gene list"="comma",
+                                      "Regular expression"="regex"))),
+      column(3,uiOutput("geneSearchBox2")),
+      column(1,actionButton("GOI2go","Search",icon=icon("search")))
+    ),tags$style(type='text/css', paste("button#GOI1go { margin-top: 25px; margin-left: -25px; }",
+                                        "button#GOI2go { margin-top: 25px; margin-left: -25px; }")),
+    
+    fixedRow(
+      column(3,
+             radioButtons("plotClust1",inline=T,label="Plot:",selected="goi",
+                          choices=list("Clusters"="clust","Gene expression overlay"="goi")),
+             checkboxInput("plotLabel1",label="Include cluster labels (style as above)",value=T)
+      ),
+      column(3,uiOutput("GOI1select")),
+      
+      column(3,
+             radioButtons("plotClust2",inline=T,label="Plot:",selected="goi",
+                          choices=list("Clusters"="clust","Gene expression overlay"="goi")),
+             checkboxInput("plotLabel2",label="Include cluster labels (style as above)",value=T)
+      ),
+      column(3,uiOutput("GOI2select"))
+    ),
+    
+    fixedRow(
+      column(6,strong("If multiple genes are selected, the max expression per cell will be displayed")),
+      column(6,strong("If multiple genes are selected, the max expression per cell will be displayed"))
+    ),
+    fixedRow(
+      column(6,plotOutput("goiPlot1",height="600px")),
+      column(6,plotOutput("goiPlot2",height="600px"))
+    ),
+    fixedRow(
+      column(6,align="left",downloadButton("goiPlot1Save","Save as PDF")),
+      column(6,align="right",downloadButton("goiPlot2Save","Save as PDF"))
+    ),
+    hr(),
+    
     # ^ Cluster comparison -----------------------------------------------------------------
     fixedRow(
       titlePanel("Cluster/Set Comparison of Gene Statistics"),
@@ -687,64 +745,6 @@ runShiny <- function(filePath,outPath,
              hr(),
              span(textOutput("calcText"),style="color:red")
       )
-    ),
-    hr(),
-    
-    # ^ Distribution of genes of interest --------------------------------------------------
-    fixedRow(
-      titlePanel("Cell Distribution of Genes of Interest"),
-      p(paste("Here you can overlay gene expression values for individual genes of interest",
-              "on the cell projection. Search for your gene using the search box below,",
-              "then select your gene(s) of interest from the dropdown 'Select genes' menu.",
-              "You can select multiple genes, but note that for each cell only the gene",
-              "expression of the gene with the highest expression in that cell will be displayed.",
-              "You have the option to include the cluster labels from the first cell projection",
-              "figure in these plots, and to colour the clusters themselves. There are two",
-              "copies of this figure for ease of comparison between genes of interest.")),
-      h1()
-    ),
-    fixedRow(
-      column(2,radioButtons("searchType1",label="Search by:",
-                            choices=c("Gene list"="comma",
-                                      "Regular expression"="regex"))),
-      column(3,uiOutput("geneSearchBox1")),
-      column(1,actionButton("GOI1go","Search",icon=icon("search"))),
-      
-      column(2,radioButtons("searchType2",label="Search by:",
-                            choices=c("Gene list"="comma",
-                                      "Regular expression"="regex"))),
-      column(3,uiOutput("geneSearchBox2")),
-      column(1,actionButton("GOI2go","Search",icon=icon("search")))
-    ),tags$style(type='text/css', paste("button#GOI1go { margin-top: 25px; margin-left: -25px; }",
-                                        "button#GOI2go { margin-top: 25px; margin-left: -25px; }")),
-    
-    fixedRow(
-      column(3,
-             radioButtons("plotClust1",inline=T,label="Plot:",selected="goi",
-                          choices=list("Clusters"="clust","Gene expression overlay"="goi")),
-             checkboxInput("plotLabel1",label="Include cluster labels (style as above)",value=T)
-      ),
-      column(3,uiOutput("GOI1select")),
-      
-      column(3,
-             radioButtons("plotClust2",inline=T,label="Plot:",selected="goi",
-                          choices=list("Clusters"="clust","Gene expression overlay"="goi")),
-             checkboxInput("plotLabel2",label="Include cluster labels (style as above)",value=T)
-      ),
-      column(3,uiOutput("GOI2select"))
-    ),
-    
-    fixedRow(
-      column(6,strong("If multiple genes are selected, the max expression per cell will be displayed")),
-      column(6,strong("If multiple genes are selected, the max expression per cell will be displayed"))
-    ),
-    fixedRow(
-      column(6,plotOutput("goiPlot1",height="600px")),
-      column(6,plotOutput("goiPlot2",height="600px"))
-    ),
-    fixedRow(
-      column(6,align="left",downloadButton("goiPlot1Save","Save as PDF")),
-      column(6,align="right",downloadButton("goiPlot2Save","Save as PDF"))
     ),
     h1()
   )
@@ -1703,6 +1703,164 @@ runShiny <- function(filePath,outPath,
     )
     
     
+    # ^ Distribution of genes of interest ------------------------------------------------
+    output$geneSearchBox1 <- renderUI({
+      if (input$searchType1 == "comma") {
+        textInput("GOI1",width="100%",
+                  label=paste("Enter list of genes"))
+      } else if (input$searchType1 == "regex") {
+        textInput("GOI1",value="^ACTB$",width="100%",
+                  label="Enter regular expression")
+      }
+    })
+    GOI1 <- eventReactive(input$GOI1go,geneSearch(input$GOI1,input$searchType1))
+    output$GOI1select <- renderUI({ 
+      temp_choices <- GOI1()
+      if (is.null(names(temp_choices))) {
+        temp_choices <- sort(temp_choices)
+      } else {
+        temp_choices <- temp_choices[order(names(temp_choices))]
+      }
+      selectInput("goi1",label="Select genes:",choices=temp_choices,multiple=T)
+    })
+    
+    output$geneSearchBox2 <- renderUI({
+      if (input$searchType2 == "comma") {
+        textInput("GOI2",width="100%",
+                  label=paste("Search by list of genes"))
+      } else if (input$searchType2 == "regex") {
+        textInput("GOI2",value="^ACTB$",width="100%",
+                  label="Search by regular expression")
+      }
+    })
+    GOI2 <- eventReactive(input$GOI2go,geneSearch(input$GOI2,input$searchType2))
+    output$GOI2select <- renderUI({ 
+      temp_choices <- GOI2()
+      if (is.null(names(temp_choices))) {
+        temp_choices <- sort(temp_choices)
+      } else {
+        temp_choices <- temp_choices[order(names(temp_choices))]
+      }
+      selectInput("goi2",label="Select genes:",choices=temp_choices,multiple=T)
+    })
+    
+    plot_tsneClust <- function() {
+      par(mar=c(3,3,4,1),mgp=2:0)
+      plot(dr_viz,pch=21,
+           col=alpha(clustCols(res())[clusts()],1),
+           bg=alpha(clustCols(res())[clusts()],0.5),
+           xlab="tSNE_1",ylab="tSNE_2",
+           main=paste("tSNE at",res(),"using",ncol(dr_clust),"PCs"))
+    }
+    
+    plot_goi <- function(goi) {
+      if (length(goi) < 1) {
+        plot(x=NA,y=NA,xlim=0:1,ylim=0:1,xaxt="n",yaxt="n",xlab=NA,ylab=NA)
+        text(.5,.5,paste("To search for your gene(s) of interest type a",
+                         "list of genes or regex in the box above", 
+                         "then select the gene(s) from the drop-down list",
+                         "in the \"Select genes:\" box above right.",sep="\n"))
+      } else {
+        if (length(goi) > 5) { goiL <- 5 } else { goiL <- length(goi) }
+        if (goiL > 1) {
+          gv <- apply(nge[goi,],2,max)
+        } else {
+          gv <- nge[goi,]
+        }
+        cv <- cut(gv,breaks=100,labels=F)
+        par(mar=c(3,3,goiL+1,1),mgp=2:0)
+        plot(dr_viz,pch=21,cex=1.3,xlab="tSNE_1",ylab="tSNE_2",
+             col=viridis(100,.7,d=-1)[cv],bg=viridis(100,.3,d=-1)[cv])
+        temp_yrange <- max(dr_viz[,2]) - min(dr_viz[,2])
+        segments(x0=seq(quantile(range(dr_viz[,1]),.7),
+                        quantile(range(dr_viz[,1]),1),length.out=1000),
+                 y0=max(dr_viz[,2]) + temp_yrange * .045,
+                 y1=max(dr_viz[,2]) + temp_yrange * .065,
+                 col=viridis(1000,d=-1),xpd=NA)
+        text(x=c(quantile(range(dr_viz[,1]),.7),
+                 quantile(range(dr_viz[,1]),.85),
+                 quantile(range(dr_viz[,1]),1)),
+             y=rep(max(dr_viz[,2]) + temp_yrange * .06,3),
+             labels=c(round(min(gv),2),"Max expression per cell",round(max(gv),2)),pos=2:4,xpd=NA)
+        try(tempGeneName <- mapIds(annotationDB,keys=goi,keytype=rownameKeytype,
+                                   column="GENENAME",multiVals="first"),silent=T)
+        if (exists("tempGeneName")) { 
+          tempMissing <- is.na(tempGeneName)
+          tempGeneName[tempMissing] <- names(tempGeneName)[tempMissing]
+          tempGeneName[!tempMissing] <- paste0(names(tempGeneName),": ",tempGeneName)[!tempMissing]
+          if (length(tempGeneName) > 4) { 
+            tempGeneName[5] <- "and more..."; tempGeneName <- tempGeneName[1:5] 
+          }
+          title(paste(tempGeneName,collapse="\n"),line=0.25,adj=0,font.main=1)
+        } else {
+          temp_goi <- goi
+          if (length(temp_goi) > 4) { 
+            temp_goi[5] <- "and more..."; temp_goi <- temp_goi[1:5] 
+          }
+          title(paste(temp_goi,collapse="\n"),line=0.25,adj=0,font.main=1)
+        }
+      }
+    }
+    
+    output$goiPlot1 <- renderPlot({
+      if (input$plotClust1 == "clust" & length(res()) > 0) {
+        print(plot_tsneClust())
+        if (input$plotLabel1) { print(plot_tsne_labels()) }
+      } else if (input$plotClust1 == "goi") {
+        print(plot_goi(input$goi1))
+        if (input$plotLabel1 & length(res()) > 0 & length(input$goi1) > 0) {
+          print(plot_tsne_labels())
+        }
+      }
+    })
+    
+    output$goiPlot1Save <- downloadHandler(
+      filename="goi1.pdf",
+      content=function(file) {
+        pdf(file,width=7,height=7)
+        if (input$plotClust1 == "clust" & length(res()) > 0) {
+          print(plot_tsneClust())
+          if (input$plotLabel1) { print(plot_tsne_labels()) }
+        } else if (input$plotClust1 == "goi") {
+          print(plot_goi(input$goi1))
+          if (input$plotLabel1 & length(res()) > 0 & length(input$goi1) > 0) {
+            print(plot_tsne_labels())
+          }
+        }
+        dev.off()
+      }
+    )
+    
+    output$goiPlot2 <- renderPlot({
+      if (input$plotClust2 == "clust" & length(res()) > 0) {
+        print(plot_tsneClust())
+        if (input$plotLabel2) { print(plot_tsne_labels()) }
+      } else if (input$plotClust2 == "goi") {
+        print(plot_goi(input$goi2))
+        if (input$plotLabel2 & length(res()) > 0 & length(input$goi2) > 0) {
+          print(plot_tsne_labels())
+        }
+      }
+    })
+    
+    output$goiPlot2Save <- downloadHandler(
+      filename="goi2.pdf",
+      content=function(file) {
+        pdf(file,width=7,height=7)
+        if (input$plotClust2 == "clust" & length(res()) > 0) {
+          print(plot_tsneClust())
+          if (input$plotLabel2) { print(plot_tsne_labels()) }
+        } else if (input$plotClust2 == "goi") {
+          print(plot_goi(input$goi2))
+          if (input$plotLabel2 & length(res()) > 0 & length(input$goi2) > 0) {
+            print(plot_tsne_labels())
+          }
+        }
+        dev.off()
+      }
+    )
+
+    
     # ^ MA plot for cluster comparison ---------------------------------------------------------------
     output$resSelect2 <- renderUI({
       selectInput("res2","Resolution:",choices=clustList(),selected=res(),width="100%")
@@ -2131,162 +2289,7 @@ runShiny <- function(filePath,outPath,
         "Saving ",dataTitle,"_selDE_",sub("Comp.","",input$res,fixed=T),".RData to ",dataPath))
     })
     
-    
-    # ^ Distribution of genes of interest ------------------------------------------------
-    output$geneSearchBox1 <- renderUI({
-      if (input$searchType1 == "comma") {
-        textInput("GOI1",width="100%",
-                  label=paste("Enter list of genes"))
-      } else if (input$searchType1 == "regex") {
-        textInput("GOI1",value="^ACTB$",width="100%",
-                  label="Enter regular expression")
-      }
-    })
-    GOI1 <- eventReactive(input$GOI1go,geneSearch(input$GOI1,input$searchType1))
-    output$GOI1select <- renderUI({ 
-      temp_choices <- GOI1()
-      if (is.null(names(temp_choices))) {
-        temp_choices <- sort(temp_choices)
-      } else {
-        temp_choices <- temp_choices[order(names(temp_choices))]
-      }
-      selectInput("goi1",label="Select genes:",choices=temp_choices,multiple=T)
-    })
-    
-    output$geneSearchBox2 <- renderUI({
-      if (input$searchType2 == "comma") {
-        textInput("GOI2",width="100%",
-                  label=paste("Search by list of genes"))
-      } else if (input$searchType2 == "regex") {
-        textInput("GOI2",value="^ACTB$",width="100%",
-                  label="Search by regular expression")
-      }
-    })
-    GOI2 <- eventReactive(input$GOI2go,geneSearch(input$GOI2,input$searchType2))
-    output$GOI2select <- renderUI({ 
-      temp_choices <- GOI2()
-      if (is.null(names(temp_choices))) {
-        temp_choices <- sort(temp_choices)
-      } else {
-        temp_choices <- temp_choices[order(names(temp_choices))]
-      }
-      selectInput("goi2",label="Select genes:",choices=temp_choices,multiple=T)
-    })
-    
-    plot_tsneClust <- function() {
-      par(mar=c(3,3,4,1),mgp=2:0)
-      plot(dr_viz,pch=21,
-           col=alpha(clustCols(res())[clusts()],1),
-           bg=alpha(clustCols(res())[clusts()],0.5),
-           xlab="tSNE_1",ylab="tSNE_2",
-           main=paste("tSNE at",res(),"using",ncol(dr_clust),"PCs"))
-    }
-    
-    plot_goi <- function(goi) {
-      if (length(goi) < 1) {
-        plot(x=NA,y=NA,xlim=0:1,ylim=0:1,xaxt="n",yaxt="n",xlab=NA,ylab=NA)
-        text(.5,.5,paste("To search for your gene(s) of interest type a",
-                         "list of genes or regex in the box above", 
-                         "then select the gene(s) from the drop-down list",
-                         "in the \"Select genes:\" box above right.",sep="\n"))
-      } else {
-        if (length(goi) > 5) { goiL <- 5 } else { goiL <- length(goi) }
-        if (goiL > 1) {
-          gv <- apply(nge[goi,],2,max)
-        } else {
-          gv <- nge[goi,]
-        }
-        cv <- cut(gv,breaks=100,labels=F)
-        par(mar=c(3,3,goiL+1,1),mgp=2:0)
-        plot(dr_viz,pch=21,cex=1.3,xlab="tSNE_1",ylab="tSNE_2",
-             col=viridis(100,.7,d=-1)[cv],bg=viridis(100,.3,d=-1)[cv])
-        temp_yrange <- max(dr_viz[,2]) - min(dr_viz[,2])
-        segments(x0=seq(quantile(range(dr_viz[,1]),.55),
-                        quantile(range(dr_viz[,1]),.95),length.out=1000),
-                 y0=max(dr_viz[,2]) + temp_yrange * .045,
-                 y1=max(dr_viz[,2]) + temp_yrange * .065,
-                 col=viridis(1000,d=-1),xpd=NA)
-        text(x=c(quantile(range(dr_viz[,1]),.55),
-                 quantile(range(dr_viz[,1]),.75),
-                 quantile(range(dr_viz[,1]),.95)),
-             y=rep(max(dr_viz[,2]) + temp_yrange * .06,3),
-             labels=c(round(min(gv),2),"Max expression per cell",round(max(gv),2)),pos=2:4,xpd=NA)
-        try(tempGeneName <- mapIds(annotationDB,keys=goi,keytype=rownameKeytype,
-                                   column="GENENAME",multiVals="first"),silent=T)
-        if (exists("tempGeneName")) { 
-          if (length(tempGeneName) > 4) { 
-            tempGeneName[5] <- "and more..."; tempGeneName <- tempGeneName[1:5] 
-          }
-          tempGeneName[is.na(tempGeneName)] <- names(tempGeneName)[is.na(tempGeneName)]
-          title(paste(tempGeneName,collapse="\n"),line=0.25,adj=.01,font.main=1)
-        } else {
-          temp_goi <- goi
-          if (length(temp_goi) > 4) { 
-            temp_goi[5] <- "and more..."; temp_goi <- temp_goi[1:5] 
-          }
-          title(paste(temp_goi,collapse="\n"),line=0.25,adj=.01,font.main=1)
-        }
-      }
-    }
-    
-    output$goiPlot1 <- renderPlot({
-      if (input$plotClust1 == "clust" & length(res()) > 0) {
-        print(plot_tsneClust())
-        if (input$plotLabel1) { print(plot_tsne_labels()) }
-      } else if (input$plotClust1 == "goi") {
-        print(plot_goi(input$goi1))
-        if (input$plotLabel1 & length(res()) > 0 & length(input$goi1) > 0) {
-          print(plot_tsne_labels())
-        }
-      }
-    })
-    
-    output$goiPlot1Save <- downloadHandler(
-      filename="goi1.pdf",
-      content=function(file) {
-        pdf(file,width=7,height=7)
-        if (input$plotClust1 == "clust" & length(res()) > 0) {
-          print(plot_tsneClust())
-          if (input$plotLabel1) { print(plot_tsne_labels()) }
-        } else if (input$plotClust1 == "goi") {
-          print(plot_goi(input$goi1))
-          if (input$plotLabel1 & length(res()) > 0 & length(input$goi1) > 0) {
-            print(plot_tsne_labels())
-          }
-        }
-        dev.off()
-      }
-    )
-    
-    output$goiPlot2 <- renderPlot({
-      if (input$plotClust2 == "clust" & length(res()) > 0) {
-        print(plot_tsneClust())
-        if (input$plotLabel2) { print(plot_tsne_labels()) }
-      } else if (input$plotClust2 == "goi") {
-        print(plot_goi(input$goi2))
-        if (input$plotLabel2 & length(res()) > 0 & length(input$goi2) > 0) {
-          print(plot_tsne_labels())
-        }
-      }
-    })
-    
-    output$goiPlot2Save <- downloadHandler(
-      filename="goi2.pdf",
-      content=function(file) {
-        pdf(file,width=7,height=7)
-        if (input$plotClust2 == "clust" & length(res()) > 0) {
-          print(plot_tsneClust())
-          if (input$plotLabel2) { print(plot_tsne_labels()) }
-        } else if (input$plotClust2 == "goi") {
-          print(plot_goi(input$goi2))
-          if (input$plotLabel2 & length(res()) > 0 & length(input$goi2) > 0) {
-            print(plot_tsne_labels())
-          }
-        }
-        dev.off()
-      }
-    )
-    
+
   }
   
   
