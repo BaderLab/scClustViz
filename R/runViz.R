@@ -499,7 +499,7 @@ runShiny <- function(filePath,outPath,
         "The dotplot is generated using the differentially expressed genes from the test",
         "and number of genes selected below. A dotplot is a modified heatmap where each",
         "dot encodes both detection rate and average gene expression in detected cells",
-        "for a gene in a cluster. Darker colour indicates higher average gene expression",
+        "for a gene in a cluster. Darker colour indicates higher mean normalized gene expression",
         "from the cells in which the gene was detected, and larger dot diameter indicates",
         "that the gene was detected in greater proportion of cells from the cluster.",
         "Differentially expressed gene lists can be downloaded as tab-separated text files",
@@ -762,7 +762,7 @@ runShiny <- function(filePath,outPath,
       if (grepl("^Comp",res)) {
         c(RColorBrewer::brewer.pal(3,"PRGn")[c(1,3)],"grey80")
       } else if (length(levels(d$cl[,res])) <= 8) {
-        RColorBrewer::brewer.pal(length(levels(d$cl[,res])),"Dark2")[1:length(levels(d$cl[,input$res]))]
+        RColorBrewer::brewer.pal(length(levels(d$cl[,res])),"Dark2")[1:length(levels(d$cl[,res]))]
       } else {
         rainbow2(length(levels(d$cl[,res])))
       }
@@ -1312,6 +1312,7 @@ runShiny <- function(filePath,outPath,
       sapply(d$CGS[[res()]],function(X) X[heatGenes(),"MDTC"])
     })
     
+    hG <- reactive(hclust(dist(temp_DR()),"complete"))
     hC <- reactive({ 
       if (exists("deDist")) {
         if (res() %in% names(deDist)) {
@@ -1323,7 +1324,6 @@ runShiny <- function(filePath,outPath,
         return(hclust(dist(t(temp_DR())),"single"))
       }
     })
-    hG <- reactive(hclust(dist(temp_DR()),"complete"))
     
     plot_dotplot <- function() {
       if (length(levels(clusts())) <= 1) {
@@ -1334,21 +1334,28 @@ runShiny <- function(filePath,outPath,
         plot(x=NA,y=NA,xlim=0:1,ylim=0:1,xaxt="n",yaxt="n",xlab=NA,ylab=NA)
         text(.5,.5,"There are no differentially expressed genes.")
       } else {
-        if ("Unselected" %in% levels(clusts())) {
-          tempLabRow <- c(paste(levels(clusts())[!levels(clusts()) == "Unselected"],
-                                paste(sapply(switch(input$heatG,
-                                                    deTissue=d$deTissue[[res()]],
-                                                    deMarker=d$deMarker[[res()]],
-                                                    deNeighb=deNeighb[[res()]]),nrow),"DE"),
-                                sep=": "),"Unselected")
-        } else {
-          tempLabRow <- paste(paste0("Cluster ",levels(clusts())),
-                              paste(sapply(switch(input$heatG,
-                                                  deTissue=d$deTissue[[res()]],
-                                                  deMarker=d$deMarker[[res()]],
-                                                  deNeighb=deNeighb[[res()]]),nrow),"DE"),
-                              sep=": ")
-        }
+        dC <- dendrapply(as.dendrogram(hC()),function(X) {
+          if (is.leaf(X)) {
+            attr(X,"edgePar") <- list(
+              lwd=2,
+              col=clustCols(res())[which(attr(X,"label") == levels(clusts()))]
+            )
+            attr(X,"nodePar") <- list(
+              pch=NA,lab.font=2,lab.cex=1.2,
+              lab.col=clustCols(res())[which(attr(X,"label") == levels(clusts()))])
+            if (attr(X,"label") != "Unselected") {
+              attr(X,"label") <- paste0(
+                attr(X,"label"),": ",
+                nrow(switch(input$heatG,
+                            deTissue=d$deTissue[[res()]],
+                            deMarker=d$deMarker[[res()]],
+                            deNeighb=deNeighb[[res()]])[[attr(X,"label")]]),
+                " DE")
+            }
+          }
+          return(X)
+        })
+        
         tempLabCol <- heatGenes()
         if (exists("symbolMap")) {
           temp <- symbolMap[tempLabCol]
@@ -1360,24 +1367,44 @@ runShiny <- function(filePath,outPath,
         MDTC <- findInterval(as.vector(temp_MDTC()[hG()$order,hC()$order]),
                              vec=temp,all.inside=T)
 
-        layout(matrix(c(0,2,3,1),2),widths=c(1,11),heights=c(1,5))
-        par(mar=c(9,0,0,8))
+        layout(matrix(c(0,2,3,1),2),widths=c(1,5),heights=c(1,5))
+        par(mar=c(9,0,0,.5))
         plot(x=NULL,y=NULL,xlim=c(0.5,nrow(DR)+.5),ylim=c(0.5,ncol(DR)+.5),
              xaxs="i",yaxs="i",xaxt="n",yaxt="n",xlab=NA,ylab=NA,bty="n")
         abline(v=1:nrow(DR),col="grey90")
         symbols(x=rep(1:nrow(DR),ncol(DR)),
                 y=as.vector(sapply(1:ncol(DR),function(X) rep(X,nrow(DR)))),
-                circles=as.vector(DR)/2,inches=F,add=T,
+                circles=as.vector(DR)/2,inches=F,add=T,xpd=NA,
                 fg=viridis::viridis(100,d=-1)[MDTC],
                 bg=viridis::viridis(100,d=-1)[MDTC])
-        axis(side=1,at=1:nrow(DR),lwd=0,labels=tempLabCol[hG()$order],las=2)
-        axis(side=4,at=1:ncol(DR),lwd=0,labels=tempLabRow[hC()$order],las=1)
+        axis(side=1,at=1:nrow(DR),lwd=0,labels=tempLabCol[hG()$order],las=2,cex.axis=1.2)
         
-        par(mar=c(9,0,0,0))
-        plot(as.dendrogram(hC()),leaflab="none",horiz=T,
+        # Legend:
+        tx0 <- par("usr")[1]
+        tx <- (par("usr")[2] - par("usr")[1])
+        ty0 <- par("usr")[3]
+        ty <- par("usr")[4] - par("usr")[3]
+        segments(x0=tx0 - seq(.15,.03,length.out=1000) * tx,
+                 y0=ty0 - 0.02 * ty,y1=ty0 - 0.05 * ty,
+                 col=viridis::viridis(1000,d=-1),xpd=NA)
+        text(x=tx0 - c(.15,.09,.03) * tx,
+             y=ty0 - c(0.035,0.02,0.035) * ty,
+             labels=c(round(min(temp_MDTC()),2),
+                      "Mean detected expression",
+                      round(max(temp_MDTC()),2)),pos=2:4,xpd=NA)
+        symbols(x=tx0 - c(.15,.09,.03) * tx,
+                y=ty0 - rep(.14,3) * ty,add=T,xpd=NA,
+                circles=c(0.25,0.5,0.75)/2,inches=F,bg="black")
+        text(x=tx0 - c(.149,.089,0.029,.09) * tx,
+             y=ty0 - c(rep(.23,3),.26) * ty,xpd=NA,
+             labels=c("25%","50%","75%","Detection Rate"))
+
+
+        par(mar=c(9,0,0,6))
+        plot(dC,horiz=T,xpd=NA,
              ylim=c(0.5,length(hC()$order)+.5),yaxs="i",yaxt="n")
         
-        par(mar=c(0,0,0,8))
+        par(mar=c(0,0,0,.5))
         plot(as.dendrogram(hG()),leaflab="none",
              xlim=c(0.5,length(hG()$order)+.5),xaxs="i",yaxt="n")
       }
@@ -1392,7 +1419,7 @@ runShiny <- function(filePath,outPath,
     output$heatmapSave <- downloadHandler(
       filename="heatmap.pdf",
       content=function(file) {
-        pdf(file,width=10,height=5)
+        pdf(file,width=11,height=7)
         print(plot_dotplot())
         dev.off()
       }
@@ -2274,19 +2301,19 @@ runShiny <- function(filePath,outPath,
     })
     observeEvent(input$updateForViz2, {
       withProgress({
-        new_cl <- d$cl[input$res]
+        new_cl <- d$cl[input$res2]
         new_CGS <- list()
-        for (i in names(d$CGS[[input$res]])) {
-          new_CGS[[input$res]][[i]] <- 
-            d$CGS[[input$res]][[i]][colnames(d$CGS[[input$res]][[i]]) %in% c("DR","MDTC","MTC")]
+        for (i in names(d$CGS[[input$res2]])) {
+          new_CGS[[input$res2]][[i]] <- 
+            d$CGS[[input$res2]][[i]][colnames(d$CGS[[input$res2]][[i]]) %in% c("DR","MDTC","MTC")]
         }
-        new_deTissue <- d$deTissue[input$res]
-        new_deMarker <- d$deMarker[input$res]
+        new_deTissue <- d$deTissue[input$res2]
+        new_deMarker <- d$deMarker[input$res2]
         incProgress(.5)
         save(new_cl,new_CGS,new_deTissue,new_deMarker,
-             file=paste0(dataPath,dataTitle,"_selDE_",sub("Comp.","",input$res,fixed=T),".RData"))
+             file=paste0(dataPath,dataTitle,"_selDE_",sub("Comp.","",input$res2,fixed=T),".RData"))
       },message=paste0(
-        "Saving ",dataTitle,"_selDE_",sub("Comp.","",input$res,fixed=T),".RData to ",dataPath))
+        "Saving ",dataTitle,"_selDE_",sub("Comp.","",input$res2,fixed=T),".RData to ",dataPath))
     })
     
 

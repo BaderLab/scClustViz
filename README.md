@@ -21,6 +21,7 @@ install.packages("devtools")
 # install scClustViz
 devtools::install_github("BaderLab/scClustViz")
 ```
+(If you're on linux and getting errors running `devtools::install_github`, make sure RCurl is working - you might need to install libcurl4-openssl-dev).  
 Load data from your Seurat analysis for differential expression testing and visualization in scClustViz:
 ```{r}
 library(scClustViz)

@@ -1,7 +1,7 @@
 Package: scClustViz
 Type: Package
 Title: Differential Expression-based scRNAseq Cluster Assessment and Viewing
-Version: 0.2.1
+Version: 0.2.2
 Date: 2018-08-21
 Authors@R: c(as.person("Brendan T. Innes <brendan.innes@mail.utoronto.ca> [aut,cre]"),
              as.person("Gary D. Bader [aut,ths]"))
@@ -18,8 +18,8 @@ Suggests:
 Imports: scales,
     cluster,
     RColorBrewer,
-    gplots,
     TeachingDemos,
     viridis,
-    pbapply
+    pbapply,
+    markdown
 Depends: shiny
