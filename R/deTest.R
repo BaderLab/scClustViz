@@ -230,8 +230,10 @@ clusterWiseDEtest <- function(il,testAll=TRUE,
     deM_dDR <- apply(combos,2,function(i) DR[i[1],] - DR[i[2],])
     deM_logGER <- apply(combos,2,function(i) MTC[i[1],] - MTC[i[2],])
     deM_genesUsed <- switch(threshType,
-                            dDR=apply(deM_dDR,2,function(X) which(abs(X) > dDRthresh)),
-                            logGER=apply(deM_logGER,2,function(X) which(abs(X) > logGERthresh))) 
+                            dDR=sapply(colnames(combos),function(X) 
+                              which(abs(deM_dDR[,X]) > dDRthresh),simplify=F),
+                            logGER=sapply(colnames(combos),function(X) 
+                              which(abs(deM_logGER[,X]) > logGERthresh),simplify=F)) 
     if (any(sapply(deM_genesUsed,length) < 1)) {
       stop("Gene filtering threshold is set too high.")
     }

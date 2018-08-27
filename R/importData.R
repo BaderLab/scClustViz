@@ -76,13 +76,16 @@ readFromSeurat <- function(inD) {
   out <- list()
   out[["nge"]] <- inD@data
   
-  out[["md"]] <- inD@meta.data[,!grepl("res\\.[0-9]",colnames(inD@meta.data))]  
+  out[["md"]] <- inD@meta.data[,!grepl("res\\.[0-9]",colnames(inD@meta.data))]
+  for (X in which(sapply(out[["md"]],is.character))) {
+    out[["md"]][[X]] <- as.factor(out[["md"]][[X]])
+  }
   # metadata for cells (dataframe of cells), not including cluster assignments.
   
   if (is.data.frame(inD@meta.data[,grepl("res\\.[0-9]",colnames(inD@meta.data))])) {
     cl <- data.frame(lapply(inD@meta.data[,grepl("res\\.[0-9]",colnames(inD@meta.data))],as.factor))
   } else {
-    cl <- data.frame(inD@meta.data[,grepl("res\\.[0-9]",colnames(inD@meta.data))])
+    cl <- data.frame(inD@meta.data[,grepl("res\\.[0-9]",colnames(inD@meta.data))],stringsAsFactors=T)
     colnames(cl) <- grep("res\\.[0-9]",colnames(inD@meta.data),value=T)
   }
   rownames(cl) <- rownames(inD@meta.data) 
@@ -177,6 +180,9 @@ readFromManual <- function(nge,md,cl,dr_clust,dr_viz) {
   out <- list()
   out[["nge"]] <- nge
   out[["md"]] <- md
+  for (X in which(sapply(out[["md"]],is.character))) {
+    out[["md"]][[X]] <- as.factor(out[["md"]][[X]])
+  }
   if (!all(sapply(cl,is.factor))) {
     temp_cells <- rownames(cl)
     cl <- data.frame(lapply(cl,as.factor))
