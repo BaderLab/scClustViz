@@ -1013,8 +1013,10 @@ runShiny <- function(filePath,outPath,
     # ^^ Metadata tSNE overlay -----------------------------------------------------------
     output$tsneMDlog <- renderUI({
       if (!(is.factor(md[,input$tsneMDcol]) | is.character(md[,input$tsneMDcol]))) {
-        checkboxGroupInput("tsneMDlog",label="Colour scale",
-                           choices=c("Log scale"="log"),width="100%")
+        if (all(md[,input$tsneMDcol] > 0)) {
+          checkboxGroupInput("tsneMDlog",label="Colour scale",
+                             choices=c("Log scale"="log"),width="100%")
+        }
       }
     })
     
@@ -1086,15 +1088,25 @@ runShiny <- function(filePath,outPath,
     
     # ^^ Metadata Scatterplot ------------------------------------------------------------
     output$scatterLog <- renderUI({
+      temp_choices <- c()
+      temp_selected <- NULL
       if ((is.factor(md[,input$mdScatterX]) | is.character(md[,input$mdScatterX])) |
           (is.factor(md[,input$mdScatterY]) | is.character(md[,input$mdScatterY]))) {
-        checkboxGroupInput("scatterLog",inline=F,label=NULL,
-                           choices=c("Log x axis"="x","Log y axis"="y","Show notch"="notch"),
-                           selected="notch")
-      } else {
-        checkboxGroupInput("scatterLog",inline=F,label=NULL,
-                           choices=c("Log x axis"="x","Log y axis"="y"))
+        temp_choices <- append(temp_choices,c("Show notch"="notch"))
       }
+      if (!(is.factor(md[,input$mdScatterX]) | is.character(md[,input$mdScatterX]))) {
+        if (all(md[,input$mdScatterX] > 0)) {
+          temp_choices <- append(temp_choices,c("Log x axis"="x"))
+        }
+      }
+      if (!(is.factor(md[,input$mdScatterY]) | is.character(md[,input$mdScatterY]))) {
+        if (all(md[,input$mdScatterY] > 0)) {
+          temp_choices <- append(temp_choices,c("Log y axis"="y"))
+        }
+      }
+      if ("notch" %in% temp_choices) { temp_selected <- "notch" }
+      checkboxGroupInput("scatterLog",inline=F,label=NULL,
+                         choices=temp_choices,selected=temp_selected)
     })
     
     plot_mdScatter <- function() {
@@ -1193,8 +1205,13 @@ runShiny <- function(filePath,outPath,
         radioButtons("mdFactorRA","Factor counts per cluster:",inline=T,
                      choices=list("Absolute"="absolute","Relative"="relative"))
       } else {
-        checkboxGroupInput("mdFactorOpts",inline=T,label="Figure options",
-                           choices=c("Log scale"="y","Show notch"="notch"),selected="notch")
+        if (all(md[,input$mdFactorData] > 0)) {
+          checkboxGroupInput("mdFactorOpts",inline=T,label="Figure options",
+                             choices=c("Log scale"="y","Show notch"="notch"),selected="notch")
+        } else {
+          checkboxGroupInput("mdFactorOpts",inline=T,label="Figure options",
+                             choices=c("Show notch"="notch"),selected="notch")
+        }
       }
     })
     
@@ -1578,13 +1595,13 @@ runShiny <- function(filePath,outPath,
           }
           for (x in which(d$CGS[[res()]][[hiC()]]$cMu & d$CGS[[res()]][[hiC()]]$overCut)) {
             text(x=d$CGS[[res()]][[hiC()]]$DR[x],y=d$CGS[[res()]][[hiC()]]$MDTC[x],
-                 labels=d$CGS[[res()]][[hiC()]]$genes[x],srt=315,cex=1.5,font=2,adj=c(1.1,-.1),
+                 labels=d$CGS[[res()]][[hiC()]]$genes[x],srt=325,cex=1.5,font=2,adj=c(1.1,-.1),
                  col=cellMarkCols()[which(sapply(cellMarkersU,function(X) 
                    d$CGS[[res()]][[hiC()]]$genes[x] %in% X))])
           }
           for (x in which(d$CGS[[res()]][[hiC()]]$cMs & d$CGS[[res()]][[hiC()]]$overCut)) {
             text(x=d$CGS[[res()]][[hiC()]]$DR[x],y=d$CGS[[res()]][[hiC()]]$MDTC[x],
-                 labels=d$CGS[[res()]][[hiC()]]$genes[x],srt=315,cex=1.5,font=2,adj=c(1.1,-.1),
+                 labels=d$CGS[[res()]][[hiC()]]$genes[x],srt=325,cex=1.5,font=2,adj=c(1.1,-.1),
                  col=cellMarkCols()[as.integer(temp[2])])
           }
           legend(x=1.05,y=max(d$CGS[[res()]][[hiC()]]$MDTC),xpd=NA,bty="n",ncol=1,
@@ -1600,7 +1617,7 @@ runShiny <- function(filePath,outPath,
             points(x=d$CGS[[res()]][[hiC()]]$DR[degl],y=d$CGS[[res()]][[hiC()]]$MDTC[degl],
                    pch=16,cex=1.2,col="darkred")
             text(x=d$CGS[[res()]][[hiC()]]$DR[degl],y=d$CGS[[res()]][[hiC()]]$MDTC[degl],
-                 srt=315,cex=1.5,font=2,adj=c(1.1,-.1),col="darkred",
+                 srt=325,cex=1.5,font=2,adj=c(1.1,-.1),col="darkred",
                  labels=d$CGS[[res()]][[hiC()]]$genes[degl])
           }
           temp_n <- nrow(switch(input$heatG,
@@ -1619,7 +1636,7 @@ runShiny <- function(filePath,outPath,
           points(x=d$CGS[[res()]][[hiC()]]$DR[degl],y=d$CGS[[res()]][[hiC()]]$MDTC[degl],
                  pch=16,cex=1.2,col="darkred")
           text(x=d$CGS[[res()]][[hiC()]]$DR[degl],y=d$CGS[[res()]][[hiC()]]$MDTC[degl],
-               srt=315,cex=1.5,font=2,adj=c(1.1,-.1),col="darkred",
+               srt=325,cex=1.5,font=2,adj=c(1.1,-.1),col="darkred",
                labels=d$CGS[[res()]][[hiC()]]$genes[degl])
         }
       }
@@ -2010,15 +2027,15 @@ runShiny <- function(filePath,outPath,
           lines(x=c(par("usr")[1],par("usr")[2]),y=c(par("usr")[4],par("usr")[4]),
                 lwd=2,col=clustCols(res())[which(levels(clusts()) == input$ssY)],xpd=NA)
           if ("flip" %in% input$scatterLabelAngle) {
-            temp_srtX <- 315
-            temp_srtY <- 45
-            temp_adjX <- c(-0.15,0.5)
-            temp_adjY <- c(-0.15,0.5)
+            temp_srtX <- 325
+            temp_srtY <- 35
+            temp_adjX <- c(-0.1,0.5)
+            temp_adjY <- c(-0.1,0.5)
           } else {
-            temp_srtX <- 45
-            temp_srtY <- 315
-            temp_adjX <- c(-0.15,0.5)
-            temp_adjY <- c(-0.15,0.5)
+            temp_srtX <- 35
+            temp_srtY <- 325
+            temp_adjX <- c(-0.1,0.5)
+            temp_adjY <- c(-0.1,0.5)
           }
           if (input$scatterLine == "sub") {
             abline(h=0)
