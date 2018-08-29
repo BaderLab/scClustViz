@@ -463,8 +463,18 @@ runShiny <- function(filePath,outPath,
     hr(),
     
     fixedRow(
-      column(2,selectInput("mdScatterX","X axis:",choices=colnames(md),selected="total_counts")),
-      column(2,selectInput("mdScatterY","Y axis:",choices=colnames(md),selected="total_features")),
+      column(2,selectInput(
+        "mdScatterX","X axis:",choices=colnames(md),
+        selected=ifelse(any(grepl("UMI|count",colnames(md),ignore.case=T)),
+                        yes=grep("UMI|count",colnames(md),value=T,ignore.case=T)[1],
+                        no=colnames(md)[1])
+      )),
+      column(2,selectInput(
+        "mdScatterY","Y axis:",choices=colnames(md),
+        selected=ifelse(any(grepl("gene|feature",colnames(md),ignore.case=T)),
+                        yes=grep("gene|feature",colnames(md),value=T,ignore.case=T)[1],
+                        no=colnames(md)[2])
+      )),
       column(2,uiOutput("scatterLog")),
       
       column(3,selectInput("mdFactorData","Metadata:",choices=colnames(md),
@@ -1012,10 +1022,9 @@ runShiny <- function(filePath,outPath,
       if (is.factor(md[,input$tsneMDcol]) | is.character(md[,input$tsneMDcol])) {
         id <- as.factor(md[,input$tsneMDcol])
         if (length(levels(md[,input$tsneMDcol])) <= 8) {
-          idcol <- RColorBrewer::brewer.pal(length(levels(md[,input$tsneMDcol])),
-                              "Dark2")[1:length(levels(md[,input$tsneMDcol]))]
+          idcol <- RColorBrewer::brewer.pal(length(levels(id)),"Dark2")[1:length(levels(id))]
         } else {
-          idcol <- rainbow2(length(levels(md[,input$tsneMDcol])))
+          idcol <- rainbow2(length(levels(id)))
         }
       } else {
         if ("log" %in% input$tsneMDlog) {
@@ -1045,8 +1054,8 @@ runShiny <- function(filePath,outPath,
       if (is.factor(md[,input$tsneMDcol]) | is.character(md[,input$tsneMDcol])) {
         par(mar=c(0,0,0,0))
         plot.new()
-        legend("bottom",bty="n",horiz=T,pch=c(NA,rep(21,length(levels(md[,input$tsneMDcol])))),
-               legend=c(paste0(input$tsneMDcol,":"),levels(md[,input$tsneMDcol])),
+        legend("bottom",bty="n",horiz=T,pch=c(NA,rep(21,length(levels(id)))),
+               legend=c(paste0(input$tsneMDcol,":"),levels(id)),
                col=c(NA,idcol),pt.bg=c(NA,alpha(idcol,0.5)))
       } else {
         if ("log" %in% input$tsneMDlog) {
@@ -1191,23 +1200,22 @@ runShiny <- function(filePath,outPath,
     
     plot_mdFactor <- function() {
       if (is.factor(md[,input$mdFactorData]) | is.character(md[,input$mdFactorData])) {
+        id0 <- as.factor(md[,input$mdFactorData])
         id <- switch(input$mdFactorRA,
-                     "relative"=tapply(md[,input$mdFactorData],clusts(),
-                                       function(X) table(X) / length(X)),
-                     "absolute"=tapply(md[,input$mdFactorData],clusts(),table))
+                     "relative"=tapply(id0,clusts(),function(X) table(X) / length(X)),
+                     "absolute"=tapply(id0,clusts(),table))
         if (is.list(id)) { id <- do.call(cbind,id) }
         idylab <- switch(input$mdFactorRA,
                          "relative"="Proportion of cells per cluster",
                          "absolute"="Number of cells per cluster")
-        if (length(levels(md[,input$mdFactorData])) <= 8) {
-          idcol <- RColorBrewer::brewer.pal(length(levels(md[,input$mdFactorData])),
-                              "Dark2")[1:length(levels(md[,input$mdFactorData]))]
+        if (length(levels(id0)) <= 8) {
+          idcol <- RColorBrewer::brewer.pal(length(levels(id0)),"Dark2")[1:length(levels(id0))]
         } else {
-          idcol <- rainbow2(length(levels(md[,input$mdFactorData])))
+          idcol <- rainbow2(length(levels(id0)))
         }
         par(mar=c(3,3,2,1),mgp=2:0)
         barplot(id,col=idcol,ylab=idylab,
-                legend.text=levels(md[,input$mdFactorData]),
+                legend.text=levels(id0),
                 args.legend=list(x="topright",horiz=T,inset=c(0,-.08),bty="n"))
         mtext(input$mdFactorData,side=3,adj=0,font=2,line=1,cex=1.2)
       } else {
@@ -1255,11 +1263,13 @@ runShiny <- function(filePath,outPath,
     output$DEgeneSlider <- renderUI({
       if (length(res()) > 0) {
         if (input$heatG == "deTissue") {
-          sliderInput("DEgeneCount",min=1,max=max(sapply(d$deTissue[[res()]],nrow)),
-                      value=5,step=1,ticks=T,width="100%",
-                      label=HTML(paste(
-                        "Positive differential gene expression of cluster over tissue",
-                        "# of genes per cluster to show",sep="<br/>")))
+          sliderInput(
+            "DEgeneCount",min=1,
+            max=max(sapply(d$deTissue[[res()]][!"Unselected" %in% names(d$deTissue[[res()]])],nrow)),
+            value=5,step=1,ticks=T,width="100%",
+            label=HTML(paste(
+              "Positive differential gene expression of cluster over tissue",
+              "# of genes per cluster to show",sep="<br/>")))
         } else if (input$heatG == "deMarker") {
           if (grepl("^Comp",res())) {
             temp_label <- HTML(paste(
@@ -1270,9 +1280,11 @@ runShiny <- function(filePath,outPath,
               "Positive differential gene expression between cluster and all other clusters",
               "# of genes per cluster to show",sep="<br/>"))
           }
-          sliderInput("DEgeneCount",min=1,max=max(sapply(d$deMarker[[res()]],nrow)),
-                      value=5,step=1,ticks=T,width="100%",
-                      label=temp_label)
+          sliderInput(
+            "DEgeneCount",min=1,
+            max=max(sapply(d$deMarker[[res()]][!"Unselected" %in% names(d$deMarker[[res()]])],nrow)),
+            value=5,step=1,ticks=T,width="100%",
+            label=temp_label)
         } else if (input$heatG == "deNeighb") {
           sliderInput(
             "DEgeneCount",min=1,max=max(sapply(deNeighb[[res()]],nrow)),
@@ -1400,7 +1412,7 @@ runShiny <- function(filePath,outPath,
              labels=c("25%","50%","75%","Detection Rate"))
 
 
-        par(mar=c(9,0,0,6))
+        par(mar=c(9,0,0,7))
         plot(dC,horiz=T,xpd=NA,
              ylim=c(0.5,length(hC()$order)+.5),yaxs="i",yaxt="n")
         
@@ -2084,10 +2096,9 @@ runShiny <- function(filePath,outPath,
       } else if (is.factor(md[,input$tsneSelDEcol]) | is.character(md[,input$tsneSelDEcol])) {
         id <- as.factor(md[,input$tsneSelDEcol])
         if (length(levels(md[,input$tsneSelDEcol])) <= 8) {
-          idcol <- RColorBrewer::brewer.pal(length(levels(md[,input$tsneSelDEcol])),
-                              "Dark2")[1:length(levels(md[,input$tsneSelDEcol]))]
+          idcol <- RColorBrewer::brewer.pal(length(levels(id)),"Dark2")[1:length(levels(id))]
         } else {
-          idcol <- rainbow2(length(levels(md[,input$tsneSelDEcol])))
+          idcol <- rainbow2(length(levels(id)))
         }
       } else {
         id <- cut(md[,input$tsneSelDEcol],100)
@@ -2102,11 +2113,11 @@ runShiny <- function(filePath,outPath,
       
       if (input$tsneSelDEcol == "") {
       } else if (is.factor(md[,input$tsneSelDEcol]) | is.character(md[,input$tsneSelDEcol])) {
-        legend("topleft",bty="n",horiz=T,xpd=NA,inset=c(0,-.09),
+        legend("topleft",bty="n",horiz=T,xpd=NA,inset=c(0,-.06),
                pch=21,col=idcol,pt.bg=alpha(idcol,0.5),
-               title=input$tsneSelDEcol,legend=levels(md[,input$tsneSelDEcol]))
+               title=input$tsneSelDEcol,legend=levels(id))
       } else {
-        legend("topleft",bty="n",horiz=T,xpd=NA,inset=c(0,-.09),
+        legend("topleft",bty="n",horiz=T,xpd=NA,inset=c(0,-.06),
                pch=21,col=viridis(3,d=-1),pt.bg=viridis(3,.5,d=-1),
                title=input$tsneSelDEcol,
                legend=c(round(min(md[,input$tsneSelDEcol]),2),
@@ -2121,7 +2132,7 @@ runShiny <- function(filePath,outPath,
       points(dr_viz[intersect(selectedSets$a,selectedSets$b),],pch=19,col="#ffffbf")
       points(dr_viz[intersect(selectedSets$a,selectedSets$b),],pch=4,col="red")
       
-      legend("topright",horiz=T,bty="n",xpd=NA,inset=c(0,-.09),
+      legend("topright",horiz=T,bty="n",xpd=NA,inset=c(0,-.06),
              title="Selected Cells",legend=c("Set A","Set B","Both"),
              pch=c(19,19,4),col=c("#a50026","#313695","red"))
     }
