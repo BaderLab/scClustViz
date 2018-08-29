@@ -1213,10 +1213,14 @@ runShiny <- function(filePath,outPath,
         } else {
           idcol <- rainbow2(length(levels(id0)))
         }
-        par(mar=c(3,3,2,1),mgp=2:0)
-        barplot(id,col=idcol,ylab=idylab,
-                legend.text=levels(id0),
+        par(mar=c(2,3,2,1),mgp=2:0)
+        barplot(id,col=idcol,ylab=idylab,yaxt="n",mgp=c(2,0,0),
+                legend.text=levels(id0),font=2,
                 args.legend=list(x="topright",horiz=T,inset=c(0,-.08),bty="n"))
+        axis(2)
+        barplot(rep(par("usr")[3]*4.6,length(levels(clusts()))),add=T,
+                col=alpha(clustCols(res()),0.5),border=alpha(clustCols(res()),0.5))
+        abline(h=0)
         mtext(input$mdFactorData,side=3,adj=0,font=2,line=1,cex=1.2)
       } else {
         par(mar=c(3,3,2,1),mgp=2:0)
