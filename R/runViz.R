@@ -853,9 +853,9 @@ runShiny <- function(filePath,outPath,
     })
     
     output$cqPlotSave <- downloadHandler(
-      filename="cqPlot.pdf",
+      filename="cqPlot.eps",
       content=function(file) {
-        pdf(file,width=7,height=6)
+        postscript(file,width=7,height=6)
         print(plot_cqPlot())
         dev.off()
       }
@@ -879,9 +879,9 @@ runShiny <- function(filePath,outPath,
     })
     
     output$silSave <- downloadHandler(
-      filename="sil.pdf",
+      filename="sil.eps",
       content=function(file) {
-        pdf(file,width=6,height=7)
+        postscript(file,width=6,height=7)
         print(plot_sil())
         dev.off()
       }
@@ -966,9 +966,9 @@ runShiny <- function(filePath,outPath,
     })
     
     output$tsneSave <- downloadHandler(
-      filename="tsne.pdf",
+      filename="tsne.eps",
       content=function(file) {
-        pdf(file,width=7,height=7)
+        postscript(file,width=7,height=7)
         print(plot_tsne())
         print(plot_tsne_labels())
         dev.off()
@@ -1078,9 +1078,9 @@ runShiny <- function(filePath,outPath,
     })
     
     output$tsneMDSave <- downloadHandler(
-      filename="tsneMD.pdf",
+      filename="tsneMD.eps",
       content=function(file) {
-        pdf(file,width=7,height=7)
+        postscript(file,width=7,height=7)
         print(plot_tsneMD())
         dev.off()
       }
@@ -1191,9 +1191,9 @@ runShiny <- function(filePath,outPath,
     })
     
     output$mdScatterSave <- downloadHandler(
-      filename="mdScatter.pdf",
+      filename="mdScatter.eps",
       content=function(file) {
-        pdf(file,width=7,height=7)
+        postscript(file,width=7,height=7)
         print(plot_mdScatter())
         dev.off()
       }
@@ -1255,9 +1255,9 @@ runShiny <- function(filePath,outPath,
     })
     
     output$mdFactorSave <- downloadHandler(
-      filename="mdFactor.pdf",
+      filename="mdFactor.eps",
       content=function(file) {
-        pdf(file,width=7,height=7)
+        postscript(file,width=7,height=7)
         print(plot_mdFactor())
         dev.off()
       }
@@ -1450,9 +1450,9 @@ runShiny <- function(filePath,outPath,
     })
     
     output$heatmapSave <- downloadHandler(
-      filename="heatmap.pdf",
+      filename="heatmap.eps",
       content=function(file) {
-        pdf(file,width=11,height=7)
+        postscript(file,width=11,height=7)
         print(plot_dotplot())
         dev.off()
       }
@@ -1663,9 +1663,9 @@ runShiny <- function(filePath,outPath,
     })
     
     output$clusterGenesSave <- downloadHandler(
-      filename="clusterGenes.pdf",
+      filename="clusterGenes.eps",
       content=function(file) {
-        pdf(file,width=12,height=7)
+        postscript(file,width=12,height=7)
         print(plot_clusterGenes())
         dev.off()
       }
@@ -1754,9 +1754,9 @@ runShiny <- function(filePath,outPath,
     })
     
     output$geneTestSave <- downloadHandler(
-      filename="geneTest.pdf",
+      filename="geneTest.eps",
       content=function(file) {
-        pdf(file,width=12,height=7)
+        postscript(file,width=12,height=7)
         print(plot_geneTest())
         dev.off()
       }
@@ -1875,9 +1875,9 @@ runShiny <- function(filePath,outPath,
     })
     
     output$goiPlot1Save <- downloadHandler(
-      filename="goi1.pdf",
+      filename="goi1.eps",
       content=function(file) {
-        pdf(file,width=7,height=7)
+        postscript(file,width=7,height=7)
         if (input$plotClust1 == "clust" & length(res()) > 0) {
           print(plot_tsneClust())
           if (input$plotLabel1) { print(plot_tsne_labels()) }
@@ -1904,9 +1904,9 @@ runShiny <- function(filePath,outPath,
     })
     
     output$goiPlot2Save <- downloadHandler(
-      filename="goi2.pdf",
+      filename="goi2.eps",
       content=function(file) {
-        pdf(file,width=7,height=7)
+        postscript(file,width=7,height=7)
         if (input$plotClust2 == "clust" & length(res()) > 0) {
           print(plot_tsneClust())
           if (input$plotLabel2) { print(plot_tsne_labels()) }
@@ -2094,9 +2094,9 @@ runShiny <- function(filePath,outPath,
     output$setScatter <- renderPlot(print(plot_setScatter()))
     
     output$setScatterSave <- downloadHandler(
-      filename="setScatter.pdf",
+      filename="setScatter.eps",
       content=function(file) {
-        pdf(file,width=7,height=7)
+        postscript(file,width=7,height=7)
         print(plot_setScatter())
         dev.off()
       }
