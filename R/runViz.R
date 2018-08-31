@@ -437,9 +437,9 @@ runShiny <- function(filePath,outPath,
       column(6,
              if (length(cellMarkers) > 0 & !all(unlist(clusterID) == "")) {
                radioButtons("tsneLabels","Labels:",inline=T,
-                            choices=list("Cluster numbers"="cn",
-                                         "Cluster annotations"="ca",
-                                         "Cluster annotations (label all)"="can"))
+                            choices=list("Cluster annotations"="ca",
+                                         "Cluster annotations (label all)"="can",
+                                         "Cluster numbers"="cn"))
              } else {
                radioButtons("tsneLabels","Labels:",inline=T,
                             choices=list("Cluster numbers"="cn"))
