@@ -74,11 +74,11 @@ readFromSeurat <- function(inD) {
   # In case your Seurat object is from an older version of Seurat
   
   out <- list()
-  out[["nge"]] <- inD@data
+  out$nge <- inD@data
   
-  out[["md"]] <- inD@meta.data[,!grepl("res\\.[0-9]",colnames(inD@meta.data))]
-  for (X in which(sapply(out[["md"]],is.character))) {
-    out[["md"]][[X]] <- as.factor(out[["md"]][[X]])
+  out$md <- inD@meta.data[,!grepl("res\\.[0-9]",colnames(inD@meta.data))]
+  for (X in which(sapply(out$md,is.character))) {
+    out$md[[X]] <- as.factor(out$md[[X]])
   }
   # metadata for cells (dataframe of cells), not including cluster assignments.
   
@@ -89,17 +89,17 @@ readFromSeurat <- function(inD) {
     colnames(cl) <- grep("res\\.[0-9]",colnames(inD@meta.data),value=T)
   }
   rownames(cl) <- rownames(inD@meta.data) 
-  out[["cl"]] <- cl[order(sapply(cl,function(X) length(levels(X))))]
+  out$cl <- cl[order(sapply(cl,function(X) length(levels(X))))]
   # cluster assignments per clustering resolution (dataframe: cells x cluster labels as factors)
   
   if (length(inD@calc.params) == 0) {
-    out[["dr_clust"]] <- inD@dr$pca@cell.embeddings
+    out$dr_clust <- inD@dr$pca@cell.embeddings
   } else {
-    out[["dr_clust"]] <- inD@dr$pca@cell.embeddings[,inD@calc.params$RunTSNE$dims.use]  
+    out$dr_clust <- inD@dr$pca@cell.embeddings[,inD@calc.params$RunTSNE$dims.use]  
   }
   # cell embeddings in low-dimensional space used for clustering distances
   
-  out[["dr_viz"]] <- inD@dr$tsne@cell.embeddings  
+  out$dr_viz <- inD@dr$tsne@cell.embeddings  
   # cell embeddings in 2D space for visualization (usually tSNE) (matrix: cells x coordinates)
   return(out)
 }
@@ -178,18 +178,22 @@ readFromSeurat <- function(inD) {
 
 readFromManual <- function(nge,md,cl,dr_clust,dr_viz) {
   out <- list()
-  out[["nge"]] <- nge
-  out[["md"]] <- md
-  for (X in which(sapply(out[["md"]],is.character))) {
-    out[["md"]][[X]] <- as.factor(out[["md"]][[X]])
+  out$nge <- nge
+  out$md <- md
+  for (X in which(sapply(out$md,is.character))) {
+    out$md[[X]] <- as.factor(out$md[[X]])
   }
-  if (!all(sapply(cl,is.factor))) {
-    temp_cells <- rownames(cl)
-    cl <- data.frame(lapply(cl,as.factor))
-    rownames(cl) <- temp_cells
+  if (!is.data.frame(cl)) {
+    out$cl <- data.frame(cl,stringsAsFactors=T)
+    names(out$cl) <- deparse(substitute(cl))
+  } else {
+    out$cl <- cl
+    for (X in which(sapply(out$cl,is.character))) {
+      out$cl[[X]] <- as.factor(out$cl[[X]])
+    }
   }
-  out[["cl"]] <- cl[order(sapply(cl,function(X) length(levels(X))))]
-  out[["dr_clust"]] <- dr_clust
-  out[["dr_viz"]] <- dr_viz
+  out$cl <- out$cl[order(sapply(out$cl,function(X) length(levels(X))))]
+  out$dr_clust <- dr_clust
+  out$dr_viz <- dr_viz
   return(out)
 }

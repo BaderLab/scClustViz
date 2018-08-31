@@ -2083,6 +2083,10 @@ runShiny <- function(filePath,outPath,
             text(compDF()[GOI(),"x"],compDF()[GOI(),"y"],labels=compDF()[GOI(),"genes"],
                  srt=temp_srtX,adj=temp_adjX,col="darkred",cex=1.5,font=2)
           }
+          mtext(paste("Higher in",input$ssY),side=3,line=-1.1,adj=0.02,font=2,
+                col=clustCols(res())[which(levels(clusts()) == input$ssY)])
+          mtext(paste("Higher in",input$ssX),side=1,line=-1.2,adj=0.02,font=2,
+                col=clustCols(res())[which(levels(clusts()) == input$ssX)])
         }
       }
     }
