@@ -582,7 +582,7 @@ runShiny <- function(filePath,outPath,
     fixedRow(
       column(3,radioButtons("boxplotGene",inline=F,
                             label="Genes of interest (to populate list):",
-                            choices=c("From click on plots above or below"="click",
+                            choices=c("From click on gene in plot"="click",
                                       "From gene search"="search"))),
       column(4,uiOutput("cgSelect")),
       column(5,checkboxGroupInput("bxpOpts",label="Figure options:",
@@ -676,6 +676,9 @@ runShiny <- function(filePath,outPath,
               "higher in the cluster on the y-axis, and negative values are higher in the x-axis",
               "cluster. Since this list ranks all genes in the experiment, it could be used as an",
               "input for GSEA.")),
+      p(paste("Similar to the gene expression distribution scatterplot above, clicking on any",
+              "point in this plot will populate the 'Genes of interest' list above the boxplots",
+              "comparing gene expression across clusters.")),
       h1()
     ),
     fixedRow(
@@ -767,7 +770,7 @@ runShiny <- function(filePath,outPath,
                         clusterID=clusterID,
                         deTissue=deTissue,
                         deMarker=deMarker)
-    
+
     clustCols <- function(res) {
       if (grepl("^Comp",res)) {
         c(RColorBrewer::brewer.pal(3,"PRGn")[c(1,3)],"grey80")
@@ -780,7 +783,8 @@ runShiny <- function(filePath,outPath,
     
     
     # ^ Clustering Solution Selection ------------------------------------------------------
-    # ^^ Inter-cluster DE boxplots -------------------------------------------------------
+    
+    # ^^ Resolution selection buttons ----------------------------------------------------
     numClust <- sapply(cl[!grepl("^Comp",colnames(cl))],function(X) length(levels(X)))
     clustList <- reactive({ 
       temp <- as.list(colnames(d$cl)) 
@@ -794,9 +798,10 @@ runShiny <- function(filePath,outPath,
       }
       return(temp)
     })
+    
+    res <- reactiveVal(savedRes)
     output$resSelect <- renderUI({
-      if (is.null(res())) { temp_sel <- savedRes} else { temp_sel <- res() }
-      selectInput("res","Resolution:",choices=clustList(),selected=temp_sel)
+      selectInput("res","Resolution:",choices=clustList(),selected=res())
     })
     output$saveButton <- renderUI({
       if (grepl("^Comp",input$res)) {
@@ -806,6 +811,22 @@ runShiny <- function(filePath,outPath,
       }
     })
     numClust <- numClust[numClust > 1]
+    
+    observeEvent(input$go,res(input$res))
+    observeEvent(input$go2,res(input$res2))
+    
+    clusts <- reactive(d$cl[,res()])
+    
+    observeEvent(input$save,{
+      savedRes <<- input$res 
+      # <<- updates variable outside scope of function. In this case, that's the enclosing
+      # function (runShiny), where savedRes was set.
+      save(savedRes,file=paste0(dataPath,dataTitle,"_savedRes.RData"))
+    })
+    
+    
+    
+    # ^^ Inter-cluster DE boxplots -------------------------------------------------------
     
     plot_cqPlot <- function() {
       numDEgenes <- lapply(get(input$deType)[!grepl("^Comp",names(get(input$deType)))],
@@ -887,21 +908,8 @@ runShiny <- function(filePath,outPath,
       }
     )
     
-    # ^^ Resolution selection buttons ----------------------------------------------------
-    res <- reactiveVal() 
-    observeEvent(input$go,res(input$res),ignoreNULL=F)
-    observeEvent(input$go2,res(input$res2),ignoreNULL=F)
-    
-    observeEvent(input$save,{
-      savedRes <<- input$res 
-      # <<- updates variable outside scope of function. In this case, that's the enclosing
-      # function (runShiny), where savedRes was set.
-      save(savedRes,file=paste0(dataPath,dataTitle,"_savedRes.RData"))
-    })
-    
     
     # ^ Dataset and Cluster Metadata Inspection --------------------------------------------
-    clusts <- reactive(d$cl[,res()])
     
     # ^^ Cell-type tSNE ####
     plot_tsne_labels <- function() {
@@ -1931,21 +1939,26 @@ runShiny <- function(filePath,outPath,
       } 
     })
     output$setScatterY <- renderUI({
-      if ("Unselected" %in% levels(clusts())) {
-        selectInput("ssY",label="Cluster A (A-B comparison)",selected="Set A",
-                    choices=levels(clusts())[!levels(clusts()) == "Unselected"])
-      } else {
-        selectInput("ssY",label="Cluster A (A-B comparison)",choices=c("",levels(clusts())),selected=hiC())
+      if (length(res()) > 0) {
+        if ("Unselected" %in% levels(clusts())) {
+          selectInput("ssY",label="Cluster A (A-B comparison)",selected="Set A",
+                      choices=levels(clusts())[!levels(clusts()) == "Unselected"])
+        } else {
+          selectInput("ssY",label="Cluster A (A-B comparison)",
+                      choices=c("",levels(clusts())),selected=hiC())
+        }
       }
     })
     output$setScatterX <- renderUI({
-      if ("Unselected" %in% levels(clusts())) {
-        selectInput("ssX",label="Cluster B (A-B comparison)",selected="Set B",
-                    choices=levels(clusts())[!levels(clusts()) == "Unselected"])
-      } else {
-        selectInput("ssX",label="Cluster B (A-B comparison)",choices=c("",levels(clusts())),
-                    selected=unique(gsub(pattern="^vs\\.|\\.[A-Za-z]+?$","",
-                                         colnames(deNeighb[[res()]][[hiC()]]))))
+      if (length(res()) > 0) {
+        if ("Unselected" %in% levels(clusts())) {
+          selectInput("ssX",label="Cluster B (A-B comparison)",selected="Set B",
+                      choices=levels(clusts())[!levels(clusts()) == "Unselected"])
+        } else {
+          selectInput("ssX",label="Cluster B (A-B comparison)",choices=c("",levels(clusts())),
+                      selected=unique(gsub(pattern="^vs\\.|\\.[A-Za-z]+?$","",
+                                           colnames(deNeighb[[res()]][[hiC()]]))))
+        }
       }
     })
     output$diffLabelSelect <- renderUI({
@@ -1976,12 +1989,14 @@ runShiny <- function(filePath,outPath,
     })
     
     compDF <- reactive({
-      data.frame(y=d$CGS[[res()]][[input$ssY]][,input$scatterInput] - 
-                   d$CGS[[res()]][[input$ssX]][,input$scatterInput],
-                 x=rowMeans(cbind(d$CGS[[res()]][[input$ssX]][,input$scatterInput],
-                                  d$CGS[[res()]][[input$ssY]][,input$scatterInput])),
-                 genes=d$CGS[[res()]][[input$ssX]]$genes,
-                 row.names=rownames(d$CGS[[res()]][[input$ssX]]))
+      if (input$ssX %in% levels(clusts()) & input$ssY %in% levels(clusts())) {
+        data.frame(y=d$CGS[[res()]][[input$ssY]][,input$scatterInput] - 
+                     d$CGS[[res()]][[input$ssX]][,input$scatterInput],
+                   x=rowMeans(cbind(d$CGS[[res()]][[input$ssX]][,input$scatterInput],
+                                    d$CGS[[res()]][[input$ssY]][,input$scatterInput])),
+                   genes=d$CGS[[res()]][[input$ssX]]$genes,
+                   row.names=rownames(d$CGS[[res()]][[input$ssX]]))
+      }
     })
     
     LBF <- reactive({
@@ -2087,6 +2102,11 @@ runShiny <- function(filePath,outPath,
                 col=clustCols(res())[which(levels(clusts()) == input$ssY)])
           mtext(paste("Higher in",input$ssX),side=1,line=-1.2,adj=0.02,font=2,
                 col=clustCols(res())[which(levels(clusts()) == input$ssX)])
+        } else {
+          plot(x=NA,y=NA,xlim=0:1,ylim=0:1,xaxt="n",yaxt="n",xlab=NA,ylab=NA)
+          text(.5,.5,paste("Select two clusters to compare in this MA plot",
+                           "using the pulldown menus on the right.",
+                           "(Cluster A & Cluster B)",sep="\n"))
         }
       }
     }
