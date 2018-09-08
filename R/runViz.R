@@ -356,7 +356,8 @@ runShiny <- function(filePath,outPath,
   ui <- fixedPage(
     fixedRow(
       titlePanel(paste("scClustViz -",dataTitle)),
-      includeMarkdown(introPath)
+      includeMarkdown(introPath),
+      verbatimTextOutput("TEST")
     ),
     hr(),
     
@@ -448,8 +449,7 @@ runShiny <- function(filePath,outPath,
                            label="Show nearest neighbouring clusters by # of DE genes.")
       ),
       
-      column(4,selectInput("tsneMDcol",label="Metadata:",width="100%",choices=colnames(md),
-                           selected=grep("phase",colnames(md),value=T,ignore.case=T)[1])),
+      column(4,uiOutput("tsneMDcol")),
       column(2,uiOutput("tsneMDlog"))
     ),
     fixedRow(
@@ -463,22 +463,11 @@ runShiny <- function(filePath,outPath,
     hr(),
     
     fixedRow(
-      column(2,selectInput(
-        "mdScatterX","X axis:",choices=colnames(md),
-        selected=ifelse(any(grepl("UMI|count",colnames(md),ignore.case=T)),
-                        yes=grep("UMI|count",colnames(md),value=T,ignore.case=T)[1],
-                        no=colnames(md)[1])
-      )),
-      column(2,selectInput(
-        "mdScatterY","Y axis:",choices=colnames(md),
-        selected=ifelse(any(grepl("gene|feature",colnames(md),ignore.case=T)),
-                        yes=grep("gene|feature",colnames(md),value=T,ignore.case=T)[1],
-                        no=colnames(md)[2])
-      )),
+      column(2,uiOutput("mdScatterX")),
+      column(2,uiOutput("mdScatterY")),
       column(2,uiOutput("scatterLog")),
       
-      column(3,selectInput("mdFactorData","Metadata:",choices=colnames(md),
-                           selected=grep("phase",colnames(md),value=T,ignore.case=T)[1])),
+      column(3,uiOutput("mdFactorData")),
       column(3,uiOutput("mdFactorOpts"))
     ),
     fixedRow(
@@ -723,42 +712,62 @@ runShiny <- function(filePath,outPath,
     hr(),
     
     # ^ Custom sets for DE -----------------------------------------------------------------
-    fixedRow(titlePanel("Manually Select Cells for DE Testing")),
-    fixedRow(
-      column(8,plotOutput("tsneSelDE",brush="tsneBrush",height="750px")),
-      column(4,
-             p(paste("Here you can select cells to further explore using the figures above.",
-                     "Click and drag to select cells, and use the buttons below to add them",
-                     "to a set of cells. When your sets are ready, name the comparison and",
-                     "click the 'Calculate differential gene expression' button. Once the",
+    fixedRow(titlePanel("Manually Select Cells for DE Testing"),
+             p(paste("Here you can select sets of cells to directly compare in the figures",
+                     "above. This can be done manually, or by setting filters on the metadata.",
+                     "Click and drag to select cells manually, and use the buttons below to",
+                     "add or remove the selected cells to/from a set of cells.",
+                     "Filters can be set on metadata by selecting a metadata column from the",
+                     "pulldown menu, and selecting factors / data ranges to include cells.",
+                     "You can include more than one metadata filter, and they will be combined",
+                     "using the logical AND (intersection of sets). You can see the selected",
+                     "cells bolded in the plot. When your sets are ready, name the comparison",
+                     "and click the 'Calculate differential gene expression' button. Once the",
                      "calculation is done the comparison will be added to the cluster list",
                      "at the top of the page and the current cluster solution will be updated",
                      "to show this comparison. The comparison can be saved by clicking 'Save",
-                     "this comparison to disk' next to either cluster solution menu.")),
-             hr(),
-             selectInput("tsneSelDEcol","Metadata overlay:",choices=c("",colnames(md))),
-             hr(),
-             column(6,htmlOutput("textSetA"),
-                    actionButton("addCellsA","Set A: Add Cells",icon("plus"),
-                                 style="color: #fff; background-color: #a50026"),
-                    actionButton("removeCellsA","Set A: Remove Cells",icon("minus"),
-                                 style="color: #a50026; background-color: #fff; border-color: #a50026")
+                     "this comparison to disk' next to either cluster solution menu."))
+    ),
+    fixedRow(
+      column(8,plotOutput("tsneSelDE",brush="tsneSelDEbrush",hover="tsneSelDEhover",height="750px")),
+      column(4,
+             fixedRow(
+               column(8,uiOutput("tsneSelDEcol")),
+               column(2,actionButton("plusFilt","Add",icon("plus"),
+                                     style="color: #fff; background-color: #008000")),
+               column(2,actionButton("minusFilt","Remove",icon("minus"),
+                                     style="color: #008000; background-color: #fff; border-color: #008000"))
              ),
-             column(6,htmlOutput("textSetB"),
-                    actionButton("addCellsB","Set B: Add Cells",icon("plus"),
-                                 style="color: #fff; background-color: #313695"),
-                    actionButton("removeCellsB","Set B: Remove Cells",icon("minus"),
-                                 style="color: #313695; background-color: #fff; border-color: #313695")
+             uiOutput("MDfilts"),
+             uiOutput("MDfiltsRemoveAll"),
+             hr(),
+             fixedRow(
+               column(
+                 6,htmlOutput("textSetA"),
+                 actionButton("addCellsA","Set A: Add Cells",icon("plus"),
+                              style="color: #fff; background-color: #a50026"),
+                 actionButton("removeCellsA","Set A: Remove Cells",icon("minus"),
+                              style="color: #a50026; background-color: #fff; border-color: #a50026")
+               ),
+               column(
+                 6,htmlOutput("textSetB"),
+                 actionButton("addCellsB","Set B: Add Cells",icon("plus"),
+                              style="color: #fff; background-color: #313695"),
+                 actionButton("removeCellsB","Set B: Remove Cells",icon("minus"),
+                              style="color: #313695; background-color: #fff; border-color: #313695")
+               )
              ),
-             htmlOutput("textOverlap"),
+             span(textOutput("textOverlap"),style="color:red"),
              hr(),
              textInput("DEsetName","Short name for this comparison:",
-                       placeholder="A-z0-9 only please"),
+                       placeholder="A-z0-9_ only please"),
              actionButton("calcDE","Calculate differential gene expression",icon("play")),
+             span(textOutput("calcText"),style="color:red"),
              hr(),
-             span(textOutput("calcText"),style="color:red")
+             textOutput("cellsHovered")
       )
-    ),
+    ),tags$style(type='text/css',paste("button#plusFilt { margin-top: 25px; margin-left: -25px; }",
+                                       "button#minusFilt { margin-top: 25px; margin-left: -25px; }")),
     h1()
   )
   
@@ -766,7 +775,7 @@ runShiny <- function(filePath,outPath,
 
   # Server -------------------------------------------------------------------------------
   server <- function(input,output,session) {
-    d <- reactiveValues(cl=cl,CGS=CGS,
+    d <- reactiveValues(md=md,cl=cl,CGS=CGS,
                         clusterID=clusterID,
                         deTissue=deTissue,
                         deMarker=deMarker)
@@ -812,8 +821,8 @@ runShiny <- function(filePath,outPath,
     })
     numClust <- numClust[numClust > 1]
     
-    observeEvent(input$go,res(input$res))
-    observeEvent(input$go2,res(input$res2))
+    observeEvent(input$go,{ res(input$res) })
+    observeEvent(input$go2,{ res(input$res2) })
     
     clusts <- reactive(d$cl[,res()])
     
@@ -883,8 +892,10 @@ runShiny <- function(filePath,outPath,
     )
     
     # ^^ Silhouette plot -----------------------------------------------------------------
+    temp_sil_width <- reactiveValues()
     plot_sil <- function() {
       tempSil <- cluster::silhouette(as.integer(d$cl[,input$res]),dist=silDist)
+      temp_sil_width[[input$res]] <<- tempSil[,"sil_width"]
       par(mar=c(4.5,.5,1.5,1.5),mgp=2:0)
       if (length(tempSil) <= 1) {
         plot(x=NA,y=NA,xlim=0:1,ylim=0:1,xaxt="n",yaxt="n",xlab=NA,ylab=NA)
@@ -894,9 +905,12 @@ runShiny <- function(filePath,outPath,
         plot(tempSil,beside=T,border=NA,main=NA,col=clustCols(input$res),do.n.k=T)
       }
     }
+
+    output$TEST <- renderPrint(str(d$md))
     
     output$sil <- renderPlot({
       print(plot_sil())
+      if (!is.null(res())) { d$md$silhouette_width <- temp_sil_width[[res()]] }
     })
     
     output$silSave <- downloadHandler(
@@ -1019,9 +1033,13 @@ runShiny <- function(filePath,outPath,
     })
     
     # ^^ Metadata tSNE overlay -----------------------------------------------------------
+    output$tsneMDcol <- renderUI({
+      selectInput("tsneMDcol",label="Metadata:",width="100%",choices=colnames(d$md),
+                  selected=grep("phase",colnames(d$md),value=T,ignore.case=T)[1])
+    })
     output$tsneMDlog <- renderUI({
-      if (!(is.factor(md[,input$tsneMDcol]) | is.character(md[,input$tsneMDcol]))) {
-        if (all(md[,input$tsneMDcol] > 0)) {
+      if (!(is.factor(d$md[,input$tsneMDcol]) | is.character(d$md[,input$tsneMDcol]))) {
+        if (all(d$md[,input$tsneMDcol] > 0)) {
           checkboxGroupInput("tsneMDlog",label="Colour scale",
                              choices=c("Log scale"="log"),width="100%")
         }
@@ -1029,18 +1047,18 @@ runShiny <- function(filePath,outPath,
     })
     
     plot_tsneMD <- function() {
-      if (is.factor(md[,input$tsneMDcol]) | is.character(md[,input$tsneMDcol])) {
-        id <- as.factor(md[,input$tsneMDcol])
-        if (length(levels(md[,input$tsneMDcol])) <= 8) {
+      if (is.factor(d$md[,input$tsneMDcol]) | is.character(d$md[,input$tsneMDcol])) {
+        id <- as.factor(d$md[,input$tsneMDcol])
+        if (length(levels(d$md[,input$tsneMDcol])) <= 8) {
           idcol <- RColorBrewer::brewer.pal(length(levels(id)),"Dark2")[1:length(levels(id))]
         } else {
           idcol <- rainbow2(length(levels(id)))
         }
       } else {
         if ("log" %in% input$tsneMDlog) {
-          id <- cut(log10(md[,input$tsneMDcol]),100)
+          id <- cut(log10(d$md[,input$tsneMDcol]),100)
         } else {
-          id <- cut(md[,input$tsneMDcol],100)
+          id <- cut(d$md[,input$tsneMDcol],100)
         }
         idcol <- viridis(100,d=-1)
       }
@@ -1061,7 +1079,7 @@ runShiny <- function(filePath,outPath,
                bg=alpha(idcol,0.4)[id])
       }
       plot_tsne_labels()
-      if (is.factor(md[,input$tsneMDcol]) | is.character(md[,input$tsneMDcol])) {
+      if (is.factor(d$md[,input$tsneMDcol]) | is.character(d$md[,input$tsneMDcol])) {
         par(mar=c(0,0,0,0))
         plot.new()
         legend("bottom",bty="n",horiz=T,pch=c(NA,rep(21,length(levels(id)))),
@@ -1075,7 +1093,7 @@ runShiny <- function(filePath,outPath,
         }
         par(mar=c(0,5,3,3))
         barplot(rep(1,100),space=0,col=idcol,xaxt="n",yaxt="n",border=NA,main=tempMain)
-        text(x=c(1,100),y=1,pos=c(2,4),xpd=NA,labels=round(range(md[,input$tsneMDcol]),2))
+        text(x=c(1,100),y=1,pos=c(2,4),xpd=NA,labels=round(range(d$md[,input$tsneMDcol]),2))
       }
     }
     
@@ -1095,20 +1113,36 @@ runShiny <- function(filePath,outPath,
     )
     
     # ^^ Metadata Scatterplot ------------------------------------------------------------
+    output$mdScatterX <- renderUI({
+      selectInput(
+        "mdScatterX","X axis:",choices=colnames(d$md),
+        selected=ifelse(any(grepl("UMI|count",colnames(d$md),ignore.case=T)),
+                        yes=grep("UMI|count",colnames(d$md),value=T,ignore.case=T)[1],
+                        no=colnames(d$md)[1])
+      )
+    })
+    output$mdScatterY <- renderUI({
+      selectInput(
+        "mdScatterY","Y axis:",choices=colnames(d$md),
+        selected=ifelse(any(grepl("gene|feature",colnames(d$md),ignore.case=T)),
+                        yes=grep("gene|feature",colnames(d$md),value=T,ignore.case=T)[1],
+                        no=colnames(d$md)[2])
+      )
+    })
     output$scatterLog <- renderUI({
       temp_choices <- c()
       temp_selected <- NULL
-      if ((is.factor(md[,input$mdScatterX]) | is.character(md[,input$mdScatterX])) |
-          (is.factor(md[,input$mdScatterY]) | is.character(md[,input$mdScatterY]))) {
+      if ((is.factor(d$md[,input$mdScatterX]) | is.character(d$md[,input$mdScatterX])) |
+          (is.factor(d$md[,input$mdScatterY]) | is.character(d$md[,input$mdScatterY]))) {
         temp_choices <- append(temp_choices,c("Show notch"="notch"))
       }
-      if (!(is.factor(md[,input$mdScatterX]) | is.character(md[,input$mdScatterX]))) {
-        if (all(md[,input$mdScatterX] > 0)) {
+      if (!(is.factor(d$md[,input$mdScatterX]) | is.character(d$md[,input$mdScatterX]))) {
+        if (all(d$md[,input$mdScatterX] > 0)) {
           temp_choices <- append(temp_choices,c("Log x axis"="x"))
         }
       }
-      if (!(is.factor(md[,input$mdScatterY]) | is.character(md[,input$mdScatterY]))) {
-        if (all(md[,input$mdScatterY] > 0)) {
+      if (!(is.factor(d$md[,input$mdScatterY]) | is.character(d$md[,input$mdScatterY]))) {
+        if (all(d$md[,input$mdScatterY] > 0)) {
           temp_choices <- append(temp_choices,c("Log y axis"="y"))
         }
       }
@@ -1118,52 +1152,52 @@ runShiny <- function(filePath,outPath,
     })
     
     plot_mdScatter <- function() {
-      if ((is.factor(md[,input$mdScatterX]) | is.character(md[,input$mdScatterX])) &
-          (is.factor(md[,input$mdScatterY]) | is.character(md[,input$mdScatterY]))) {
+      if ((is.factor(d$md[,input$mdScatterX]) | is.character(d$md[,input$mdScatterX])) &
+          (is.factor(d$md[,input$mdScatterY]) | is.character(d$md[,input$mdScatterY]))) {
         plot(x=NA,y=NA,xlim=0:1,ylim=0:1,xaxt="n",yaxt="n",xlab=NA,ylab=NA)
         text(.5,.5,"This figure is not designed to compare to categorical variables.")
-      } else if (is.factor(md[,input$mdScatterX]) | is.character(md[,input$mdScatterX])) {
+      } else if (is.factor(d$md[,input$mdScatterX]) | is.character(d$md[,input$mdScatterX])) {
         par(mar=c(3,3,2,1),mgp=2:0)
         if (any(ci())) {
-          temp1 <- tapply(md[!ci(),input$mdScatterY],as.factor(md[!ci(),input$mdScatterX]),c)
-          temp2 <- tapply(md[ci(),input$mdScatterY],as.factor(md[ci(),input$mdScatterX]),c)
-          plot(x=NULL,y=NULL,ylim=range(md[,input$mdScatterY]),
-               xlim=c(0,length(levels(as.factor(md[,input$mdScatterX]))) * 3),
+          temp1 <- tapply(d$md[!ci(),input$mdScatterY],as.factor(d$md[!ci(),input$mdScatterX]),c)
+          temp2 <- tapply(d$md[ci(),input$mdScatterY],as.factor(d$md[ci(),input$mdScatterX]),c)
+          plot(x=NULL,y=NULL,ylim=range(d$md[,input$mdScatterY]),
+               xlim=c(0,length(levels(as.factor(d$md[,input$mdScatterX]))) * 3),
                log=sub("notch","",paste(input$scatterLog,collapse="")),xaxt="n",
                xlab=input$mdScatterX,ylab=input$mdScatterY)
           boxplot(temp1,add=T,xaxt="n",notch="notch" %in% input$scatterLog,
-                  at=seq(1,length(levels(as.factor(md[,input$mdScatterX]))) * 3,by=3))
+                  at=seq(1,length(levels(as.factor(d$md[,input$mdScatterX]))) * 3,by=3))
           boxplot(temp2,add=T,xaxt="n",notch="notch" %in% input$scatterLog,border="red",
-                  at=seq(2,length(levels(as.factor(md[,input$mdScatterX]))) * 3,by=3))
-          axis(side=1,at=seq(1.5,length(levels(as.factor(md[,input$mdScatterX]))) * 3,by=3),
+                  at=seq(2,length(levels(as.factor(d$md[,input$mdScatterX]))) * 3,by=3))
+          axis(side=1,at=seq(1.5,length(levels(as.factor(d$md[,input$mdScatterX]))) * 3,by=3),
                labels=names(temp1))
           legend("top",bty="n",xpd=NA,inset=c(0,-.05),pch=0,col="red",
                  legend=paste("Cluster",hiC(),"-",d$clusterID[[res()]][hiC()]))
         } else {
-          boxplot(tapply(md[,input$mdScatterY],as.factor(md[,input$mdScatterX]),c),
+          boxplot(tapply(d$md[,input$mdScatterY],as.factor(d$md[,input$mdScatterX]),c),
                   xlab=input$mdScatterX,ylab=input$mdScatterY,
                   log=sub("notch","",paste(input$scatterLog,collapse="")),
                   notch="notch" %in% input$scatterLog)
         }
-      } else if (is.factor(md[,input$mdScatterY]) | is.character(md[,input$mdScatterY])) {
+      } else if (is.factor(d$md[,input$mdScatterY]) | is.character(d$md[,input$mdScatterY])) {
         par(mar=c(3,3,2,1),mgp=2:0)
         if (any(ci())) {
-          temp1 <- tapply(md[!ci(),input$mdScatterX],as.factor(md[!ci(),input$mdScatterY]),c)
-          temp2 <- tapply(md[ci(),input$mdScatterX],as.factor(md[ci(),input$mdScatterY]),c)
-          plot(x=NULL,y=NULL,xlim=range(md[,input$mdScatterX]),
-               ylim=c(0,length(levels(as.factor(md[,input$mdScatterY]))) * 3),
+          temp1 <- tapply(d$md[!ci(),input$mdScatterX],as.factor(d$md[!ci(),input$mdScatterY]),c)
+          temp2 <- tapply(d$md[ci(),input$mdScatterX],as.factor(d$md[ci(),input$mdScatterY]),c)
+          plot(x=NULL,y=NULL,xlim=range(d$md[,input$mdScatterX]),
+               ylim=c(0,length(levels(as.factor(d$md[,input$mdScatterY]))) * 3),
                log=sub("notch","",paste(input$scatterLog,collapse="")),yaxt="n",
                xlab=input$mdScatterX,ylab=input$mdScatterY)
           boxplot(temp1,add=T,horizontal=T,yaxt="n",notch="notch" %in% input$scatterLog,
-                  at=seq(1,length(levels(as.factor(md[,input$mdScatterY]))) * 3,by=3))
+                  at=seq(1,length(levels(as.factor(d$md[,input$mdScatterY]))) * 3,by=3))
           boxplot(temp2,add=T,horizontal=T,yaxt="n",notch="notch" %in% input$scatterLog,border="red",
-                  at=seq(2,length(levels(as.factor(md[,input$mdScatterY]))) * 3,by=3))
-          axis(side=2,at=seq(1.5,length(levels(as.factor(md[,input$mdScatterY]))) * 3,by=3),
+                  at=seq(2,length(levels(as.factor(d$md[,input$mdScatterY]))) * 3,by=3))
+          axis(side=2,at=seq(1.5,length(levels(as.factor(d$md[,input$mdScatterY]))) * 3,by=3),
                labels=names(temp1))
           legend("top",bty="n",xpd=NA,inset=c(0,-.05),pch=0,col="red",
                  legend=paste("Cluster",hiC(),"-",d$clusterID[[res()]][hiC()]))
         } else {
-          boxplot(tapply(md[,input$mdScatterX],as.factor(md[,input$mdScatterY]),c),
+          boxplot(tapply(d$md[,input$mdScatterX],as.factor(d$md[,input$mdScatterY]),c),
                   horizontal=T,xlab=input$mdScatterX,ylab=input$mdScatterY,
                   log=sub("notch","",paste(input$scatterLog,collapse="")),
                   notch="notch" %in% input$scatterLog)
@@ -1171,11 +1205,11 @@ runShiny <- function(filePath,outPath,
       } else {
         layout(matrix(c(2,1,0,3),2),c(5,1),c(1,5))
         par(mar=c(3,3,0,0),mgp=2:0,cex=1.1)
-        plot(md[!ci(),input$mdScatterX],md[!ci(),input$mdScatterY],
+        plot(d$md[!ci(),input$mdScatterX],d$md[!ci(),input$mdScatterY],
              log=sub("notch","",paste(input$scatterLog,collapse="")),
              pch=21,col=alpha("black",0.2),bg=alpha("black",0.1),
              xlab=input$mdScatterX,ylab=input$mdScatterY)
-        points(md[ci(),input$mdScatterX],md[ci(),input$mdScatterY],
+        points(d$md[ci(),input$mdScatterX],d$md[ci(),input$mdScatterY],
                pch=21,col=alpha("red",0.4),bg=alpha("red",0.2))
         if (any(ci())) {
           legend("topleft",bty="n",pch=21,col="red",pt.bg=alpha("red",0.5),
@@ -1184,10 +1218,10 @@ runShiny <- function(filePath,outPath,
         if ("x" %in% input$scatterLog) { tempLX <- "x" } else { tempLX <- "" }
         if ("y" %in% input$scatterLog) { tempLY <- "y" } else { tempLY <- "" }
         par(mar=c(0,3,1,0))
-        boxplot(tapply(md[,input$mdScatterX],ci(),c),log=tempLX,
+        boxplot(tapply(d$md[,input$mdScatterX],ci(),c),log=tempLX,
                 horizontal=T,xaxt="n",yaxt="n",border=c("black","red"))
         par(mar=c(3,0,0,1))
-        boxplot(tapply(md[,input$mdScatterY],ci(),c),log=tempLY,
+        boxplot(tapply(d$md[,input$mdScatterY],ci(),c),log=tempLY,
                 horizontal=F,xaxt="n",yaxt="n",border=c("black","red"))
       }
     }
@@ -1208,12 +1242,16 @@ runShiny <- function(filePath,outPath,
     )
     
     # ^^ Metadata Factor Barplot ---------------------------------------------------------
+    output$mdFactorData <- renderUI({
+      selectInput("mdFactorData","Metadata:",choices=colnames(d$md),
+                  selected=grep("phase",colnames(d$md),value=T,ignore.case=T)[1])
+    })
     output$mdFactorOpts <- renderUI({
-      if (is.factor(md[,input$mdFactorData]) | is.character(md[,input$mdFactorData])) {
+      if (is.factor(d$md[,input$mdFactorData]) | is.character(d$md[,input$mdFactorData])) {
         radioButtons("mdFactorRA","Factor counts per cluster:",inline=T,
                      choices=list("Absolute"="absolute","Relative"="relative"))
       } else {
-        if (all(md[,input$mdFactorData] > 0)) {
+        if (all(d$md[,input$mdFactorData] > 0)) {
           checkboxGroupInput("mdFactorOpts",inline=T,label="Figure options",
                              choices=c("Log scale"="y","Show notch"="notch"),selected="notch")
         } else {
@@ -1224,8 +1262,8 @@ runShiny <- function(filePath,outPath,
     })
     
     plot_mdFactor <- function() {
-      if (is.factor(md[,input$mdFactorData]) | is.character(md[,input$mdFactorData])) {
-        id0 <- as.factor(md[,input$mdFactorData])
+      if (is.factor(d$md[,input$mdFactorData]) | is.character(d$md[,input$mdFactorData])) {
+        id0 <- as.factor(d$md[,input$mdFactorData])
         id <- switch(input$mdFactorRA,
                      "relative"=tapply(id0,clusts(),function(X) table(X) / length(X)),
                      "absolute"=tapply(id0,clusts(),table))
@@ -1249,7 +1287,7 @@ runShiny <- function(filePath,outPath,
         mtext(input$mdFactorData,side=3,adj=0,font=2,line=1,cex=1.2)
       } else {
         par(mar=c(3,3,2,1),mgp=2:0)
-        boxplot(tapply(md[,input$mdFactorData],cl[,res()],c),
+        boxplot(tapply(d$md[,input$mdFactorData],cl[,res()],c),
                 ylab=input$mdFactorData,notch="notch" %in% input$mdFactorOpts,
                 log=sub("notch","",paste(input$mdFactorOpts,collapse="")),
                 border=clustCols(res()),col=alpha(clustCols(res()),0.3))
@@ -2134,30 +2172,111 @@ runShiny <- function(filePath,outPath,
     # ^ Custom sets for DE ---------------------------------------------------------------
     selectedSets <- reactiveValues(a=NULL,b=NULL)
     
+    # ^^ Interactive filters ---------------------------------------------------
+    output$tsneSelDEcol <- renderUI({
+      selectInput("tsneSelDEcol","Metadata overlay and cell filtering:",
+                  choices=c(paste("Clusters:",res()),colnames(d$md)))
+    })
+    
+    filtList <- reactiveValues(filts=NULL)
+    observeEvent(input$plusFilt,{ 
+      filtList$filts <- unique(c(filtList$filts,input$tsneSelDEcol)) 
+    })
+    observeEvent(input$minusFilt,{ 
+      filtList$filts <- filtList$filts[-which(filtList$filts == input$tsneSelDEcol)] 
+    })
+    observeEvent(input$minusFiltALL,{ filtList$filts <- NULL })
+    
+    filtValues <- reactive({
+      sapply(filtList$filts,function(MD) {
+        if (MD == paste("Clusters:",res())) {
+          temp_inputSlot <- "MDpicker_clusts"
+        } else {
+          temp_inputSlot <- paste0("MDpicker_",which(colnames(d$md) == MD))
+        }
+        return(input[[temp_inputSlot]])
+      },simplify=F)
+    })
+    
+    makeMDpicker <- reactive({
+      lapply(filtList$filts,function(MD) {
+        temp_val <- isolate(filtValues()[[MD]])
+        if (MD == "") {
+        } else if (MD == paste("Clusters:",res())) {
+          selectInput("MDpicker_clusts",label="Select cluster(s):",
+                      choices=levels(clusts()),multiple=T,selected=temp_val)
+        } else if (is.factor(d$md[,MD]) | is.character(d$md[,MD])) {
+          selectInput(paste0("MDpicker_",which(colnames(d$md) == MD)),
+                      label=paste0("Select cells by ",MD,":"),choices=levels(as.factor(d$md[,MD])),
+                      multiple=T,selected=temp_val)
+        } else {
+          if (is.null(temp_val)) { temp_val <- range(d$md[,MD]) } 
+          sliderInput(paste0("MDpicker_",which(colnames(d$md) == MD)),
+                      label=paste0("Select cells by ",MD," range:"),
+                      min=min(d$md[,MD]),max=max(d$md[,MD]),value=temp_val)
+        }
+      })
+    })
+    
+    output$MDfilts <- renderUI({ makeMDpicker() })
+    output$MDfiltsRemoveAll <- renderUI({
+      if (length(filtList$filts) > 0) {
+        actionButton("minusFiltALL","Remove all filters",icon("minus"),
+                     style="color: #008000; background-color: #fff; border-color: #008000")
+      }
+    })
+    
+    # ^^ Plot selDE tSNE -------------------------------------------------------
     plot_tsne_selDE <- function() {
-      if (input$tsneSelDEcol == "") {
-        id <- rep(1,nrow(md))
-        idcol <- "grey20"
-      } else if (is.factor(md[,input$tsneSelDEcol]) | is.character(md[,input$tsneSelDEcol])) {
-        id <- as.factor(md[,input$tsneSelDEcol])
-        if (length(levels(md[,input$tsneSelDEcol])) <= 8) {
+      if (input$tsneSelDEcol == paste("Clusters:",res())) {
+        id <- clusts()
+        idcol <- clustCols(res())
+      } else if (is.factor(d$md[,input$tsneSelDEcol]) | is.character(d$md[,input$tsneSelDEcol])) {
+        id <- as.factor(d$md[,input$tsneSelDEcol])
+        if (length(levels(d$md[,input$tsneSelDEcol])) <= 8) {
           idcol <- RColorBrewer::brewer.pal(length(levels(id)),"Dark2")[1:length(levels(id))]
         } else {
           idcol <- rainbow2(length(levels(id)))
         }
       } else {
-        id <- cut(md[,input$tsneSelDEcol],100)
+        id <- cut(d$md[,input$tsneSelDEcol],100)
         idcol <- viridis(100,d=-1)
       }
       par(mar=c(3,3,3,1),mgp=2:0)
       plot(x=NULL,y=NULL,xlab="tSNE_1",ylab="tSNE_2",
            xlim=range(dr_viz[,1]),ylim=range(dr_viz[,2]))
-      points(dr_viz,pch=21,
-             col=alpha(idcol,.8)[id],
-             bg=alpha(idcol,0.4)[id])
+      points(x=dr_viz[!rownames(dr_viz) %in% currSel(),1],
+             y=dr_viz[!rownames(dr_viz) %in% currSel(),2],
+             pch=21,
+             col=alpha(idcol,.6)[id[!rownames(dr_viz) %in% currSel()]],
+             bg=alpha(idcol,0.3)[id[!rownames(dr_viz) %in% currSel()]])
+      points(x=dr_viz[rownames(dr_viz) %in% currSel(),1],
+             y=dr_viz[rownames(dr_viz) %in% currSel(),2],
+             pch=21,cex=1.3,
+             col=alpha(idcol,1)[id[rownames(dr_viz) %in% currSel()]],
+             bg=alpha(idcol,0.6)[id[rownames(dr_viz) %in% currSel()]])
       
-      if (input$tsneSelDEcol == "") {
-      } else if (is.factor(md[,input$tsneSelDEcol]) | is.character(md[,input$tsneSelDEcol])) {
+      #points(dr_viz[currSel(),],pch="o",col=alpha("black",.3))
+      points(x=dr_viz[selectedSets$a,1],y=dr_viz[selectedSets$a,2],
+             pch=19,col="#a50026")
+      points(x=dr_viz[selectedSets$b,1],y=dr_viz[selectedSets$b,2],
+             pch=19,col="#313695")
+      points(x=dr_viz[intersect(selectedSets$a,selectedSets$b),1],
+             y=dr_viz[intersect(selectedSets$a,selectedSets$b),2],
+             pch=19,col="#ffffbf")
+      points(x=dr_viz[intersect(selectedSets$a,selectedSets$b),1],
+             y=dr_viz[intersect(selectedSets$a,selectedSets$b),2],
+             pch=4,col="red")
+      
+      
+      legend("topright",horiz=T,bty="n",xpd=NA,inset=c(0,-.06),
+             title="Selected Cells",legend=c("Set A","Set B","Both"),
+             pch=c(19,19,4),col=c("#a50026","#313695","red"))
+      if (input$tsneSelDEcol == paste("Clusters:",res())) {
+        temp_labels <- apply(dr_viz,2,function(X) tapply(X,clusts(),mean))
+        if (!is.matrix(temp_labels)) { temp_labels <- rbind(temp_labels) }
+        text(temp_labels,labels=levels(clusts()),font=2,cex=1.2)
+      } else if (is.factor(d$md[,input$tsneSelDEcol]) | is.character(d$md[,input$tsneSelDEcol])) {
         legend("topleft",bty="n",horiz=T,xpd=NA,inset=c(0,-.06),
                pch=21,col=idcol,pt.bg=alpha(idcol,0.5),
                title=input$tsneSelDEcol,legend=levels(id))
@@ -2165,35 +2284,56 @@ runShiny <- function(filePath,outPath,
         legend("topleft",bty="n",horiz=T,xpd=NA,inset=c(0,-.06),
                pch=21,col=viridis(3,d=-1),pt.bg=viridis(3,.5,d=-1),
                title=input$tsneSelDEcol,
-               legend=c(round(min(md[,input$tsneSelDEcol]),2),
-                        round((max(md[,input$tsneSelDEcol]) - 
-                                 min(md[,input$tsneSelDEcol])) / 2,2),
-                        round(max(md[,input$tsneSelDEcol]),2)))
+               legend=c(round(min(d$md[,input$tsneSelDEcol]),2),
+                        round((max(d$md[,input$tsneSelDEcol]) - 
+                                 min(d$md[,input$tsneSelDEcol])) / 2,2),
+                        round(max(d$md[,input$tsneSelDEcol]),2)))
       }
-      
-      
-      points(dr_viz[selectedSets$a,],pch=19,col="#a50026")
-      points(dr_viz[selectedSets$b,],pch=19,col="#313695")
-      points(dr_viz[intersect(selectedSets$a,selectedSets$b),],pch=19,col="#ffffbf")
-      points(dr_viz[intersect(selectedSets$a,selectedSets$b),],pch=4,col="red")
-      
-      legend("topright",horiz=T,bty="n",xpd=NA,inset=c(0,-.06),
-             title="Selected Cells",legend=c("Set A","Set B","Both"),
-             pch=c(19,19,4),col=c("#a50026","#313695","red"))
     }
     output$tsneSelDE <- renderPlot({ print(plot_tsne_selDE()) })
     
+    # ^^ Cell selection from filters and/or brush ------------------------------
+    currSel <- reactive({
+      temp_points <- rownames(brushedPoints(as.data.frame(dr_viz),
+                                            input$tsneSelDEbrush,xvar="tSNE_1",yvar="tSNE_2"))
+      temp_picker <- sapply(names(filtValues()),function(X) {
+        if (length(filtValues()[[X]]) < 1) {
+          rep(T,nrow(d$md))
+        } else {
+          if (X == paste("Clusters:",res())) {
+            clusts() %in% filtValues()[[X]]
+          } else if (is.factor(d$md[,X]) | is.character(d$md[,X])) {
+            d$md[,X] %in% filtValues()[[X]]
+          } else {
+            d$md[,X] >= filtValues()[[X]][1] & d$md[,X] <= filtValues()[[X]][2]
+          }
+        }
+      },simplify=F)
+      temp_picker <- as.logical(Reduce("*",temp_picker))
+      if (length(temp_points) > 0 & length(temp_picker) > 0) {
+        return(rownames(d$md)[rownames(d$md) %in% temp_points & temp_picker])
+      } else if (length(temp_picker) > 0 & !all(temp_picker)) {
+        return(rownames(d$md)[temp_picker])
+      } else if (length(temp_points) > 0) {
+        return(temp_points)
+      } else { return(character()) }
+    })
     
-    currSel <- reactive(rownames(brushedPoints(as.data.frame(dr_viz),
-                                               input$tsneBrush,xvar="tSNE_1",yvar="tSNE_2")))
+    output$cellsHovered <- renderText(
+      paste("Hovering over cell(s):",
+            paste(rownames(nearPoints(
+              as.data.frame(dr_viz),input$tsneSelDEhover,xvar="tSNE_1",yvar="tSNE_2"
+            )),collapse=", "))
+    )
+    
     observeEvent(input$addCellsA,{ 
-      selectedSets$a <- append(selectedSets$a,currSel()[!currSel() %in% selectedSets$a]) 
+      selectedSets$a <- unique(c(selectedSets$a,currSel()))
     })
     observeEvent(input$removeCellsA,{ 
       selectedSets$a <- selectedSets$a[!selectedSets$a %in% currSel()]
     })
     observeEvent(input$addCellsB,{ 
-      selectedSets$b <- append(selectedSets$b,currSel()[!currSel() %in% selectedSets$b]) 
+      selectedSets$b <- unique(c(selectedSets$b,currSel()))
     })
     observeEvent(input$removeCellsB,{ 
       selectedSets$b <- selectedSets$b[!selectedSets$b %in% currSel()]
@@ -2201,12 +2341,15 @@ runShiny <- function(filePath,outPath,
     output$textSetA <- renderText(paste(length(selectedSets$a),"cells in Set A."))
     output$textSetB <- renderText(paste(length(selectedSets$b),"cells in Set B."))
     output$textOverlap <- renderText(
-      paste(length(intersect(selectedSets$a,selectedSets$b)),"cells in both sets.",
-            "Cells must be assigned to a single set prior to calculation.")
-      )
+      if (length(intersect(selectedSets$a,selectedSets$b)) > 0) {
+        paste(length(intersect(selectedSets$a,selectedSets$b)),"cells in both sets.",
+              "Cells must be assigned to a single set prior to calculation.")
+      }
+    )
     
+    # ^^ Do the DE calcs -------------------------------------------------------
     observeEvent(input$calcDE,{
-      newRes <- paste0("Comp.",gsub("[^A-Za-z0-9]","",input$DEsetName))
+      newRes <- paste0("Comp.",gsub("[^A-Za-z0-9_]","",input$DEsetName))
       if (length(intersect(selectedSets$a,selectedSets$b)) > 0) {
         output$calcText <- renderText("Sets can't overlap (please assign red cells to only one set).")
       } else if (any(sapply(list(selectedSets$a,selectedSets$b),length) < 3)) {
@@ -2227,7 +2370,7 @@ runShiny <- function(filePath,outPath,
           temp[selectedSets$b] <- "Set B"
           d$cl[[newRes]] <- factor(temp)
           
-          # ^^ Gene stats per set --------------------------------------------------------
+          # ^^^ Gene stats per set --------------------------------------------------------
           incProgress(amount=1/6,detail="Gene detection rate per set")
           DR <- apply(nge,1,function(X) 
             tapply(X,d$cl[,newRes],function(Y) sum(Y>0)/length(Y)))
@@ -2275,7 +2418,7 @@ runShiny <- function(filePath,outPath,
             names(d$clusterID[[newRes]]) <- names(d$CGS[[newRes]])
           }
           
-          # ^^ deTissue - DE per cluster vs all other data -------------------------------
+          # ^^^ deTissue - DE per cluster vs all other data -------------------------------
           incProgress(amount=1/6,detail="DE vs tissue logGER calculations")
           deT_logGER <- sapply(levels(d$cl[,newRes])[1:2],function(i) 
             MTC[i,] - apply(nge[,d$cl[,newRes] != i],1,function(Y) 
@@ -2304,7 +2447,7 @@ runShiny <- function(filePath,outPath,
             d$deTissue[[newRes]][[i]]$qVal <- tempQval[[i]][tempQval[[i]] <= FDRthresh] 
           }
           
-          # ^^ deMarker - DE per cluster vs each other cluster ---------------------------
+          # ^^^ deMarker - DE per cluster vs each other cluster ---------------------------
           incProgress(amount=1/6,detail="Calculating Set A vs Set B")
           
           deM_dDR <- DR["Set A",] - DR["Set B",]
@@ -2339,6 +2482,8 @@ runShiny <- function(filePath,outPath,
         res(newRes) # Automatically update the view to show the calculated results.
       }
     })
+    
+    # ^^ Save buttons for set comparison ---------------------------------------
     observeEvent(input$updateForViz, {
       withProgress({
         new_cl <- d$cl[input$res]
@@ -2371,7 +2516,6 @@ runShiny <- function(filePath,outPath,
       },message=paste0(
         "Saving ",dataTitle,"_selDE_",sub("Comp.","",input$res2,fixed=T),".RData to ",dataPath))
     })
-    
 
   }
   
