@@ -2101,7 +2101,7 @@ runShiny <- function(filePath,outPath,
                                "MTC"=paste("mean normalized gene expression",temp_exp),
                                "MDTC"=paste("mean normalized gene expression where detected",temp_exp),
                                "DR"="proportion of cells in which gene was detected")
-          par(mar=c(3,3,2,1),mgp=2:0)
+          par(mar=c(3,3,3.5,1),mgp=c(3.5,1,0))
           plot(y~x,data=compDF(),
                ylab=paste0("Difference in ",temp_label," (",input$ssY," - ",input$ssX,")"),
                xlab=paste0("Average of ",temp_label," between ",input$ssY," & ",input$ssX),
@@ -2177,6 +2177,16 @@ runShiny <- function(filePath,outPath,
                 col=clustCols(res())[which(levels(clusts()) == input$ssY)])
           mtext(paste("Higher in",input$ssX),side=1,line=-1.2,adj=0.02,font=2,
                 col=clustCols(res())[which(levels(clusts()) == input$ssX)])
+          mtext(paste(
+            paste("Cosine similarity of comparison:",
+                  round(cosineSim(d$CGS[[res()]][[input$ssX]][,input$scatterInput], 
+                                  d$CGS[[res()]][[input$ssY]][,input$scatterInput]),2)),
+            paste("Spearman's Rho of comparison:",
+                  round(cor(x=d$CGS[[res()]][[input$ssX]][,input$scatterInput], 
+                            y=d$CGS[[res()]][[input$ssY]][,input$scatterInput],
+                            method="spearman"),2)),
+            sep="  -  "),
+            side=3)
         } else {
           plot(x=NA,y=NA,xlim=0:1,ylim=0:1,xaxt="n",yaxt="n",xlab=NA,ylab=NA)
           text(.5,.5,paste("Select two clusters to compare in this MA plot",

@@ -46,3 +46,15 @@ rainbow2 <- function(n,a=1) {
   hues = seq(15, 375, length = n + 1)
   scales::alpha(hcl(h = hues, l = 60, c = 100)[1:n],a)
 }
+
+
+#' Computes the cosine similarity between two vectors
+#'
+#' Computes the cosine similarity between two vectors. Stolen from
+#' \url{https://stats.stackexchange.com/q/31573}/
+#' 
+#' @param A One vector in the pair to compare.
+#' 
+#' @param B The other vector in the pair to compare.
+
+cosineSim <- function(A,B) sum(A*B)/sqrt(sum(A^2)*sum(B^2))
