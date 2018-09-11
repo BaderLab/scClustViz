@@ -357,7 +357,7 @@ runShiny <- function(filePath,outPath,
     fixedRow(
       titlePanel(paste("scClustViz -",dataTitle)),
       includeMarkdown(introPath),
-      verbatimTextOutput("TEST")
+      #verbatimTextOutput("TEST")
     ),
     hr(),
     
