@@ -356,7 +356,7 @@ runShiny <- function(filePath,outPath,
   ui <- fixedPage(
     fixedRow(
       titlePanel(paste("scClustViz -",dataTitle)),
-      includeMarkdown(introPath),
+      includeMarkdown(introPath)
       #verbatimTextOutput("TEST")
     ),
     hr(),
@@ -383,9 +383,9 @@ runShiny <- function(filePath,outPath,
       p(paste(
         "Once you've selected an appropriate cluster solution (we suggest picking one",
         "where all nearest neighbouring clusters have differentially expressed genes",
-        "between them), click 'View clusters at this resolution' to proceed. If you",
-        "want to save this cluster solution as the default for next time, click 'Save",
-        "this resolution as default'. All figures can be downloaded as PDFs by clicking",
+        "between them), click <b>View clusters at this resolution</b> to proceed. If you",
+        "want to save this cluster solution as the default for next time, click <b>Save",
+        "this resolution as default</b>. All figures can be downloaded as PDFs by clicking",
         "the buttons next to each figure."
       )),
       h1()
@@ -500,9 +500,15 @@ runShiny <- function(filePath,outPath,
         "dot encodes both detection rate and average gene expression in detected cells",
         "for a gene in a cluster. Darker colour indicates higher mean normalized gene expression",
         "from the cells in which the gene was detected, and larger dot diameter indicates",
-        "that the gene was detected in greater proportion of cells from the cluster.",
+        "that the gene was detected in greater proportion of cells from the cluster.")),
+      p(paste(
+        "Gene expression statistics per cluster can be downloaded as tab-separated text files",
+        "by selecting the cluster and clicking <b>Download cluster gene stats</b>. These statistics",
+        "are: mean log-normalized gene expression per cluster (MTC), proportion of cells in the",
+        "cluster in which the gene was detected (DR), and mean log-normalized gene expression",
+        "from the cells in which the gene was detected (MDTC).",
         "Differentially expressed gene lists can be downloaded as tab-separated text files",
-        "by selecting the test type and cluster, and clicking 'Download gene list'.",
+        "by selecting the DE test type and cluster, and clicking <b>Download gene list</b>.",
         "Genes used in the dotplot can be viewed in the gene expression plots below as well."
       )),
       h1()
@@ -513,8 +519,10 @@ runShiny <- function(filePath,outPath,
       column(2,uiOutput("heatDEtype")),
       column(6,uiOutput("DEgeneSlider")),
       column(2,uiOutput("DEclustSelect")),
-      column(2,downloadButton("deGeneSave","Download gene list"),
-             downloadButton("heatmapSave","Save as PDF"),align="right")
+      column(2,
+             downloadButton("CGSsave0","Download cluster gene stats"),
+             downloadButton("deGeneSave","Download DE gene list"),
+             downloadButton("heatmapSave","Save as PDF"))
     ),
     fixedRow(plotOutput("dotplot",height="600px")),
     hr(),
@@ -684,19 +692,24 @@ runShiny <- function(filePath,outPath,
                column(6,uiOutput("setScatterX"))
              ),
              fixedRow(
-               column(8,radioButtons("scatterInput",label="Gene stat to display:",
+               column(6,downloadButton("CGSsaveY","Download cluster gene stats")),
+               column(6,downloadButton("CGSsaveX","Download cluster gene stats"))
+             ),
+             hr(),
+             fixedRow(
+               column(6,radioButtons("scatterInput",label="Gene stat to display:",
                                      choices=c("Mean gene expression"="MTC",
                                                "Detection rate"="DR",
                                                "Mean detected gene expression"="MDTC"))),
-               column(4,radioButtons("scatterLine",label="Difference calculation:",
+               column(6,radioButtons("scatterLine",label="Difference calculation:",
                                      choices=c("Subtraction"="sub","From line of best fit"="lbf")))
              ),
              fixedRow(
-               column(8,radioButtons("diffLabelType",label="Label genes by:",
+               column(6,radioButtons("diffLabelType",label="Label genes by:",
                                       choices=c("Most different by calculation"="diff",
                                                 "Top DE genes (from heatmap)"="de",
-                                                "Genes symbols from search box above"="search"))),
-               column(4,checkboxGroupInput("scatterLabelAngle",label="Plot options:",
+                                                "Genes from search box above"="search"))),
+               column(6,checkboxGroupInput("scatterLabelAngle",label="Plot options:",
                                            choices=c("Flip label angle"="flip")))
                ),
              fixedRow(column(12,uiOutput("diffLabelSelect"))),
@@ -1504,6 +1517,14 @@ runShiny <- function(filePath,outPath,
       }
     )
     
+    output$CGSsave0 <- downloadHandler(
+      filename=function() { paste0("ClustGeneStats_",input$DEclustNum,".txt") },
+      content=function(file) {
+        outTable <- d$CGS[[res()]][[input$DEclustNum]][,c("MTC","DR","MDTC")]
+        write.table(outTable,file,quote=F,sep="\t",row.names=T,col.names=NA)
+      }
+    )
+    
     output$deGeneSave <- downloadHandler(
       filename=function() { paste0(input$heatG,"_",input$DEclustNum,".txt") },
       content=function(file) {
@@ -1976,6 +1997,7 @@ runShiny <- function(filePath,outPath,
         actionButton("updateForViz2","Save this comparison to disk",icon("save"))
       } 
     })
+    
     output$setScatterY <- renderUI({
       if (length(res()) > 0) {
         if ("Unselected" %in% levels(clusts())) {
@@ -1999,6 +2021,21 @@ runShiny <- function(filePath,outPath,
         }
       }
     })
+    output$CGSsaveY <- downloadHandler(
+      filename=function() { paste0("ClustGeneStats_",input$ssY,".txt") },
+      content=function(file) {
+        outTable <- d$CGS[[res()]][[input$ssY]][,c("MTC","DR","MDTC")]
+        write.table(outTable,file,quote=F,sep="\t",row.names=T,col.names=NA)
+      }
+    )
+    output$CGSsaveX <- downloadHandler(
+      filename=function() { paste0("ClustGeneStats_",input$ssX,".txt") },
+      content=function(file) {
+        outTable <- d$CGS[[res()]][[input$ssX]][,c("MTC","DR","MDTC")]
+        write.table(outTable,file,quote=F,sep="\t",row.names=T,col.names=NA)
+      }
+    )
+    
     output$diffLabelSelect <- renderUI({
       if (input$diffLabelType == "diff") {
         sliderInput("diffCount",min=1,max=100,value=5,step=1,width="100%",
