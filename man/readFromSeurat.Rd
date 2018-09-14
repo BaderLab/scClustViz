@@ -18,7 +18,9 @@ The function returns a list containing input data necessary for both
     \item{md}{The metadata dataframe, not including cluster assignments.} 
     \item{cl}{The cluster assignment dataframe, containing cluster 
       assignments for each resolution tested. The columns will be sorted in 
-      order of increasing resolution (k, number of clusters).}
+      order of increasing resolution (k, number of clusters). Any dashes in 
+      cluster names will be replaced with underscores to prevent conflicts 
+      with comparison naming conventions.}
     \item{dr_clust}{The cell embeddings used in the clustering, from PCA.}
     \item{dr_viz}{The cell embeddings used for visualization in 2D, from 
       tSNE.}

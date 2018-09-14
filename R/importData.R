@@ -14,7 +14,9 @@
 #'     \item{md}{The metadata dataframe, not including cluster assignments.} 
 #'     \item{cl}{The cluster assignment dataframe, containing cluster 
 #'       assignments for each resolution tested. The columns will be sorted in 
-#'       order of increasing resolution (k, number of clusters).}
+#'       order of increasing resolution (k, number of clusters). Any dashes in 
+#'       cluster names will be replaced with underscores to prevent conflicts 
+#'       with comparison naming conventions.}
 #'     \item{dr_clust}{The cell embeddings used in the clustering, from PCA.}
 #'     \item{dr_viz}{The cell embeddings used for visualization in 2D, from 
 #'       tSNE.}
@@ -88,7 +90,13 @@ readFromSeurat <- function(inD) {
     cl <- data.frame(inD@meta.data[,grepl("res\\.[0-9]",colnames(inD@meta.data))],stringsAsFactors=T)
     colnames(cl) <- grep("res\\.[0-9]",colnames(inD@meta.data),value=T)
   }
-  rownames(cl) <- rownames(inD@meta.data) 
+  if (nrow(cl) < 1) {
+    stop("Can't find any clustering results. Try readFromManual to manually specify cluster results.")
+  }
+  rownames(cl) <- rownames(inD@meta.data)
+  for (l in names(cl)) {
+    levels(cl[[l]]) <- gsub("-","_",levels(cl[[l]]))
+  }
   out$cl <- cl[order(sapply(cl,function(X) length(levels(X))))]
   # cluster assignments per clustering resolution (dataframe: cells x cluster labels as factors)
   
@@ -142,7 +150,9 @@ readFromSeurat <- function(inD) {
 #'     \item{md}{The metadata dataframe, not including cluster assignments.} 
 #'     \item{cl}{The cluster assignment dataframe, containing cluster 
 #'       assignments for each resolution tested. The columns will be sorted in 
-#'       order of increasing resolution (k, number of clusters).}
+#'       order of increasing resolution (k, number of clusters).Any dashes in 
+#'       cluster names will be replaced with underscores to prevent conflicts 
+#'       with comparison naming conventions.}
 #'     \item{dr_clust}{The cell embeddings used in the clustering.}
 #'     \item{dr_viz}{The cell embeddings used for visualization in 2D.}
 #'   }
@@ -191,6 +201,9 @@ readFromManual <- function(nge,md,cl,dr_clust,dr_viz) {
     for (X in which(sapply(out$cl,is.character))) {
       out$cl[[X]] <- as.factor(out$cl[[X]])
     }
+  }
+  for (l in names(out$cl)) {
+    levels(out$cl[[l]]) <- gsub("-","_",levels(out$cl[[l]]))
   }
   out$cl <- out$cl[order(sapply(out$cl,function(X) length(levels(X))))]
   out$dr_clust <- dr_clust

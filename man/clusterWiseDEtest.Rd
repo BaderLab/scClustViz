@@ -141,7 +141,9 @@ Performs differential expression testing between clusters for all cluster
 solutions in order to assess the biological relevance of each cluster
 solution. Differential expression testing is done using the Wilcoxon rank-sum
 test implemented in the base R \code{stats} package. For details about what
-is being compared in the tests, see the "Value" section.
+is being compared in the tests, see the "Value" section. This is a wrapper 
+function for running \code{\link{calcAllDE}} over each cluster resolution in 
+the input.
 }
 \examples{
 \dontrun{

@@ -1,6 +1,7 @@
 library(scales)
 library(RColorBrewer)
-setEPS()
+library(grDevices)
+#setEPS()
 
 mean.logX <- function(data,ex=2,pc=1,pc.out) { log(mean(ex^data - pc) + pc.out,base=ex) }
 halfway <- 10
@@ -15,7 +16,7 @@ pseudocount.use <- c(1,1e-99,1/nrow(testData))
 testLogMeans <- sapply(pseudocount.use,function(X) apply(logTestData,MARGIN=1,FUN=mean.logX,pc.out=X))
 logGER <- apply(testLogMeans,2,function(X) X[halfway] - X)
 
-postscript(file="Fig1a.eps",height=6,width=6)
+cairo_ps(file="Fig1a.eps",height=6,width=6,fallback_resolution=600)
 layout(matrix(c(3,1,4,2),2),widths=c(6,1),heights=c(1,6))
 par(mar=c(3,3,.1,.1),mgp=2:0)
 plot(x=NULL,y=NULL,xlim=range(log2(GER)[-1]),ylim=c(min(logGER),max(logGER[,-2])),
@@ -40,7 +41,7 @@ plot(x=1,y=logGER[1,2],xaxt="n",yaxt="n",cex=1.5,
 dev.off()
 
 
-postscript(file="Fig1b.eps",height=3,width=6)
+cairo_ps(file="Fig1b.eps",height=3,width=6,fallback_resolution=600)
 layout(rbind(1:2),widths=c(6,1))
 par(mar=c(3,3,1,.1),mgp=2:0)
 plot(x=NULL,y=NULL,xlim=c(min(logGER),max(logGER[,-2])),ylim=c(.5,3.5),

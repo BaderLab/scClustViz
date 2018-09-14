@@ -1398,13 +1398,27 @@ runShiny <- function(filePath,outPath,
     })
     
     temp_DR <- reactive({
-      sapply(d$CGS[[res()]],function(X) X[heatGenes(),"DR"])
+      tempOut <- sapply(d$CGS[[res()]],function(X) X[heatGenes(),"DR"])
+      if (is.vector(tempOut)) {
+        tempOut <- matrix(tempOut,1,dimnames=list(NULL,names(tempOut)))
+      }
+      return(tempOut)
     })
     temp_MDTC <- reactive({
-      sapply(d$CGS[[res()]],function(X) X[heatGenes(),"MDTC"])
+      tempOut <- sapply(d$CGS[[res()]],function(X) X[heatGenes(),"MDTC"])
+      if (is.vector(tempOut)) {
+        tempOut <- matrix(tempOut,1,dimnames=list(NULL,names(tempOut)))
+      }
+      return(tempOut)
     })
     
-    hG <- reactive(hclust(dist(temp_DR()),"complete"))
+    hG <- reactive({
+      if (nrow(temp_DR()) > 1) {
+        hclust(dist(temp_DR()),"complete")
+      } else {
+        list(order=1)
+      }
+    })
     hC <- reactive({ 
       if (exists("deDist")) {
         if (res() %in% names(deDist)) {
@@ -1453,7 +1467,7 @@ runShiny <- function(filePath,outPath,
           temp <- symbolMap[tempLabCol]
           tempLabCol[!is.na(temp)] <- temp[!is.na(temp)]
         }
-        DR <- temp_DR()[hG()$order,hC()$order]
+        DR <- temp_DR()[hG()$order,hC()$order,drop=F]
         temp <- range(sapply(d$CGS[[res()]],function(X) X[,"MDTC"]))
         temp <- seq(temp[1],temp[2],length.out=101)
         MDTC <- findInterval(as.vector(temp_MDTC()[hG()$order,hC()$order]),
@@ -1497,8 +1511,10 @@ runShiny <- function(filePath,outPath,
              ylim=c(0.5,length(hC()$order)+.5),yaxs="i",yaxt="n")
         
         par(mar=c(0,0,0,.5))
-        plot(as.dendrogram(hG()),leaflab="none",
-             xlim=c(0.5,length(hG()$order)+.5),xaxs="i",yaxt="n")
+        if (class(hG()) == "hclust") {
+          plot(as.dendrogram(hG()),leaflab="none",
+               xlim=c(0.5,length(hG()$order)+.5),xaxs="i",yaxt="n")
+        }
       }
     }
     
