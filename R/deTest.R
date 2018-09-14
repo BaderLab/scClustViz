@@ -341,42 +341,42 @@ calcAllDE <- function(nge,cl,params) {
   print("")
   print(paste("Calculating DE vs tissue with",length(levels(cl)),"clusters"))
   print("-- logGER calculations --")
-  deT_effectSize <- calcESvsRest(nge=nge,
-                                      cl=cl,
-                                      CGS=out[["CGS"]],
-                                      exponent=params$exponent,
-                                      pseudocount=params$pseudocount,
-                                      logGERthresh=params$logGERthresh)
-  if (any(sapply(deT_effectSize,length) < 1)) {
+  deTes <- calcESvsRest(nge=nge,
+                        cl=cl,
+                        CGS=out[["CGS"]],
+                        exponent=params$exponent,
+                        pseudocount=params$pseudocount,
+                        logGERthresh=params$logGERthresh)
+  if (any(sapply(deTes,length) < 1)) {
     stop("Gene filtering threshold is set too high.")
   }
   print("-- Wilcoxon rank sum calculations --")
   out[["deTissue"]] <- calcDEvsRest(nge,
                                     cl=cl,
-                                    deT_effectSize=deT_effectSize,
+                                    deTes=deTes,
                                     exponent=params$exponent,
                                     pseudocount=params$pseudocount,
                                     FDRthresh=params$FDRthresh)
   print("")
   print(paste("Calculating marker DE with",ncol(combn(levels(cl),2)),"combinations of clusters"))
-  deM_effectSize <- calcESvsCombn(cl=cl,
-                                  CGS=out[["CGS"]],
-                                  threshType=params$threshType,
-                                  logGERthresh=params$logGERthresh,
-                                  dDRthresh=params$dDRthresh)
-  if (any(sapply(deM_effectSize,nrow) < 1)) {
+  deMes <- calcESvsCombn(cl=cl,
+                         CGS=out[["CGS"]],
+                         threshType=params$threshType,
+                         logGERthresh=params$logGERthresh,
+                         dDRthresh=params$dDRthresh)
+  if (any(sapply(deMes,nrow) < 1)) {
     stop("Gene filtering threshold is set too high.")
   }
   out[["deVS"]] <- calcDEvsCombn(nge=nge,
-                            cl=cl,
-                            deMes=deM_effectSize,
-                            threshType=params$threshType,
-                            FDRthresh=params$FDRthresh)
+                                 cl=cl,
+                                 deMes=deMes,
+                                 threshType=params$threshType,
+                                 FDRthresh=params$FDRthresh)
   out[["deMarker"]] <- calcMarker(deVS=out[["deVS"]],
-                                    FDRthresh=params$FDRthresh)
+                                  FDRthresh=params$FDRthresh)
   out[["deDist"]] <- calcDist(deVS=out[["deVS"]])
   out[["deNeighb"]] <- calcNeighb(deVS=out[["deVS"]],
-                                    deDist=out[["deDist"]])
+                                  deDist=out[["deDist"]])
   return(out)
 }
 
@@ -469,11 +469,11 @@ calcCGS <- function(nge,cl,exponent,pseudocount) {
 #'@export
 
 calcESvsRest <- function(nge,cl,CGS,exponent,pseudocount,logGERthresh) {
-  deT_effectSize <- pbapply::pbsapply(levels(cl),function(i) 
+  deTes <- pbapply::pbsapply(levels(cl),function(i) 
     CGS[[i]]$MTC - apply(nge[,cl != i],1,function(Y) 
       meanLogX(Y,ncell=ncol(nge),ex=exponent,pc=pseudocount)))
-  return(sapply(colnames(deT_effectSize),function(X) 
-    deT_effectSize[deT_effectSize[,X] > logGERthresh,X]))
+  return(sapply(colnames(deTes),function(X) 
+    deTes[deTes[,X] > logGERthresh,X]))
 }
 
 
@@ -487,7 +487,7 @@ calcESvsRest <- function(nge,cl,CGS,exponent,pseudocount,logGERthresh) {
 #'
 #'@param cl The factor with cluster assignments per cell (column of nge).
 #'
-#'@param deT_effectSize The output from \code{\link{calcESvsRest}}.
+#'@param deTes The output from \code{\link{calcESvsRest}}.
 #'
 #'@param exponent The log base of your normalized input data. Seurat
 #'  normalization uses the natural log (set this to exp(1)), while other
@@ -516,12 +516,12 @@ calcESvsRest <- function(nge,cl,CGS,exponent,pseudocount,logGERthresh) {
 #'
 #'@export
 
-calcDEvsRest <- function(nge,cl,deT_effectSize,exponent,pseudocount,FDRthresh) {
+calcDEvsRest <- function(nge,cl,deTes,exponent,pseudocount,FDRthresh) {
   deT_pVal <- pbapply::pbsapply(levels(cl),function(i)
-    apply(nge[names(deT_effectSize[[i]]),],1,function(X) 
+    apply(nge[names(deTes[[i]]),],1,function(X) 
       suppressWarnings(wilcox.test(X[cl == i],X[cl != i])$p.value)),simplify=F)
   tempOut <- sapply(levels(cl),function(i) 
-    data.frame(logGER=deT_effectSize[[i]],pVal=deT_pVal[[i]],
+    data.frame(logGER=deTes[[i]],pVal=deT_pVal[[i]],
                qVal=p.adjust(deT_pVal[[i]],"fdr"))[order(deT_pVal[[i]]),],
     simplify=F)
   return(sapply(tempOut,function(X) X[X$qVal <= FDRthresh,],simplify=F))
@@ -532,8 +532,8 @@ calcDEvsRest <- function(nge,cl,deT_effectSize,exponent,pseudocount,FDRthresh) {
 #'
 #'Calculates the log-ratios of gene expression or difference in detection rate
 #'for all genes in each of the potential combinations of clusters to compare.
-#'This is used to determine the genes used in deVS calculations. You
-#'probably don't need to use this unless you're trying to customize
+#'This is used to determine the genes used in deVS calculations. You probably
+#'don't need to use this unless you're trying to customize
 #'\code{\link{clusterWiseDEtest}}.
 #'
 #'@param cl The factor with cluster assignments per cell (column of nge).
@@ -557,12 +557,13 @@ calcDEvsRest <- function(nge,cl,deT_effectSize,exponent,pseudocount,FDRthresh) {
 #'  clusters to use as filter for determining which genes to test for
 #'  differential expression between clusters.
 #'
-#'@return The function returns a list where each list element is the effect size
-#'  (log-ratios of gene expression OR difference in detection rate) when
-#'  comparing each gene in a cluster to the rest of the cells as a whole in a
-#'  one vs all comparison. These named vectors are filtered to only include
-#'  those gene that pass the relevant threshold, and thus the names for each list
-#'  entry correspond to the genes to test in \code{\link{calcDEvsCombn}}.
+#'@return The function returns a list where each list element is a dataframe
+#'  with effect size statistics (log-ratios of gene expression and difference in
+#'  detection rate) when comparing each gene in a cluster to the rest of the
+#'  cells as a whole in a one vs all comparison. These dataframes are filtered
+#'  to only include those gene that pass the relevant threshold, and thus the
+#'  rownames for each list entry correspond to the genes to test in
+#'  \code{\link{calcDEvsCombn}}.
 #'
 #'@seealso \code{\link{calcDEvsCombn}} for the followup DE calculation, and
 #'  \code{\link{clusterWiseDEtest}} for the wrapper function for all DE testing.
@@ -572,16 +573,16 @@ calcDEvsRest <- function(nge,cl,deT_effectSize,exponent,pseudocount,FDRthresh) {
 calcESvsCombn <- function(cl,CGS,threshType,logGERthresh,dDRthresh) {
   combos <- combn(levels(cl),2)
   colnames(combos) <- apply(combos,2,function(X) paste(X,collapse="-"))
-  deM_effectSize <- apply(combos,2,function(i) 
+  deMes <- apply(combos,2,function(i) 
     data.frame(logGER=CGS[[i[1]]]$MTC - CGS[[i[2]]]$MTC,
                dDR=CGS[[i[1]]]$DR - CGS[[i[2]]]$DR))
-  for (i in names(deM_effectSize)) {
-    rownames(deM_effectSize[[i]]) <- rownames(CGS[[1]])
+  for (i in names(deMes)) {
+    rownames(deMes[[i]]) <- rownames(CGS[[1]])
   }
-  return(sapply(names(deM_effectSize),function(X) 
-    deM_effectSize[[X]][abs(deM_effectSize[[X]][,threshType]) > switch(threshType,
-                                                                       dDR=dDRthresh,
-                                                                       logGER=logGERthresh),],
+  return(sapply(names(deMes),function(X) 
+    deMes[[X]][abs(deMes[[X]][,threshType]) > switch(threshType,
+                                                     dDR=dDRthresh,
+                                                     logGER=logGERthresh),],
     simplify=F))
 }
 

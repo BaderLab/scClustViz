@@ -2434,25 +2434,11 @@ runShiny <- function(filePath,outPath,
           d$cl[[newRes]] <- factor(temp)
           
           # ^^^ Gene stats per set --------------------------------------------------------
-          incProgress(amount=1/6,detail="Gene detection rate per set")
-          DR <- apply(nge,1,function(X) 
-            tapply(X,d$cl[,newRes],function(Y) sum(Y>0)/length(Y)))
-          
-          incProgress(amount=1/6,detail="Mean detected gene expression per set")
-          MDTC <- apply(nge,1,function(X) 
-            tapply(X,d$cl[,newRes],function(Y) {
-              temp <- meanLogX(Y[Y>0],ncell=ncol(nge),ex=exponent,pc=pseudocount)
-              if (is.na(temp)) { temp <- 0 }
-              return(temp)
-            }))
-          
-          incProgress(amount=1/6,detail="Mean gene expression per set")
-          MTC <- apply(nge,1,function(X) 
-            tapply(X,d$cl[,newRes],function(Y) 
-              meanLogX(Y,ncell=ncol(nge),ex=exponent,pc=pseudocount)))
-
-          d$CGS[[newRes]] <- sapply(levels(d$cl[,newRes]),function(X) 
-            data.frame(DR=DR[X,],MDTC=MDTC[X,],MTC=MTC[X,]),simplify=F)
+          incProgress(amount=1/6,detail="Cluster-wise gene stats")
+          d$CGS[[newRes]] <- calcCGS(nge=nge,
+                                     cl=d$cl[,newRes],
+                                     exponent=exponent,
+                                     pseudocount=pseudocount)
           for (i in names(d$CGS[[newRes]])) {
             if (exists("symbolMap")) {
               d$CGS[[newRes]][[i]]$genes <- symbolMap[rownames(d$CGS[[newRes]][[i]])]
@@ -2482,63 +2468,55 @@ runShiny <- function(filePath,outPath,
           }
           
           # ^^^ deTissue - DE per cluster vs all other data -------------------------------
-          incProgress(amount=1/6,detail="DE vs tissue logGER calculations")
-          deT_logGER <- sapply(levels(d$cl[,newRes])[1:2],function(i) 
-            MTC[i,] - apply(nge[,d$cl[,newRes] != i],1,function(Y) 
-              meanLogX(Y,ncell=ncol(nge),ex=exponent,pc=pseudocount)))
-          deT_genesUsed <- apply(deT_logGER,2,function(X) which(X > logGERthresh))  
-          if (any(sapply(deT_genesUsed,length) < 1)) {
-            stop(paste0("logGERthresh should be set to less than ",
-                        min(apply(deT_logGER,2,function(X) max(abs(X)))),
-                        ", the largest magnitude logGER between cluster ",
-                        names(which.min(apply(deT_logGER,2,function(X) max(abs(X))))),
-                        " and the remaining data."))
+          incProgress(amount=2/6,detail="DE vs tissue logGER calculations")
+          print("DE vs tissue logGER calculations")
+          deTes <- calcESvsRest(nge=nge,
+                                cl=d$cl[,newRes],
+                                CGS=d$CGS[[newRes]],
+                                exponent=exponent,
+                                pseudocount=pseudocount,
+                                logGERthresh=logGERthresh)
+          if (any(sapply(deTes,length) < 1)) {
+            stop("Gene filtering threshold is set too high.")
           }
           incProgress(amount=1/6,detail="DE vs tissue Wilcoxon rank sum calculations")
-          deT_pVal <- sapply(levels(d$cl[,newRes])[1:2],function(i)
-            apply(nge[deT_genesUsed[[i]],],1,function(X) 
-              wilcox.test(X[d$cl[,newRes] == i],X[d$cl[,newRes] != i])$p.value),simplify=F)
-          d$deTissue[[newRes]] <- sapply(levels(d$cl[,newRes])[1:2],function(i) 
-            data.frame(logGER=deT_logGER[deT_genesUsed[[i]],i],
-                       pVal=deT_pVal[[i]])[order(deT_pVal[[i]]),],simplify=F)
-          tempQval <- tapply(
-            p.adjust(do.call(rbind,d$deTissue[[newRes]])$pVal,"fdr"),
-            rep(names(sapply(d$deTissue[[newRes]],nrow)),sapply(d$deTissue[[newRes]],nrow)),
-            c)
-          for (i in names(d$deTissue[[newRes]])) { 
-            d$deTissue[[newRes]][[i]] <- d$deTissue[[newRes]][[i]][tempQval[[i]] <= FDRthresh,]
-            d$deTissue[[newRes]][[i]]$qVal <- tempQval[[i]][tempQval[[i]] <= FDRthresh] 
-          }
+          print("DE vs tissue DE calculations")
+          d$deTissue[[newRes]] <- calcDEvsRest(nge,
+                                               cl=d$cl[,newRes],
+                                               deTes=deTes,
+                                               exponent=exponent,
+                                               pseudocount=pseudocount,
+                                               FDRthresh=FDRthresh)
           
           # ^^^ deMarker - DE per cluster vs each other cluster ---------------------------
           incProgress(amount=1/6,detail="Calculating Set A vs Set B")
-          
-          deM_dDR <- DR["Set A",] - DR["Set B",]
-          deM_logGER <- MTC["Set A",] - MTC["Set B",]
-          deM_genesUsed <- switch(threshType,
-                                  dDR=which(abs(deM_dDR) > dDRthresh),
-                                  logGER=which(abs(deM_logGER) > logGERthresh))
-          if (length(deM_genesUsed) < 1) {
+          print("Set VS effect size calcs")
+          deMes <- list("Set A-Set B"=data.frame(
+            logGER=d$CGS[[newRes]][["Set A"]]$MTC - d$CGS[[newRes]][["Set B"]]$MTC,
+            dDR=d$CGS[[newRes]][["Set A"]]$DR - d$CGS[[newRes]][["Set B"]]$DR))
+          rownames(deMes[["Set A-Set B"]]) <- rownames(d$CGS[[newRes]][["Set A"]])
+          deMes[["Set A-Set B"]] <- deMes[["Set A-Set B"]][switch(
+            threshType,
+            dDR=abs(deMes[["Set A-Set B"]]$dDR) > dDRthresh,
+            logGER=abs(deMes[["Set A-Set B"]]$dDR) > logGERthresh),]
+          if (nrow(deMes[["Set A-Set B"]]) < 1) {
             stop("Gene filtering threshold is set too high.")
           }
-          
-          deM_pVal <- apply(nge[deM_genesUsed,],1,function(X) 
-            wilcox.test(X[d$cl[,newRes] == "Set A"],
-                        X[d$cl[,newRes] == "Set B"])$p.value)
-          
-          temp_deVS <- data.frame(dDR=deM_dDR[deM_genesUsed],
-                                  logGER=deM_logGER[deM_genesUsed],
-                                  pVal=deM_pVal)[order(deM_pVal),]
-          temp_deVS$qVal <- p.adjust(temp_deVS$pVal,"fdr")
-          
-          d$deMarker[[newRes]] <- list(
-            "Set A"=temp_deVS[temp_deVS[,threshType] > 0 & temp_deVS$qVal <= FDRthresh,],
-            "Set B"=temp_deVS[temp_deVS[,threshType] < 0 & temp_deVS$qVal <= FDRthresh,]
-          )
+          print("Set VS effect DE calcs")
+          temp_deVS <- calcDEvsCombn(nge=nge,
+                                     cl=d$cl[,newRes],
+                                     deMes=deMes,
+                                     threshType=threshType,
+                                     FDRthresh=FDRthresh)
+          print("Set VS DE FDR threshold")
+          d$deMarker[[newRes]] <- list("Set A"=temp_deVS$`Set A`$`Set B`,
+                                       "Set B"=temp_deVS$`Set B`$`Set A`)
           d$deMarker[[newRes]][["Set B"]]$dDR <- d$deMarker[[newRes]][["Set B"]]$dDR * -1
           d$deMarker[[newRes]][["Set B"]]$logGER <- d$deMarker[[newRes]][["Set B"]]$logGER * -1
           
+          incProgress(amount=1/6,detail="Done")
           selectedSets$a <- selectedSets$b <- NULL
+          filtList$filts <- NULL
           options(warn=temp_warn$warn)
         },message="DE calculations:")      
         

@@ -29,18 +29,19 @@ clusters to use as filter for determining which genes to test for
 differential expression between clusters.}
 }
 \value{
-The function returns a list where each list element is the effect size
- (log-ratios of gene expression OR difference in detection rate) when
- comparing each gene in a cluster to the rest of the cells as a whole in a
- one vs all comparison. These named vectors are filtered to only include
- those gene that pass the relevant threshold, and thus the names for each list
- entry correspond to the genes to test in \code{\link{calcDEvsCombn}}.
+The function returns a list where each list element is a dataframe
+ with effect size statistics (log-ratios of gene expression and difference in
+ detection rate) when comparing each gene in a cluster to the rest of the
+ cells as a whole in a one vs all comparison. These dataframes are filtered
+ to only include those gene that pass the relevant threshold, and thus the
+ rownames for each list entry correspond to the genes to test in
+ \code{\link{calcDEvsCombn}}.
 }
 \description{
 Calculates the log-ratios of gene expression or difference in detection rate
 for all genes in each of the potential combinations of clusters to compare.
-This is used to determine the genes used in deVS calculations. You
-probably don't need to use this unless you're trying to customize
+This is used to determine the genes used in deVS calculations. You probably
+don't need to use this unless you're trying to customize
 \code{\link{clusterWiseDEtest}}.
 }
 \seealso{

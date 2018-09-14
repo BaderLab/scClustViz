@@ -4,14 +4,14 @@
 \alias{calcDEvsRest}
 \title{Do deTissue calculation}
 \usage{
-calcDEvsRest(nge, cl, deT_effectSize, exponent, pseudocount, FDRthresh)
+calcDEvsRest(nge, cl, deTes, exponent, pseudocount, FDRthresh)
 }
 \arguments{
 \item{nge}{The log-normalized gene expression matrix.}
 
 \item{cl}{The factor with cluster assignments per cell (column of nge).}
 
-\item{deT_effectSize}{The output from \code{\link{calcESvsRest}}.}
+\item{deTes}{The output from \code{\link{calcESvsRest}}.}
 
 \item{exponent}{The log base of your normalized input data. Seurat
 normalization uses the natural log (set this to exp(1)), while other
