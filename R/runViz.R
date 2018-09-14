@@ -1651,7 +1651,7 @@ runShiny <- function(filePath,outPath,
              data=d$CGS[[res()]][[hiC()]][
                !((d$CGS[[res()]][[hiC()]]$cMu | d$CGS[[res()]][[hiC()]]$cMs) & 
                    d$CGS[[res()]][[hiC()]]$overCut),],
-             col=alpha("black",0.3),
+             col=alpha("black",0.2),pch=20,
              xlab="Proportion of cells in which gene was detected",
              ylab=paste("Mean normalized gene expression where detected",temp_ylab))
         title(paste0("Cluster ", hiC(),": ",d$clusterID[[res()]][hiC()]),cex=1.2)
