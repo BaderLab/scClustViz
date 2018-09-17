@@ -583,7 +583,7 @@ runShiny <- function(filePath,outPath,
                                       "From gene search"="search"))),
       column(4,uiOutput("cgSelect")),
       column(5,checkboxGroupInput("bxpOpts",label="Figure options:",
-                                  selected=c("sct","rnk","notch"),inline=T,
+                                  selected=c("sct","rnk"),inline=T,
                                   choices=list("Include scatterplot"="sct",
                                                "Include gene rank"="rnk",
                                                "Show notch"="notch")))
@@ -1144,7 +1144,6 @@ runShiny <- function(filePath,outPath,
     })
     output$scatterLog <- renderUI({
       temp_choices <- c()
-      temp_selected <- NULL
       if ((is.factor(d$md[,input$mdScatterX]) | is.character(d$md[,input$mdScatterX])) |
           (is.factor(d$md[,input$mdScatterY]) | is.character(d$md[,input$mdScatterY]))) {
         temp_choices <- append(temp_choices,c("Show notch"="notch"))
@@ -1159,9 +1158,8 @@ runShiny <- function(filePath,outPath,
           temp_choices <- append(temp_choices,c("Log y axis"="y"))
         }
       }
-      if ("notch" %in% temp_choices) { temp_selected <- "notch" }
       checkboxGroupInput("scatterLog",inline=F,label=NULL,
-                         choices=temp_choices,selected=temp_selected)
+                         choices=temp_choices,selected=NULL)
     })
     
     plot_mdScatter <- function() {
@@ -1266,10 +1264,10 @@ runShiny <- function(filePath,outPath,
       } else {
         if (all(d$md[,input$mdFactorData] > 0)) {
           checkboxGroupInput("mdFactorOpts",inline=T,label="Figure options",
-                             choices=c("Log scale"="y","Show notch"="notch"),selected="notch")
+                             choices=c("Log scale"="y","Show notch"="notch"),selected=NULL)
         } else {
           checkboxGroupInput("mdFactorOpts",inline=T,label="Figure options",
-                             choices=c("Show notch"="notch"),selected="notch")
+                             choices=c("Show notch"="notch"),selected=NULL)
         }
       }
     })
@@ -1300,7 +1298,7 @@ runShiny <- function(filePath,outPath,
         mtext(input$mdFactorData,side=3,adj=0,font=2,line=1,cex=1.2)
       } else {
         par(mar=c(3,3,2,1),mgp=2:0)
-        boxplot(tapply(d$md[,input$mdFactorData],cl[,res()],c),
+        boxplot(tapply(d$md[,input$mdFactorData],d$cl[,res()],c),
                 ylab=input$mdFactorData,notch="notch" %in% input$mdFactorOpts,
                 log=sub("notch","",paste(input$mdFactorOpts,collapse="")),
                 border=clustCols(res()),col=alpha(clustCols(res()),0.3))
@@ -1786,7 +1784,7 @@ runShiny <- function(filePath,outPath,
         temp_pos <- switch(as.character(length(levels(clusts())) > 1),"TRUE"=hC()$order,"FALSE"=1)
         layout(matrix(2:1,nrow=2),heights=c(1,4))
         par(mar=c(3,3,0,3),mgp=2:0)
-        suppressWarnings(boxplot(vector("list",length(levels(clusts()))),
+        suppressWarnings(boxplot(vector("list",length(levels(clusts())[levels(clusts()) != "Unselected"])),
                                  ylim=range(nge[input$cgGene,]),
                                  ylab=paste(input$cgGene,"normalized gene expression",temp_ylab),
                                  xlab=NA,xaxt="n"))
@@ -2431,7 +2429,7 @@ runShiny <- function(filePath,outPath,
           names(temp) <- rownames(d$cl)
           temp[selectedSets$a] <- "Set A"
           temp[selectedSets$b] <- "Set B"
-          d$cl[[newRes]] <- factor(temp)
+          d$cl[[newRes]] <- factor(temp,levels=c("Set A","Set B"))
           
           # ^^^ Gene stats per set --------------------------------------------------------
           incProgress(amount=1/6,detail="Cluster-wise gene stats")
@@ -2515,6 +2513,8 @@ runShiny <- function(filePath,outPath,
           d$deMarker[[newRes]][["Set B"]]$logGER <- d$deMarker[[newRes]][["Set B"]]$logGER * -1
           
           incProgress(amount=1/6,detail="Done")
+          levels(d$cl[,newRes]) <- c(levels(d$cl[,newRes]),"Unselected")
+          d$cl[is.na(d$cl[,newRes]),newRes] <- "Unselected"
           selectedSets$a <- selectedSets$b <- NULL
           filtList$filts <- NULL
           options(warn=temp_warn$warn)

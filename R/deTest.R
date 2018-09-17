@@ -470,7 +470,7 @@ calcCGS <- function(nge,cl,exponent,pseudocount) {
 
 calcESvsRest <- function(nge,cl,CGS,exponent,pseudocount,logGERthresh) {
   deTes <- pbapply::pbsapply(levels(cl),function(i) 
-    CGS[[i]]$MTC - apply(nge[,cl != i],1,function(Y) 
+    CGS[[i]]$MTC - apply(nge[,(cl != i | is.na(cl))],1,function(Y) 
       meanLogX(Y,ncell=ncol(nge),ex=exponent,pc=pseudocount)))
   return(sapply(colnames(deTes),function(X) 
     deTes[deTes[,X] > logGERthresh,X]))
