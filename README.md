@@ -194,7 +194,65 @@ MyDataPackage::viewMyData()
 ```
 
 # scRNAseq analysis pipeline
-*Currently being updated to use the functions from scClustViz - check back soon.*
+Incorporating the scClustViz cluster assessment metric into your analysis 
+pipeline is simply a matter of running the differential expression testing after 
+every clustering run, instead of post-hoc. This allows you to systematically 
+increase the resolution or K parameter of the clustering algorithm until 
+statistically significant differential expression between nearest neighbour 
+clusters is lost. An example using the Seurat clustering method is shown here.
+```r
+dataPath <- "~/my_data_dir/"
+dataName <- "MySingleCellExperiment"
+DE_for_scClustViz <- list(CGS=list(),deTissue=list(),deVS=list(),
+                          deMarker=list(),deDist=list(),deNeighb=list(),
+                          params=list(exponent=exp(1),
+                                      pseudocount=1,
+                                      FDRthresh=0.01,
+                                      threshType="dDR",
+                                      dDRthresh=0.15,
+                                      logGERthresh=1))
+resVal <- 0
+while (T) {
+  resVal <- resVal + 0.1
+  print("")
+  print("")
+  print(paste0("~~~~~~~~~~~~ Clustering at res.",resVal," ~~~~~~~~~~~~"))
+  if (!any(grepl("^res",colnames(your_seurat_object@meta.data)))) {
+    your_seurat_object <- FindClusters(your_seurat_object,resolution=resVal,save.SNN=T) 
+    # You should definitely add more arguments to this ^.
+    print(paste(length(levels(your_seurat_object@ident)),"clusters identified"))
+  } else {
+    your_seurat_object <- FindClusters(your_seurat_object,resolution=resVal,reuse.SNN=T)
+    print(paste(length(levels(your_seurat_object@ident)),"clusters identified"))
+    if (length(levels(your_seurat_object@ident)) < 2) { 
+      your_seurat_object@meta.data <- your_seurat_object@meta.data[-ncol(your_seurat_object@meta.data)]
+      next 
+    }
+    if (all(your_seurat_object@meta.data[,ncol(your_seurat_object@meta.data)-1] ==
+            your_seurat_object@meta.data[,ncol(your_seurat_object@meta.data)])) { 
+      your_seurat_object@meta.data <- your_seurat_object@meta.data[,-ncol(your_seurat_object@meta.data)]
+      next 
+    }
+  }
+  res <- colnames(your_seurat_object@meta.data)[length(colnames(your_seurat_object@meta.data))]
+  tempOut <- calcAllDE(nge=your_seurat_object@data,
+                       cl=your_seurat_object@ident,
+                       params=DE_for_scClustViz$params)
+  DE_for_scClustViz$CGS[[res]] <- tempOut$CGS
+  DE_for_scClustViz$deTissue[[res]] <- tempOut$deTissue
+  DE_for_scClustViz$deVS[[res]] <- tempOut$deVS
+  DE_for_scClustViz$deMarker[[res]] <- tempOut$deMarker
+  DE_for_scClustViz$deDist[[res]] <- tempOut$deDist
+  DE_for_scClustViz$deNeighb[[res]] <- tempOut$deNeighb
+  if (min(sapply(tempOut$deNeighb,nrow)) < 1) { break } 
+  #This stops the loop from iterating once there's no DE between nearest neighbour clusters.
+}
+save(your_seurat_object,file=paste0(dataPath,"your_seurat_object.RData"))
+data_for_scClustViz <- readFromSeurat(your_seurat_object)
+save(data_for_scClustViz,DE_for_scClustViz,file=paste0(dataPath,dataName,".RData"))
+runShiny(paste0(dataPath,dataName,".RData"))
+```
+
 
 # Contact
 You can [contact me](http://www.baderlab.org/BrendanInnes) for questions about this repo.  For general scRNAseq questions, do what I do and [ask the Toronto single-cell RNAseq working group on Slack](http://bit.ly/scRNAseqTO)!  
