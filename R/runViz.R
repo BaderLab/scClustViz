@@ -380,14 +380,14 @@ runShiny <- function(filePath,outPath,
         "neighbouring cluster. Distance is Euclidean in reduced dimensional space.",
         "Positive silhouettes indicate good cluster cohesion."
       )),
-      p(paste(
+      p(HTML(paste(
         "Once you've selected an appropriate cluster solution (we suggest picking one",
         "where all nearest neighbouring clusters have differentially expressed genes",
         "between them), click <b>View clusters at this resolution</b> to proceed. If you",
         "want to save this cluster solution as the default for next time, click <b>Save",
         "this resolution as default</b>. All figures can be downloaded as PDFs by clicking",
         "the buttons next to each figure."
-      )),
+      ))),
       h1()
     ),
     fixedRow(
@@ -501,7 +501,7 @@ runShiny <- function(filePath,outPath,
         "for a gene in a cluster. Darker colour indicates higher mean normalized gene expression",
         "from the cells in which the gene was detected, and larger dot diameter indicates",
         "that the gene was detected in greater proportion of cells from the cluster.")),
-      p(paste(
+      p(HTML(paste(
         "Gene expression statistics per cluster can be downloaded as tab-separated text files",
         "by selecting the cluster and clicking <b>Download cluster gene stats</b>. These statistics",
         "are: mean log-normalized gene expression per cluster (MTC), proportion of cells in the",
@@ -510,7 +510,7 @@ runShiny <- function(filePath,outPath,
         "Differentially expressed gene lists can be downloaded as tab-separated text files",
         "by selecting the DE test type and cluster, and clicking <b>Download gene list</b>.",
         "Genes used in the dotplot can be viewed in the gene expression plots below as well."
-      )),
+      ))),
       h1()
       
     ),
