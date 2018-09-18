@@ -1696,9 +1696,9 @@ runShiny <- function(filePath,outPath,
                             deNeighb=deNeighb[[res()]])[[hiC()]])[1:input$DEgeneCount]
           if (any(degl)) {
             points(x=d$CGS[[res()]][[hiC()]]$DR[degl],y=d$CGS[[res()]][[hiC()]]$MDTC[degl],
-                   pch=16,cex=1.2,col="darkred")
+                   pch=16,cex=1.2,col="firebrick2")
             text(x=d$CGS[[res()]][[hiC()]]$DR[degl],y=d$CGS[[res()]][[hiC()]]$MDTC[degl],
-                 srt=325,cex=1.5,font=2,adj=c(1.1,-.1),col="darkred",
+                 srt=325,cex=1.5,font=2,adj=c(1.1,-.1),col="firebrick2",
                  labels=d$CGS[[res()]][[hiC()]]$genes[degl])
           }
           temp_n <- nrow(switch(input$heatG,
@@ -1709,15 +1709,15 @@ runShiny <- function(filePath,outPath,
                              deTissue=" DE genes vs rest of cells in sample",
                              deMarker=" marker genes",
                              deNeighb=" DE genes vs nearest neighbouring cluster")
-          legend("top",bty="n",pch=16,col="darkred",
+          legend("top",bty="n",pch=16,col="firebrick2",
                  legend=paste0(temp_n,temp_lab," (showing top ",
                                min(temp_n,input$DEgeneCount),")"))
         } else if (input$cgLegend == "search" & length(GOI()) > 0) {
           degl <- which(rownames(nge) %in% GOI())
           points(x=d$CGS[[res()]][[hiC()]]$DR[degl],y=d$CGS[[res()]][[hiC()]]$MDTC[degl],
-                 pch=16,cex=1.2,col="darkred")
+                 pch=16,cex=1.2,col="firebrick2")
           text(x=d$CGS[[res()]][[hiC()]]$DR[degl],y=d$CGS[[res()]][[hiC()]]$MDTC[degl],
-               srt=325,cex=1.5,font=2,adj=c(1.1,-.1),col="darkred",
+               srt=325,cex=1.5,font=2,adj=c(1.1,-.1),col="firebrick2",
                labels=d$CGS[[res()]][[hiC()]]$genes[degl])
         }
       }
@@ -1816,10 +1816,10 @@ runShiny <- function(filePath,outPath,
           points(x=seq_along(d$CGS[[res()]]),
                  y=sapply(d$CGS[[res()]][temp_pos],function(X) X[input$cgGene,"MTCrank"]) * 
                    max(nge[input$cgGene,]) + min(nge[input$cgGene,]),
-                 pch=25,cex=1.2,col="darkred",bg="firebrick2")
+                 pch=25,cex=1.2,col="firebrick2",bg="firebrick2")
           axis(side=4,at=seq(0,1,.25) * max(nge[input$cgGene,]) + min(nge[input$cgGene,]),
-               labels=paste0(seq(0,1,.25) * 100,"%"),col.ticks="darkred",col.axis="darkred")
-          mtext(side=4,line=2,text="Quantile of gene expression per cluster",col="darkred")
+               labels=paste0(seq(0,1,.25) * 100,"%"),col.ticks="firebrick2",col.axis="firebrick2")
+          mtext(side=4,line=2,text="Quantile of gene expression per cluster",col="firebrick2")
         }
         if (length(temp_pos) > 1) { 
           par(new=F,mar=c(0,3,1,3))
@@ -2183,9 +2183,9 @@ runShiny <- function(filePath,outPath,
                    col=clustCols(res())[which(levels(clusts()) == input$ssY)],cex=1.5,font=2)
             }
           } else if (input$diffLabelType == "search" & length(GOI()) > 0) {
-            points(y~x,data=compDF()[GOI(),],pch=16,col=alpha("darkred",0.8))
+            points(y~x,data=compDF()[GOI(),],pch=16,col=alpha("firebrick2",0.8))
             text(compDF()[GOI(),"x"],compDF()[GOI(),"y"],labels=compDF()[GOI(),"genes"],
-                 srt=temp_srtX,adj=temp_adjX,col="darkred",cex=1.5,font=2)
+                 srt=temp_srtX,adj=temp_adjX,col="firebrick2",cex=1.5,font=2)
           }
           mtext(paste("Higher in",input$ssY),side=3,line=-1.1,adj=0.02,font=2,
                 col=clustCols(res())[which(levels(clusts()) == input$ssY)])
