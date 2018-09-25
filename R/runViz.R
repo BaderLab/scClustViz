@@ -185,12 +185,21 @@ runShiny <- function(filePath,outPath,
   # under the names the shiny app expects.
   
   # Load parameters from clusterWiseDEtest output
-  if (missing(exponent)) { exponent <- params$exponent }
-  if (missing(pseudocount)) { pseudocount <- params$pseudocount }
-  if (missing(FDRthresh)) { FDRthresh <- params$FDRthresh }
-  if (missing(threshType)) { threshType <- params$threshType }
-  if (missing(dDRthresh)) { dDRthresh <- params$dDRthresh }
-  if (missing(logGERthresh)) { logGERthresh <- params$logGERthresh }
+  if (exists("params")) {
+    if (missing(exponent)) { exponent <- params$exponent }
+    if (missing(pseudocount)) { pseudocount <- params$pseudocount }
+    if (missing(FDRthresh)) { FDRthresh <- params$FDRthresh }
+    if (missing(threshType)) { threshType <- params$threshType }
+    if (missing(dDRthresh)) { dDRthresh <- params$dDRthresh }
+    if (missing(logGERthresh)) { logGERthresh <- params$logGERthresh }
+  } else {
+    if (missing(exponent)) { stop("Missing 'exponent' argument, suggested default = 2") }
+    if (missing(pseudocount)) { stop("Missing 'pseudocount' argument, suggested default = 1") }
+    if (missing(FDRthresh)) { stop("Missing 'FDRthresh' argument, suggested default = 0.01") }
+    if (missing(threshType)) { stop("Missing 'threshType' argument, suggested default = 'dDR'") }
+    if (missing(dDRthresh)) { stop("Missing 'dDRthresh' argument, suggested default = 0.15") }
+    if (missing(logGERthresh)) { stop("Missing 'logGERthresh' argument, suggested default = 1") }
+  }
 
   cl <- cl[names(deNeighb)]
   # Ensures that only clusters that were tested for differential expression are
@@ -1067,6 +1076,7 @@ runShiny <- function(filePath,outPath,
         } else {
           idcol <- rainbow2(length(levels(id)))
         }
+        par(mar=c(3,3,ceiling(length(levels(id))/4)+.5,1),mgp=2:0)
       } else {
         if ("log" %in% input$tsneMDlog) {
           id <- cut(log10(d$md[,input$tsneMDcol]),100)
@@ -1074,9 +1084,9 @@ runShiny <- function(filePath,outPath,
           id <- cut(d$md[,input$tsneMDcol],100)
         }
         idcol <- viridis(100,d=-1)
+        layout(cbind(2:1),heights=c(1,9))
+        par(mar=c(3,3,0,1),mgp=2:0)
       }
-      layout(cbind(2:1),heights=c(1,9))
-      par(mar=c(3,3,0,1),mgp=2:0)
       plot(x=NULL,y=NULL,xlab="tSNE_1",ylab="tSNE_2",
            xlim=range(dr_viz[,1]),ylim=range(dr_viz[,2]))
       if (any(ci())) {
@@ -1093,11 +1103,10 @@ runShiny <- function(filePath,outPath,
       }
       plot_tsne_labels()
       if (is.factor(d$md[,input$tsneMDcol]) | is.character(d$md[,input$tsneMDcol])) {
-        par(mar=c(0,0,0,0))
-        plot.new()
-        legend("bottom",bty="n",horiz=T,pch=c(NA,rep(21,length(levels(id)))),
-               legend=c(paste0(input$tsneMDcol,":"),levels(id)),
-               col=c(NA,idcol),pt.bg=c(NA,alpha(idcol,0.5)))
+        legend(x=par("usr")[2],y=par("usr")[4],xjust=1,yjust=0.05,xpd=NA,ncol=4,
+               bty="n",pch=21,legend=levels(id),col=idcol,pt.bg=alpha(idcol,0.5))
+        mtext(input$tsneMDcol,side=3,adj=0,font=2,line=ceiling(length(levels(id))/4)-1,cex=1.2)
+        
       } else {
         if ("log" %in% input$tsneMDlog) {
           tempMain <- paste(input$tsneMDcol,"(log scale)")
@@ -1287,15 +1296,16 @@ runShiny <- function(filePath,outPath,
         } else {
           idcol <- rainbow2(length(levels(id0)))
         }
-        par(mar=c(2,3,2,1),mgp=2:0)
+        par(mar=c(3,3,ceiling(length(levels(id0))/4)+.5,1),mgp=2:0)
         barplot(id,col=idcol,ylab=idylab,yaxt="n",mgp=c(2,0,0),
                 legend.text=levels(id0),font=2,
-                args.legend=list(x="topright",horiz=T,inset=c(0,-.08),bty="n"))
+                args.legend=list(x=par("usr")[2],y=par("usr")[4],
+                                 xjust=1,yjust=0.05,xpd=NA,ncol=4,bty="n"))
         axis(2)
         barplot(rep(par("usr")[3]*4.6,length(levels(clusts()))),add=T,
                 col=alpha(clustCols(res()),0.5),border=alpha(clustCols(res()),0.5))
         abline(h=0)
-        mtext(input$mdFactorData,side=3,adj=0,font=2,line=1,cex=1.2)
+        mtext(input$mdFactorData,side=3,adj=0,font=2,line=ceiling(length(levels(id0))/4)-1,cex=1.2)
       } else {
         par(mar=c(3,3,2,1),mgp=2:0)
         boxplot(tapply(d$md[,input$mdFactorData],d$cl[,res()],c),
@@ -2292,6 +2302,7 @@ runShiny <- function(filePath,outPath,
       if (input$tsneSelDEcol == paste("Clusters:",res())) {
         id <- clusts()
         idcol <- clustCols(res())
+        par(mar=c(3,3,3,1),mgp=2:0)
       } else if (is.factor(d$md[,input$tsneSelDEcol]) | is.character(d$md[,input$tsneSelDEcol])) {
         id <- as.factor(d$md[,input$tsneSelDEcol])
         if (length(levels(d$md[,input$tsneSelDEcol])) <= 8) {
@@ -2299,11 +2310,12 @@ runShiny <- function(filePath,outPath,
         } else {
           idcol <- rainbow2(length(levels(id)))
         }
+        par(mar=c(3,3,ceiling(length(levels(id))/4)+1.5,1),mgp=2:0)
       } else {
         id <- cut(d$md[,input$tsneSelDEcol],100)
         idcol <- viridis(100,d=-1)
+        par(mar=c(3,3,3,1),mgp=2:0)
       }
-      par(mar=c(3,3,3,1),mgp=2:0)
       plot(x=NULL,y=NULL,xlab="tSNE_1",ylab="tSNE_2",
            xlim=range(dr_viz[,1]),ylim=range(dr_viz[,2]))
       points(x=dr_viz[!rownames(dr_viz) %in% currSel(),1],
@@ -2317,7 +2329,6 @@ runShiny <- function(filePath,outPath,
              col=alpha(idcol,1)[id[rownames(dr_viz) %in% currSel()]],
              bg=alpha(idcol,0.6)[id[rownames(dr_viz) %in% currSel()]])
       
-      #points(dr_viz[currSel(),],pch="o",col=alpha("black",.3))
       points(x=dr_viz[selectedSets$a,1],y=dr_viz[selectedSets$a,2],
              pch=19,col="#a50026")
       points(x=dr_viz[selectedSets$b,1],y=dr_viz[selectedSets$b,2],
@@ -2330,7 +2341,8 @@ runShiny <- function(filePath,outPath,
              pch=4,col="red")
       
       
-      legend("topright",horiz=T,bty="n",xpd=NA,inset=c(0,-.06),
+      legend(x=par("usr")[2],y=par("usr")[4],
+             xjust=1,yjust=0.05,horiz=T,bty="n",xpd=NA,
              title="Selected Cells",legend=c("Set A","Set B","Both"),
              pch=c(19,19,4),col=c("#a50026","#313695","red"))
       if (input$tsneSelDEcol == paste("Clusters:",res())) {
@@ -2338,11 +2350,13 @@ runShiny <- function(filePath,outPath,
         if (!is.matrix(temp_labels)) { temp_labels <- rbind(temp_labels) }
         text(temp_labels,labels=levels(clusts()),font=2,cex=1.2)
       } else if (is.factor(d$md[,input$tsneSelDEcol]) | is.character(d$md[,input$tsneSelDEcol])) {
-        legend("topleft",bty="n",horiz=T,xpd=NA,inset=c(0,-.06),
+        legend(x=par("usr")[1],y=par("usr")[4],
+                xjust=0,yjust=0.05,bty="n",ncol=4,xpd=NA,
                pch=21,col=idcol,pt.bg=alpha(idcol,0.5),
                title=input$tsneSelDEcol,legend=levels(id))
       } else {
-        legend("topleft",bty="n",horiz=T,xpd=NA,inset=c(0,-.06),
+        legend(x=par("usr")[1],y=par("usr")[4],
+               xjust=0,yjust=0.05,bty="n",horiz=T,xpd=NA,
                pch=21,col=viridis(3,d=-1),pt.bg=viridis(3,.5,d=-1),
                title=input$tsneSelDEcol,
                legend=c(round(min(d$md[,input$tsneSelDEcol]),2),
