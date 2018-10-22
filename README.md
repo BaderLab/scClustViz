@@ -95,7 +95,7 @@ install.packages("devtools")
 # install MouseCortex (demo data from Yuzwa et al, Cell Reports 2017)
 devtools::install_github("BaderLab/MouseCortex") # this takes a minute or two
 
-# install mouse cell annotations from bioconductor (optional)
+# install mouse gene annotations from bioconductor (optional)
 source("https://bioconductor.org/biocLite.R")
 biocLite("org.Mm.eg.db")
 ```
@@ -105,6 +105,29 @@ If you're interested, `?runShiny` has example code showing the function call use
 ```r
 library(MouseCortex)
 viewMouseCortex("e13")
+```
+
+## Human Liver Atlas
+The data from the 2018 Nature Communications paper [Single cell RNA sequencing of human liver reveals distinct intrahepatic macrophage populations](https://doi.org/10.1038/s41467-018-06318-7) by MacParland *et al.* are available to explore by installing the R package [HumanLiver](https://github.com/BaderLab/HumanLiver). These are 10X Chromium data from the livers of 5 human donors, processed on the pipeline outlined below (using scran for normalization and Seurat for clustering) and imported into scClustViz using the steps outlined above.
+
+Install HumanLiver using devtools as follows:
+```r
+# install devtools
+install.packages("devtools")
+
+# install HumanLiver (R data package for MacParland et al., Nat Commun 2018)
+devtools::install_github("BaderLab/HumanLiver") # this takes a minute or two
+
+# install human gene annotations from bioconductor (optional)
+source("https://bioconductor.org/biocLite.R")
+biocLite("org.Hs.eg.db")
+```
+Then run the scClustViz Shiny app to view your dataset of choice! 
+There's a wrapper function in the MouseCortex package that handles the call to scClustViz, so it's nice and simple. 
+If you're interested, `?runShiny` has example code showing the function call used by the wrapper function.
+```r
+library(HumanLiver)
+viewHumanLiver()
 ```
 
 ## Share Your Data With scClustViz
