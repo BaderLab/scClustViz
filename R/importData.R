@@ -72,8 +72,13 @@ readFromSeurat <- function(inD) {
   if (class(inD) != "seurat") {
     stop("inD must be a Seurat object, otherwise use 'readFromManual()' to read in data.")
   }
-  inD <- Seurat::UpdateSeuratObject(inD) 
-  # In case your Seurat object is from an older version of Seurat
+  if (.hasSlot(object, "version")) {
+    if (packageVersion("Seurat") < package_version("2.0.0")) {
+      inD <- Seurat::UpdateSeuratObject(inD) 
+    }
+  } else {
+    inD <- Seurat::UpdateSeuratObject(inD) 
+  }
   
   out <- list()
   out$nge <- inD@data
