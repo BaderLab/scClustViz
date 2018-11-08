@@ -64,7 +64,7 @@
 #'       (see \link{meanLogX} for mean calculation). \code{MTC} is the mean 
 #'       normalized gene expression for that gene in all cells of the cluster 
 #'       (see \link{meanLogX} for mean calculation).} 
-#'     \item{deTissue}{Differential testing results from Wilcoxon rank sum tests 
+#'     \item{DEvsRest}{Differential testing results from Wilcoxon rank sum tests 
 #'       comparing a gene in each cluster to the rest of the cells as a whole in 
 #'       a one vs all comparison. The results are stored as a nested list of 
 #'       dataframes. Each list element is named for a column in \code{il$cl} (a 
@@ -160,7 +160,7 @@ clusterWiseDEtest <- function(il,testAll=TRUE,
                               exponent=2,pseudocount=1,FDRthresh=0.01,
                               threshType="dDR",dDRthresh=0.15,logGERthresh=1) {
   
-  out <- list(CGS=list(),deTissue=list(),deVS=list(),
+  out <- list(CGS=list(),DEvsRest=list(),deVS=list(),
               deMarker=list(),deDist=list(),deNeighb=list(),
               params=list(exponent=exponent,
                           pseudocount=pseudocount,
@@ -178,7 +178,7 @@ clusterWiseDEtest <- function(il,testAll=TRUE,
                          cl=il[["cl"]][[res]],
                          params=out$params)
     out$CGS[[res]] <- tempOut$CGS
-    out$deTissue[[res]] <- tempOut$deTissue
+    out$DEvsRest[[res]] <- tempOut$DEvsRest
     out$deVS[[res]] <- tempOut$deVS
     out$deMarker[[res]] <- tempOut$deMarker
     out$deDist[[res]] <- tempOut$deDist
@@ -245,7 +245,7 @@ clusterWiseDEtest <- function(il,testAll=TRUE,
 #'       (see \link{meanLogX} for mean calculation). \code{MTC} is the mean 
 #'       normalized gene expression for that gene in all cells of the cluster 
 #'       (see \link{meanLogX} for mean calculation).} 
-#'     \item{deTissue}{Differential testing results from Wilcoxon rank sum tests 
+#'     \item{DEvsRest}{Differential testing results from Wilcoxon rank sum tests 
 #'       comparing a gene in each cluster to the rest of the cells as a whole in 
 #'       a one vs all comparison. The results are stored as a nested list of 
 #'       dataframes. Each list element contains a named list of 
@@ -347,11 +347,11 @@ calcAllDE <- function(nge,cl,params) {
                         exponent=params$exponent,
                         pseudocount=params$pseudocount,
                         logGERthresh=params$logGERthresh)
-  if (any(sapply(deTes,length) < 1)) {
+  if (any(apply(deTes,2,function(X) sum(X > params$logGERthresh)) < 1)) {
     stop("Gene filtering threshold is set too high.")
   }
   print("-- Wilcoxon rank sum calculations --")
-  out[["deTissue"]] <- calcDEvsRest(nge,
+  out[["DEvsRest"]] <- calcDEvsRest(nge,
                                     cl=cl,
                                     deTes=deTes,
                                     exponent=params$exponent,
@@ -414,16 +414,16 @@ calcAllDE <- function(nge,cl,params) {
 #'
 #' @export
 
-calcCGS <- function(nge,cl,exponent,pseudocount) {
-  print("-- Gene detection rate per cluster --")
+fx_calcCGS <- function(nge,cl,exponent,pseudocount) {
+  print("-- Calculating gene detection rate per cluster --")
   DR <- pbapply::pbapply(nge,1,function(X) tapply(X,cl,function(Y) sum(Y>0)/length(Y)))
-  print("-- Mean detected gene expression per cluster --")
+  print("-- Calculating mean detected gene expression per cluster --")
   MDTC <- pbapply::pbapply(nge,1,function(X) tapply(X,cl,function(Y) {
     temp <- meanLogX(Y[Y>0],ncell=ncol(nge),ex=exponent,pc=pseudocount)
     if (is.na(temp)) { temp <- 0 }
     return(temp)
   }))
-  print("-- Mean gene expression per cluster --")
+  print("-- Calculating mean gene expression per cluster --")
   MTC <- pbapply::pbapply(nge,1,function(X) 
     tapply(X,cl,function(Y) 
       meanLogX(Y,ncell=ncol(nge),ex=exponent,pc=pseudocount)))
@@ -431,12 +431,22 @@ calcCGS <- function(nge,cl,exponent,pseudocount) {
     data.frame(DR=DR[X,],MDTC=MDTC[X,],MTC=MTC[X,]),simplify=F))
 }
 
+setGeneric("calcClustGeneStats",function(x,...) standardGeneric("calcClustGeneStats"))
+setMethod("calcClustGeneStats","sCVdata",
+          function(x,inD) {
+            x@CGS <- fx_calcCGS(nge=getGeneExpr(inD),
+                                cl=getClusters(x),
+                                exponent=getParam(x,"exponent"),
+                                pseudocount=getParam(x,"pseudocount"))
+            return(x)
+          })
 
-#'Calculate logGER for deTissue calculation
+
+#'Calculate logGER for DEvsRest calculation
 #'
 #'Calculates the log-ratios of gene expression for all genes in each one-vs-all
 #'comparison of a cluster vs the rest of the data. This is used to determine the
-#'genes used in deTissue calculations. You probably don't need to use this
+#'genes used in DEvsRest calculations. You probably don't need to use this
 #'unless you're trying to customize \code{\link{clusterWiseDEtest}}.
 #'
 #'@param nge The log-normalized gene expression matrix.
@@ -452,10 +462,6 @@ calcCGS <- function(nge,cl,exponent,pseudocount) {
 #'@param pseudocount The pseudocount added to all log-normalized values in your
 #'  input data. Most methods use a pseudocount of 1 to eliminate log(0) errors.
 #'
-#'@param logGERthresh Magnitude of gene expression ratio for a gene between
-#'  clusters to use as filter for determining which genes to test for
-#'  differential expression between clusters.
-#'
 #'@return The function returns a list where each list element is the log-ratios
 #'  of gene expression when comparing each gene in a cluster to the rest of the
 #'  cells as a whole in a one vs all comparison. These logGER tables are
@@ -468,16 +474,35 @@ calcCGS <- function(nge,cl,exponent,pseudocount) {
 #'
 #'@export
 
-calcESvsRest <- function(nge,cl,CGS,exponent,pseudocount,logGERthresh) {
-  deTes <- pbapply::pbsapply(levels(cl),function(i) 
-    CGS[[i]]$MTC - apply(nge[,(cl != i | is.na(cl))],1,function(Y) 
-      meanLogX(Y,ncell=ncol(nge),ex=exponent,pc=pseudocount)))
-  return(sapply(colnames(deTes),function(X) 
-    deTes[deTes[,X] > logGERthresh,X]))
+fx_calcESvsRest <- function(nge,cl,CGS,exponent,pseudocount,logGERthresh) {
+  print("-- Calculating differential expression cluster vs rest effect size --")
+  deTes <- pbapply::pbsapply(levels(cl),function(i) {
+    temp <- data.frame(logGER=CGS[[i]]$MTC - 
+                         apply(nge[,(cl != i | is.na(cl))],1,function(Y) 
+                           meanLogX(Y,ncell=ncol(nge),ex=exponent,pc=pseudocount)))
+    temp$overThreshold <- temp$logGER > logGERthresh
+    temp$qVal <- temp$pVal <- NA
+    return(temp)
+  },simplify=F)
+  return(deTes)
 }
 
+setGeneric("calcEffectSizeVsRest",function(x,...) standardGeneric("calcEffectSizeVsRest"))
+setMethod("calcEffectSizeVsRest","sCVdata",
+          function(x,inD) {
+            x@DEvsRest <- fx_calcESvsRest(nge=getGeneExpr(inD),
+                                          cl=getClusters(x),
+                                          CGS=getClustGeneStats(x),
+                                          exponent=getParam(x,"exponent"),
+                                          pseudocount=getParam(x,"pseudocount"),
+                                          logGERthresh=getParam(x,"logGERthresh"))
+            return(x)
+          })
 
-#'Do deTissue calculation
+
+
+
+#'Do DEvsRest calculation
 #'
 #'Calculates Wilcoxon rank-sum tests for all genes in each one-vs-all comparison
 #'of a cluster vs the rest of the data. You probably don't need to use this
@@ -495,6 +520,10 @@ calcESvsRest <- function(nge,cl,CGS,exponent,pseudocount,logGERthresh) {
 #'
 #'@param pseudocount The pseudocount added to all log-normalized values in your
 #'  input data. Most methods use a pseudocount of 1 to eliminate log(0) errors.
+#'
+#'@param logGERthresh Magnitude of gene expression ratio for a gene between
+#'  clusters to use as filter for determining which genes to test for
+#'  differential expression between clusters.
 #'
 #'@param FDRthresh The false discovery rate to use as a threshold for
 #'  determining statistical significance of differential expression calculated
@@ -516,16 +545,29 @@ calcESvsRest <- function(nge,cl,CGS,exponent,pseudocount,logGERthresh) {
 #'
 #'@export
 
-calcDEvsRest <- function(nge,cl,deTes,exponent,pseudocount,FDRthresh) {
+fx_calcDEvsRest <- function(nge,cl,deTes) {
+  print("-- Testing differential expression cluster vs rest --")
   deT_pVal <- pbapply::pbsapply(levels(cl),function(i)
-    apply(nge[names(deTes[[i]]),],1,function(X) 
-      suppressWarnings(wilcox.test(X[cl == i],X[cl != i])$p.value)),simplify=F)
-  tempOut <- sapply(levels(cl),function(i) 
-    data.frame(logGER=deTes[[i]],pVal=deT_pVal[[i]],
-               qVal=p.adjust(deT_pVal[[i]],"fdr"))[order(deT_pVal[[i]]),],
-    simplify=F)
-  return(sapply(tempOut,function(X) X[X$qVal <= FDRthresh,],simplify=F))
+    apply(nge[rownames(deTes[[i]])[deTes[[i]]$overThresh],],1, #slice by rowname is slower, but safer
+          function(X) 
+            suppressWarnings(wilcox.test(X[cl == i],X[cl != i])$p.value)
+    ),simplify=F)
+  for (i in names(deTes)) {
+    deTes[[i]][names(deT_pVal[[i]]),"pVal"] <- deT_pVal[[i]]
+    deTes[[i]][names(deT_pVal[[i]]),"qVal"] <- p.adjust(deT_pVal[[i]],"fdr")
+  } 
+  return(deTes)
 }
+
+setGeneric("calcDiffExprVsRest",function(x,...) standardGeneric("calcDiffExprVsRest"))
+setMethod("calcDiffExprVsRest","sCVdata",
+          function(x,inD) {
+            x@DEvsRest <- fx_calcDEvsRest(nge=getGeneExpr(inD),
+                                          cl=getClusters(x),
+                                          deTes=getDEvsRest(x))
+            return(x)
+          })
+
 
 
 #'Calculate genes used for deVS calculation
@@ -570,7 +612,7 @@ calcDEvsRest <- function(nge,cl,deTes,exponent,pseudocount,FDRthresh) {
 #'
 #'@export
 
-calcESvsCombn <- function(cl,CGS,threshType,logGERthresh,dDRthresh) {
+fx_calcESvsCombn <- function(cl,CGS,threshType,threshValue) {
   combos <- combn(levels(cl),2)
   colnames(combos) <- apply(combos,2,function(X) paste(X,collapse="-"))
   deMes <- apply(combos,2,function(i) 
@@ -578,13 +620,22 @@ calcESvsCombn <- function(cl,CGS,threshType,logGERthresh,dDRthresh) {
                dDR=CGS[[i[1]]]$DR - CGS[[i[2]]]$DR))
   for (i in names(deMes)) {
     rownames(deMes[[i]]) <- rownames(CGS[[1]])
+    deMes[[i]]$overThresh <- abs(deMes[[i]][,threshType]) > threshValue
   }
-  return(sapply(names(deMes),function(X) 
-    deMes[[X]][abs(deMes[[X]][,threshType]) > switch(threshType,
-                                                     dDR=dDRthresh,
-                                                     logGER=logGERthresh),],
-    simplify=F))
+  return(deMes)
 }
+setGeneric("calcEffectSizeCombn",function(x,...) standardGeneric("calcEffectSizeCombn"))
+setMethod("calcEffectSizeCombn","sCVdata",
+          function(x) {
+            x@DEcombn <- fx_calcESvsCombn(cl=getClusters(x),
+                                          CGS=getClustGeneStats(x),
+                                          threshType=getParam(x,"threshType"),
+                                          threshValue=getParam(
+                                            x=x,
+                                            param=paste0(getParam(x,"threshType"),"thresh")
+                                          ))
+            return(x)
+          })
 
 
 #'Do deVS calculation
@@ -631,35 +682,44 @@ calcESvsCombn <- function(cl,CGS,threshType,logGERthresh,dDRthresh) {
 #'
 #'@export
 
-calcDEvsCombn <- function(nge,cl,deMes,threshType,FDRthresh) {
+fx_calcDEvsCombn <- function(nge,cl,deMes) {
   combosL <- strsplit(names(deMes),"-")
+  print("-- Testing differential expression between clusters --")
   deM_pVal <- pbapply::pbsapply(seq_along(combosL),function(i)
-    apply(nge[rownames(deMes[[i]]),],1,function(X) 
+    apply(nge[rownames(deMes[[i]])[deMes[[i]]$overThresh],],1,function(X) 
       suppressWarnings(wilcox.test(X[cl == combosL[[i]][1]],
                                    X[cl == combosL[[i]][2]])$p.value)),simplify=F)
   for (i in seq_along(deMes)) {
-    deMes[[i]]$pVal <- deM_pVal[[i]]
-    deMes[[i]]$qVal <- p.adjust(deM_pVal[[i]],"fdr")
-    deMes[[i]] <- deMes[[i]][order(deMes[[i]]$qVal),]
+    deMes[[i]][names(deM_pVal[[i]]),"pVal"] <- deM_pVal[[i]]
+    deMes[[i]][names(deM_pVal[[i]]),"qVal"] <- p.adjust(deM_pVal[[i]],"fdr")
   } 
-  return(sapply(levels(cl),function(i) {
-    temp <- list()
-    for (X in seq_along(combosL)) {
-      if (! i %in% combosL[[X]]) {
-        next
-      } else if (which(combosL[[X]] == i) == 1) {
-        temp[[combosL[[X]][2]]] <- deMes[[X]][deMes[[X]][,threshType] > 0 & 
-                                                   deMes[[X]]$qVal <= FDRthresh,]
-      } else if (which(combosL[[X]] == i) == 2) {
-        temp[[combosL[[X]][1]]] <- deMes[[X]][deMes[[X]][,threshType] < 0 &
-                                                   deMes[[X]]$qVal <= FDRthresh,]
-        temp[[combosL[[X]][1]]]$dDR <- temp[[combosL[[X]][1]]]$dDR * -1
-        temp[[combosL[[X]][1]]]$logGER <- temp[[combosL[[X]][1]]]$logGER * -1
-      }
-    }
-    return(temp)
-  },simplify=F))
+  return(deMes)
+  #   sapply(levels(cl),function(i) {
+  #   temp <- list()
+  #   for (X in seq_along(combosL)) {
+  #     if (! i %in% combosL[[X]]) {
+  #       next
+  #     } else if (which(combosL[[X]] == i) == 1) {
+  #       temp[[combosL[[X]][2]]] <- deMes[[X]][deMes[[X]][,threshType] > 0 & 
+  #                                                  deMes[[X]]$qVal <= FDRthresh,]
+  #     } else if (which(combosL[[X]] == i) == 2) {
+  #       temp[[combosL[[X]][1]]] <- deMes[[X]][deMes[[X]][,threshType] < 0 &
+  #                                                  deMes[[X]]$qVal <= FDRthresh,]
+  #       temp[[combosL[[X]][1]]]$dDR <- temp[[combosL[[X]][1]]]$dDR * -1
+  #       temp[[combosL[[X]][1]]]$logGER <- temp[[combosL[[X]][1]]]$logGER * -1
+  #     }
+  #   }
+  #   return(temp)
+  # },simplify=F))
 }
+setGeneric("calcDiffExprCombn",function(x,...) standardGeneric("calcDiffExprCombn"))
+setMethod("calcDiffExprCombn","sCVdata",
+          function(x,inD) {
+            x@DEcombn <- fx_calcDEvsCombn(nge=getGeneExpr(inD),
+                                          cl=getClusters(x),
+                                          deMes=getDEcombn(x))
+            return(x)
+          })
 
 
 #'Do deMarker calculation
@@ -694,22 +754,26 @@ calcDEvsCombn <- function(nge,cl,deMes,threshType,FDRthresh) {
 #'
 #'@export
 
-calcMarker <- function(deVS,FDRthresh) {
-  return(sapply(deVS,function(X) {
-    tempQval <- tapply(p.adjust(do.call(rbind,X)$pVal,"fdr"),
-                       rep(names(X),sapply(X,nrow)),c,simplify=F)
-    for (l in names(X)) {
-      if (l %in% names(tempQval)) {
-        X[[l]]$qVal <- tempQval[[l]]
-        X[[l]] <- X[[l]][X[[l]]$qVal <= FDRthresh,]
-      }
-    }
-    markerGenes <- Reduce(intersect,lapply(X,rownames))
-    temp <- sapply(X,function(Y) Y[markerGenes,c("dDR","logGER","qVal")],simplify=F)
-    names(temp) <- paste("vs",names(temp),sep=".")
-    return(do.call(cbind,temp))
-  },simplify=F))
+fx_calcMarker <- function(deVS,FDRthresh) {
+  combosL <- sapply(unique(unlist(strsplit(names(deVS),"-"))),
+                    function(clust) 
+                      which(sapply(strsplit(names(deVS),"-"),
+                                   function(comp) 
+                                     clust %in% comp)),
+                    simplify=F)
+  deM <- sapply(combosL,function(comp) 
+    Reduce(intersect,sapply(comp,function(i) 
+      rownames(deVS[[i]])[which(deVS[[i]]$qVal <= FDRthresh)])),
+    simplify=F)
+  return(deM)
 }
+setGeneric("calcMarkerGenes",function(x,...) standardGeneric("calcMarkerGenes"))
+setMethod("calcMarkerGenes","sCVdata",
+          function(x) {
+            x@DEmarker <- fx_calcMarker(deVS=getDEcombn(x),
+                                        FDRthresh=getParam(x,"FDRthresh"))
+            return(x)
+          })
 
 
 #'Do deDist calculation
@@ -730,10 +794,26 @@ calcMarker <- function(deVS,FDRthresh) {
 #'
 #'@export
 
-calcDist <- function(deVS) {
-  sapply(names(deVS),function(X) sapply(names(deVS),function(Y) 
-    if (X == Y) { return(NA) } else { min(nrow(deVS[[X]][[Y]]),nrow(deVS[[Y]][[X]])) }))
+fx_calcDist <- function(deVS,FDRthresh) {
+  deD <- sapply(deVS,function(X) sum(X$qVal <= FDRthresh,na.rm=T))
+  names(deD) <- NULL
+  return(sapply(unique(unlist(strsplit(names(deVS),"-"))),function(X)
+    sapply(unique(unlist(strsplit(names(deVS),"-"))),function(Y) {
+      if (X == Y) {
+        return(NA)
+      } else {
+        return(deD[sapply(strsplit(names(deVS),"-"),
+                          function(comp) X %in% comp & Y %in% comp)])
+      }
+    })))
 }
+setGeneric("calcDist",function(x,...) standardGeneric("calcDist"))
+setMethod("calcDist","sCVdata",
+          function(x) {
+            x@DEdist <- fx_calcDist(deVS=getDEcombn(x),
+                                      FDRthresh=getParam(x,"FDRthresh"))
+            return(x)
+          })
 
 
 #'Do deNieghb calculation
@@ -768,15 +848,24 @@ calcDist <- function(deVS) {
 #'
 #'@export
 
-calcNeighb <- function(deVS,deDist) {
+fx_calcNeighb <- function(deVS,deDist,FDRthresh) {
   nb <- colnames(deDist)[apply(deDist,1,which.min)]
-  names(nb) <- colnames(deDist)
-  tempOut <- mapply(function(NB,VS) 
-    VS[[NB]][,c("dDR","logGER","qVal")],
-    NB=nb,VS=deVS,SIMPLIFY=F)
-  for (i in names(tempOut)) {
-    colnames(tempOut[[i]]) <- paste("vs",nb[i],colnames(tempOut[[i]]),sep=".")
-  }
-  return(tempOut)
+  names(nb) <- rownames(deDist)
+  deN <- sapply(seq_along(nb),function(i) 
+    which(sapply(strsplit(names(deVS),"-"),function(comp) 
+      all(c(names(nb)[i],nb[i]) %in% comp))))
+  names(deN) <- sapply(seq_along(nb),function(i) paste(c(names(nb)[i],nb[i]),collapse="-"))
+  deN <- sapply(deN,function(X)
+    rownames(deVS[[X]])[which(deVS[[X]]$qVal <= FDRthresh)],
+    simplify=F)
+  return(deN)
 }
+setGeneric("calcNeighbGenes",function(x,...) standardGeneric("calcNeighbGenes"))
+setMethod("calcNeighbGenes","sCVdata",
+          function(x) {
+            x@DEneighb <- fx_calcNeighb(deVS=getDEcombn(x),
+                                        deDist=getDEdist(x),
+                                        FDRthresh=getParam(x,"FDRthresh"))
+            return(x)
+          })
 
