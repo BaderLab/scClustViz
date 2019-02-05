@@ -9,9 +9,12 @@ rainbow2(n, a = 1)
 \arguments{
 \item{n}{Number of colours to include.}
 
-\item{a}{Transparency value passed to \link{scales::alpha}.}
+\item{a}{Transparency value passed to \code{\link{scales::alpha}}.}
 }
 \description{
 Generates a slightly desaturated rainbow colour-scale that's a little easier on the
-eyes than the R default.
+eyes than the R default. Used in \code{\link{runShiny}} to label clusters.
+}
+\seealso{
+\code{\link[grDevices]{rainbow}}
 }

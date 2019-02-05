@@ -11,7 +11,13 @@ cosineSim(A, B)
 
 \item{B}{The other vector in the pair to compare.}
 }
+\value{
+A numeric value, the cosine similarity between vectors \code{A} and
+  \code{B}
+}
 \description{
-Computes the cosine similarity between two vectors. Stolen from
+Computes the cosine similarity between two vectors.
+}
+\references{
 \url{https://stats.stackexchange.com/q/31573}/
 }

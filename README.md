@@ -1,5 +1,5 @@
 # scClustViz
-An interactive R Shiny tool for visualizing single-cell RNAseq clustering results from the *Seurat* R package or any other analysis pipeline.  Its main goal is two-fold: **A:** to help select a biologically appropriate resolution or K from clustering results by assessing differential expression between the resulting clusters; and **B:** help annotate cell types and identify marker genes.  
+An interactive R Shiny tool for visualizing single-cell RNAseq clustering results from common analysis pipelines.  Its main goal is two-fold: **A:** to help select a biologically appropriate resolution or K from clustering results by assessing differential expression between the resulting clusters; and **B:** help annotate cell types and identify marker genes.  
 [Our preprint is on F1000Research!](https://f1000research.com/articles/7-1522/)  
 
 
