@@ -11,8 +11,8 @@ plot_clustSep <- function(sCVdL,DEtype,FDRthresh,res,Xlim,Ylim) {
                                             # MGE=DEdist(X,"MGE"),
                                             # PCA=DEdist(X,getEmb(inD,Param(sCVdL[[1]],"DRforClust"))),
                                             # scoreDE=as.vector(as.dist(DEdist(X))),
-                                            deNeighb=sapply(DEneighb(X,FDRthresh),length),
-                                            deMarker=sapply(DEmarker(X,FDRthresh),length),
+                                            DEneighb=sapply(DEneighb(X,FDRthresh),nrow),
+                                            DEmarker=sapply(DEmarker(X,FDRthresh),nrow),
                                             silWidth=Silhouette(X)[,"sil_width"]),
                    simplify=F)
   if (is.null(Ylim)) { Ylim <- range(unlist(bpData)) }
@@ -58,9 +58,15 @@ plot_clustSep <- function(sCVdL,DEtype,FDRthresh,res,Xlim,Ylim) {
       lines(numClust,y=temp_avSil,type="b",col="darkred",pch=16)
       points(numClust[res],temp_avSil[res],col="red",pch=16)
       legend(x=par("usr")[2],y=par("usr")[4],
+             xjust=1,yjust=0.2,xpd=NA,bty="n",horiz=T,
+             legend=c("Average silhouette width",
+                      paste("Selected resolution:",res)),
+             col=c("darkred","red"),pch=c(16,0),lty=c(1,NA))
+    } else {
+      legend(x=par("usr")[2],y=par("usr")[4],
              xjust=1,yjust=0.2,xpd=NA,bty="n",
-             legend="Average silhouette width",
-             col="darkred",pch=16,lty=1)
+             legend=paste("Selected resolution:",res),
+             col="red",pch=0)
     }
   }
 }
@@ -384,23 +390,33 @@ plot_mdPerClust <- function(MD,sel,cl,opt) {
 # DE gene dotplot -----------
 dotplotDEgenes <- function(sCVd,DEtype,FDRthresh) {
   if (missing(FDRthresh)) { FDRthresh <- 1 }
-  out <- lapply(
-    switch(DEtype,
-           deTissue=DEvsRest(sCVd),
-           deMarker=DEmarker(sCVd,FDRthresh),
-           deNeighb=DEneighb(sCVd,FDRthresh)),
-    function(X) 
-      if (is.data.frame(X)) {
-        temp <- X[which(X$FDR <= FDRthresh),"FDR",drop=F]
-        out <- unlist(temp,use.names=F)
-        names(out) <- rownames(temp)
-        return(sort(out))
-      } else {
-        if (length(X) == 0) { numeric(0) } else { sort(X) }     
-      }
-  )
-  return(out)
+  if (DEtype == "DEvsRest") {
+    return(lapply(DEvsRest(sCVd),function(X) {
+      temp <- X[which(X$FDR <= FDRthresh),"FDR",drop=F]
+      out <- unlist(temp,use.names=F)
+      names(out) <- rownames(temp)
+      return(sort(out))
+    }))
+  } else if (DEtype == "DEneighb") {
+    outL <- lapply(DEneighb(sCVd,FDRthresh), function(X) {
+      if (nrow(X) < 1) { return(numeric(0)) }
+      out <- X[,grep("^FDR_",names(X))]
+      names(out) <- rownames(X)
+      return(sort(out))
+    })
+    names(outL) <- levels(Clusters(sCVd))
+    return(outL)
+  } else if (DEtype == "DEmarker") {
+    outL <- lapply(DEmarker(sCVd,FDRthresh), function(X) {
+      if (nrow(X) < 1) { return(numeric(0)) }
+      out <- apply(X[,grep("^FDR_",names(X)),drop=F],1,max)
+      return(sort(out))
+    })
+    return(outL)
+  }
 }
+# returns A named list of named numeric vectors, one entry for each cluster.
+# Names are genes passing FDR threshold, and value is (maximum) FDR of comparison.
 
 
 plot_deDotplot <- function(sCVd,DEgenes,DEnum) {
@@ -575,6 +591,7 @@ plot_clusterGenes_markers <- function(sCVd,selClust,cellMarkersS,cellMarkersU) {
                         "FALSE"=paste0("(log",Param(sCVd,"exponent")," scale)"))
     plot(MDGE~DR,
          data=CGS[!((CGS$cMu | CGS$cMs) & CGS$overCut),],
+         xlim=range(CGS$DR),ylim=range(CGS$MDGE),
          col=alpha("black",0.2),pch=20,
          xlab="Proportion of cells in which gene was detected",
          ylab=paste("Mean normalized gene expression where detected",temp_ylab))
@@ -632,6 +649,7 @@ plot_clusterGenes_DEgenes <- function(sCVd,selClust,DEgenes,DEnum,DEtype) {
                         "FALSE"=paste0("(log",Param(sCVd,"exponent")," scale)"))
     plot(MDGE~DR,
          data=CGS[!rownames(CGS) %in% names(DEgenes[[selClust]])[1:DEnum],],
+         xlim=range(CGS$DR),ylim=range(CGS$MDGE),
          col=alpha("black",0.2),pch=20,
          xlab="Proportion of cells in which gene was detected",
          ylab=paste("Mean normalized gene expression where detected",temp_ylab))
@@ -651,8 +669,8 @@ plot_clusterGenes_DEgenes <- function(sCVd,selClust,DEgenes,DEnum,DEtype) {
     }
     temp_n <- length(DEgenes[[selClust]])
     temp_lab <- switch(DEtype,
-                       deTissue=" DE genes vs rest of cells in sample",
-                       deMarker=" marker genes",
+                       DEvsRest=" DE genes vs rest of cells in sample",
+                       DEmarker=" marker genes",
                        deNeighb=" DE genes vs nearest neighbouring cluster")
     legend("top",bty="n",pch=16,col="firebrick2",
            legend=paste0(temp_n,temp_lab," (showing top ",
@@ -676,6 +694,7 @@ plot_clusterGenes_search <- function(sCVd,selClust,GOI) {
     plot(MDGE~DR,
          data=CGS[!rownames(CGS) %in% GOI,],
          col=alpha("black",0.2),pch=20,
+         xlim=range(CGS$DR),ylim=range(CGS$MDGE),
          xlab="Proportion of cells in which gene was detected",
          ylab=paste("Mean normalized gene expression where detected",temp_ylab))
     title(paste0("Cluster ", selClust,": ",attr(Clusters(sCVd),"ClusterNames")[selClust]),cex=1.2)

@@ -14,10 +14,10 @@ fx_calcNeighb(deVS, NN, FDRthresh)
 \item{FDRthresh}{False discovery rate for counting significance.}
 }
 \value{
-A named list of named numeric vectors, one entry for each nearest
-  neighbouring pair. Each vector is the FDR values for each gene that is
-  significantly differentially expressed between that pair of clusters, with
-  names corresponding to gene labels.
+A named list of data frames, one entry for each cluster. Each data
+  frame is the results of the gene expression test comparing the cluster to
+  its nearest neighbour. See \code{\link{CalcDEcombn}} and
+  \code{\link{DEcombn}} for details.
 }
 \description{
 Internal function. See \code{\link{DEneighb}}.

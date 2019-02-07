@@ -16,10 +16,10 @@ DEmarker(sCVd, FDRthresh)
 \item{FDRthresh}{False discovery rate for counting significance.}
 }
 \value{
-A named list of named numeric vectors, one entry for each cluster.
-  Each vector is the FDR values for each gene that is significantly
-  positively differentially expressed in that cluster over all other clusters
-  in pairwise tests, with names corresponding to gene labels.
+A named list of data frames, one entry for each cluster. Each data
+  frame is the combined results of the set of pairwise gene expression tests
+  comparing the cluster to each other cluster in the data. See
+  \code{\link{CalcDEcombn}} and \code{\link{DEcombn}} for details.
 }
 \description{
 Identifies the significantly positively differentially expressed genes

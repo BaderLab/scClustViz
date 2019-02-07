@@ -152,11 +152,8 @@ runShiny <- function(filePath,outPath,cellMarkers,annotationDB,rownameKeytype) {
   # ^^ Load saved comparisons (if any) ---------------------------------------------------
   if (!missing(outPath)) { #Load from both dataPath and outPath if outPath exists.
     for (selDEfile in grep(paste0("^",dataTitle,".+selDE.+RData$"),list.files(outPath),value=T)) {
-      temp <- load(paste0(outPath,selDEfile))
-      cl <- cbind(cl,new_cl)
-      CGS <- append(CGS,new_CGS)
-      deTissue <- append(deTissue,new_deTissue)
-      deMarker <- append(deMarker,new_deMarker)
+      temp <- load(paste0(dataPath,selDEfile))
+      sCVdL <- append(sCVdL,get(temp))
       rm(list=temp)
     }
   }
@@ -236,6 +233,7 @@ runShiny <- function(filePath,outPath,cellMarkers,annotationDB,rownameKeytype) {
     cellMarkersS <- cellMarkersS[sapply(cellMarkersS,length) > 0]
     cellMarkersU <- lapply(cellMarkers,function(X) X[!X %in% unlist(cellMarkersS)])
   }
+  
   sCVdL <- sapply(sCVdL,
                   FUN=addCellMarkersToCGS,
                   cellMarkersU=cellMarkersU,
@@ -399,9 +397,9 @@ runShiny <- function(filePath,outPath,cellMarkers,annotationDB,rownameKeytype) {
         "by selecting the cluster and clicking <b>Download cluster gene stats</b>. These statistics",
         "are: mean log-normalized gene expression per cluster (MGE), proportion of cells in the",
         "cluster in which the gene was detected (DR), and mean log-normalized gene expression",
-        "from the cells in which the gene was detected (MDGE).",
-        "Differentially expressed gene lists can be downloaded as tab-separated text files",
-        "by selecting the DE test type and cluster, and clicking <b>Download gene list</b>.",
+        "from the cells in which the gene was detected (MDGE). Differentially expressed gene",
+        "expression test results can be downloaded as tab-separated text files by selecting the",
+        "test type (under 'Dotplot Genes') and cluster, and clicking <b>Download DE results</b>.",
         "Genes used in the dotplot can be viewed in the gene expression plots below as well."
       ))),
       h1()
@@ -415,7 +413,7 @@ runShiny <- function(filePath,outPath,cellMarkers,annotationDB,rownameKeytype) {
       column(2,uiOutput("DEclustSelect")),
       column(2,
              downloadButton("CGSsave0","Download cluster gene stats"),
-             downloadButton("deGeneSave","Download DE gene list"),
+             downloadButton("deGeneSave","Download DE results"),
              downloadButton("heatmapSave","Save as PDF"))
     ),
     fixedRow(plotOutput("dotplot",height="600px")),
@@ -470,7 +468,7 @@ runShiny <- function(filePath,outPath,cellMarkers,annotationDB,rownameKeytype) {
     ),tags$style(type='text/css', "button#GOIgo { margin-top: 25px;  margin-left: -25px; }"),
     
     # ^ Gene expression comparison ---------------------------------------------------------
-     fixedRow(
+    fixedRow(
       column(3,radioButtons("boxplotGene",inline=F,
                             label="Genes of interest (to populate list):",
                             choices=c("From click on gene in plot"="click",
@@ -541,25 +539,30 @@ runShiny <- function(filePath,outPath,cellMarkers,annotationDB,rownameKeytype) {
     # ^ Cluster comparison -----------------------------------------------------------------
     fixedRow(
       titlePanel("Cluster/Set Comparison of Gene Statistics"),
-      p(HTML(paste("Here you can directly compare gene expression statistics between clusters.",
-                   "Any clusters from the currently selected cluster solution can be compared,",
-                   "and you can switch cluster solutions from the menu here for convenience.",
-                   "The stats that can be compared are mean normalized transcript count per",
-                   "cluster (<b>Mean gene expression</b>), proportion of cells in a cluster in",
-                   "which each gene was detected (<b>Detection rate</b>), and mean normalized",
-                   "transcript count in cells of the cluster in which the gene was detected",
-                   "(<b>Mean detected gene expression</b>). Genes can be labelled based on",
-                   "differential expression from the heatmap above, or using the gene search",
-                   "feature above."))),
-      p(paste("The most different genes in the current comparison can also be labelled. This",
-              "calculation can simply be subtracting the gene stat of the x-axis cluster from",
-              "that of the y-axis, or distance (residual) from the line of best fit. The latter",
-              "calculation may be of value if there is concern that a technical factor such as",
-              "library size is confounding a direct comparison between clusters. In either case,",
-              "the resulting values can be downloaded as a ranked list where positive values are",
-              "higher in the cluster on the y-axis, and negative values are higher in the x-axis",
-              "cluster. Since this list ranks all genes in the experiment, it could be used as an",
-              "input for GSEA.")),
+      p(paste("Here you can explore the results of pairwise gene expression comparisons",
+              "between clusters.",
+              "Any clusters from the currently selected cluster solution can be compared,",
+              "and you can switch cluster resolutions from the menu here for convenience.",
+              "Gene effect sizes can be viewed in the context of statistical significance",
+              "(volcano plots), or directly in modified Bland-Altman plots (axes swapped",
+              "to match volcano plots).",
+              "Genes can be labelled by statistical significance, maximum difference,",
+              "or using the gene search feature above.")),
+      p(HTML(paste("Summary statistics of gene expression for either cluster can be downloaded",
+                   "as tab-separated text files using the <b>Download cluster gene stats</b>",
+                   "button under each cluster selection menu. These statistics are:",
+                   "Mean log-normalized transcript count per cluster",
+                   "(mean gene expression - MGE);",
+                   "Proportion of cells in the cluster in which the gene was detected",
+                   "(detection rate - DR);",
+                   "and mean log-normalized transcript count from the cells in which",
+                   "the gene was detected (mean detected gene expression - MDGE)."))),
+      p(HTML(paste("Differentially expressed gene expression test results for the comparison",
+                   "between selected clusters can be downloaded as tab-separated text file",
+                   "using the <b>Download DE results</b> button.",
+                   "Effect size measures for difference in mean gene expression",
+                   "(gene expression ratio - logGER) and difference in detection rate (dDR),",
+                   "as well as p- and FDR values for tested genes are included in the results."))),      
       p(paste("Similar to the gene expression distribution scatterplot above, clicking on any",
               "point in this plot will populate the 'Genes of interest' list above the boxplots",
               "comparing gene expression across clusters.")),
@@ -609,7 +612,7 @@ runShiny <- function(filePath,outPath,cellMarkers,annotationDB,rownameKeytype) {
              fixedRow(column(12,uiOutput("diffLabelSelect"))),
              fixedRow(
                column(4,downloadButton("setScatterSave","Save as PDF")),
-               column(4,downloadButton("setComparisonSave","Download ranked list"))
+               column(4,downloadButton("setComparisonSave","Download DE results"))
              )
       )
     ),tags$style(type='text/css',paste("button#go2 { margin-top: 25px;  margin-left: -25px; }",
@@ -698,11 +701,11 @@ runShiny <- function(filePath,outPath,cellMarkers,annotationDB,rownameKeytype) {
       }
       return(temp)
     })
-
+    
     output$deType <- renderUI({
       temp_types <- list(
-        "# of positive DE genes per cluster to nearest cluster"="deNeighb",
-        "# of positive DE genes per cluster to all other clusters"="deMarker"
+        "# of positive DE genes per cluster to nearest cluster"="DEneighb",
+        "# of positive DE genes per cluster to all other clusters"="DEmarker"
         # "Distance between clusters by gene detection rates"="DR",
         # "Distance between clusters by mean gene expression"="MGE",
         # "Distance between clusters by mean expression in PCA space"="PCA",
@@ -760,17 +763,17 @@ runShiny <- function(filePath,outPath,cellMarkers,annotationDB,rownameKeytype) {
     })
     
     output$clustSep <- renderPlot({
-      if (input$deType %in% c("deNeighb","deMarker") & 
+      if (input$deType %in% c("DEneighb","DEmarker") & 
           !all(sapply(sCVdL,function(X) length(DEcombn(X)) > 0))) {
         plot(x=NA,y=NA,xlim=0:1,ylim=0:1,xaxt="n",yaxt="n",xlab=NA,ylab=NA)
         text(.5,.5,switch(input$deType,
                           # scoreDE=paste("Can't calculate distance between clusters by differential expression score",
                           #               "Try running CalcDEvsCombn() for all sCVdata objects in cluster resolution list.",
                           #               sep="\n"),
-                          deNeighb=paste("Can't calculate number of DE genes per cluster to nearest cluster",
+                          DEneighb=paste("Can't calculate number of DE genes per cluster to nearest cluster",
                                          "Try running CalcDEvsCombn() for all sCVdata objects in cluster resolution list.",
                                          sep="\n"),
-                          deMarker=paste("Can't calculate number of DE genes per cluster to all other clusters",
+                          DEmarker=paste("Can't calculate number of DE genes per cluster to all other clusters",
                                          "Try running CalcDEvsCombn() for all sCVdata objects in cluster resolution list.",
                                          sep="\n")))
       } else {
@@ -799,7 +802,7 @@ runShiny <- function(filePath,outPath,cellMarkers,annotationDB,rownameKeytype) {
     
     # ^^ FDRthresh Selection -------
     output$FDRthresh1 <- renderUI({
-      if (input$deType %in% c("deNeighb","deMarker")) {
+      if (input$deType %in% c("DEneighb","DEmarker")) {
         numericInput("FDRthresh1",label="FDR",
                      value=.01,max=1)
       }
@@ -921,7 +924,7 @@ runShiny <- function(filePath,outPath,cellMarkers,annotationDB,rownameKeytype) {
         return(t2)
       }
     })
-
+    
     selClust <- reactive({
       if (length(res()) < 1) {
         return("")
@@ -935,7 +938,7 @@ runShiny <- function(filePath,outPath,cellMarkers,annotationDB,rownameKeytype) {
     selClustName <- reactive({
       attr(Clusters(d$SCV[[res()]]),"ClusterNames")[selClust()]
     })
-
+    
     selCells <- reactive({
       if (selClust() == "") {
         rep(F,length(Clusters(d$SCV[[res()]])))
@@ -943,7 +946,7 @@ runShiny <- function(filePath,outPath,cellMarkers,annotationDB,rownameKeytype) {
         names(Clusters(d$SCV[[res()]]))[Clusters(d$SCV[[res()]]) %in% selClust()]
       }
     })
-
+    
     # ^^ Metadata tSNE overlay -----------------------------------------------------------
     output$tsneMDcol <- renderUI({
       selectInput("tsneMDcol",label="Metadata:",width="100%",choices=colnames(d$MD),
@@ -1039,7 +1042,7 @@ runShiny <- function(filePath,outPath,cellMarkers,annotationDB,rownameKeytype) {
                            choices=temp_choices,selected=NULL)
       }
     })
-
+    
     output$mdScatter <- renderPlot({
       if (length(res()) > 0) {
         plot_mdCompare(MD=d$MD,
@@ -1135,14 +1138,14 @@ runShiny <- function(filePath,outPath,cellMarkers,annotationDB,rownameKeytype) {
     output$heatDEtype <- renderUI({
       if (length(res()) > 0) {
         if (grepl("^Comp",res())) {
-          temp <- list("DE vs rest"="deTissue",
-                       "Set A vs Set B"="deMarker")
+          temp <- list("DE vs rest"="DEvsRest",
+                       "Set A vs Set B"="DEmarker")
         } else {
-          temp <- list("DE vs rest"="deTissue",
-                       "Marker genes"="deMarker",
-                       "DE vs neighbour"="deNeighb")
+          temp <- list("DE vs rest"="DEvsRest",
+                       "Marker genes"="DEmarker",
+                       "DE vs neighbour"="DEneighb")
         }
-        radioButtons("dotplotDEtype","Dotplot Genes:",choices=temp,selected="deMarker")
+        radioButtons("dotplotDEtype","Dotplot Genes:",choices=temp,selected="DEmarker")
       }
     })
     
@@ -1154,11 +1157,11 @@ runShiny <- function(filePath,outPath,cellMarkers,annotationDB,rownameKeytype) {
     
     output$DEgeneSlider <- renderUI({
       if (length(res()) > 0) {
-        if (input$dotplotDEtype == "deTissue") {
+        if (input$dotplotDEtype == "DEvsRest") {
           temp_label <- HTML(paste(
             "Positive differential gene expression of cluster over tissue",
             "# of genes per cluster to show",sep="<br/>"))
-        } else if (input$dotplotDEtype == "deMarker") {
+        } else if (input$dotplotDEtype == "DEmarker") {
           if (grepl("^Comp",res())) {
             temp_label <- HTML(paste(
               "Positive differential gene expression between sets",
@@ -1168,7 +1171,7 @@ runShiny <- function(filePath,outPath,cellMarkers,annotationDB,rownameKeytype) {
               "Positive differential gene expression between cluster and all other clusters",
               "# of genes per cluster to show",sep="<br/>"))
           }
-        } else if (input$dotplotDEtype == "deNeighb") {
+        } else if (input$dotplotDEtype == "DEneighb") {
           temp_label <- HTML(paste(
             "Positive differential gene expression between cluster and nearest neighbour",
             "# of genes per cluster to show",sep="<br/>"))
@@ -1208,11 +1211,10 @@ runShiny <- function(filePath,outPath,cellMarkers,annotationDB,rownameKeytype) {
       }
     )
     
-    #### START HERE ####
     output$CGSsave0 <- downloadHandler(
       filename=function() { paste0("ClustGeneStats_",input$DEclustNum,".txt") },
       content=function(file) {
-        outTable <- d$CGS[[res()]][[input$DEclustNum]][,c("MGE","DR","MDGE")]
+        outTable <- ClustGeneStats(d$SCV[[res()]])[[input$DEclustNum]][,c("MGE","DR","MDGE")]
         write.table(outTable,file,quote=F,sep="\t",row.names=T,col.names=NA)
       }
     )
@@ -1220,10 +1222,12 @@ runShiny <- function(filePath,outPath,cellMarkers,annotationDB,rownameKeytype) {
     output$deGeneSave <- downloadHandler(
       filename=function() { paste0(input$dotplotDEtype,"_",input$DEclustNum,".txt") },
       content=function(file) {
-        outTable <- switch(input$dotplotDEtype,
-                           deTissue=d$deTissue[[res()]][[input$DEclustNum]],
-                           deMarker=d$deMarker[[res()]][[input$DEclustNum]],
-                           deNeighb=deNeighb[[res()]][[input$DEclustNum]])
+        outTable <- switch(
+          EXPR=input$dotplotDEtype,
+          DEvsRest=DEvsRest(d$SCV[[res()]])[[input$DEclustNum]],
+          DEmarker=DEmarker(d$SCV[[res()]],input$FDRthresh2)[[input$DEclustNum]],
+          DEneighb=DEneighb(d$SCV[[res()]],input$FDRthresh2)[[input$DEclustNum]]
+        )
         write.table(outTable,file,quote=F,sep="\t",row.names=T,col.names=NA)
       }
     )
@@ -1315,12 +1319,30 @@ runShiny <- function(filePath,outPath,cellMarkers,annotationDB,rownameKeytype) {
     output$clusterGenesSave <- downloadHandler(
       filename="clusterGenes.pdf",
       content=function(file) {
-        pdf(file,width=12,height=7)
-        print(plot_clusterGenes())
-        dev.off()
+        if (length(res()) > 0) {
+          pdf(file,width=12,height=7)
+          switch(input$cgLegend,
+                 markers=plot_clusterGenes_markers(sCVd=d$SCV[[res()]],
+                                                   selClust=selClust(),
+                                                   cellMarkersS=cellMarkersS,
+                                                   cellMarkersU=cellMarkersU),
+                 heatmap=plot_clusterGenes_DEgenes(sCVd=d$SCV[[res()]],
+                                                   selClust=selClust(),
+                                                   DEgenes=DEgenes(),
+                                                   DEnum=input$DEgeneCount,
+                                                   DEtype=input$dotplotDEtype),
+                 search=plot_clusterGenes_search(sCVd=d$SCV[[res()]],
+                                                 selClust=selClust(),
+                                                 GOI=GOI()),
+                 {    
+                   plot(x=NA,y=NA,xlim=0:1,ylim=0:1,xaxt="n",yaxt="n",xlab=NA,ylab=NA)
+                   text(.5,.5,"Whooops. input$cgLegend is making up words.")
+                 })
+          dev.off()
+        }
       }
     )
-
+    
     # ^ Gene expression comparison -------------------------------------------------------
     # ^^ Gene selection by click/search --------------------------------------------------
     output$cgSelect <- renderUI({
@@ -1357,9 +1379,15 @@ runShiny <- function(filePath,outPath,cellMarkers,annotationDB,rownameKeytype) {
     output$geneTestSave <- downloadHandler(
       filename="geneTest.pdf",
       content=function(file) {
-        pdf(file,width=12,height=7)
-        print(plot_geneTest())
-        dev.off()
+        if (length(res()) > 0) {
+          pdf(file,width=12,height=7)
+          plot_GEboxplot(nge=getExpr(inD),
+                         sCVd=d$SCV[[res()]],
+                         gene=input$cgGene,
+                         geneName=geneNameBx(),
+                         opts=input$bxpOpts)
+          dev.off()
+        }
       }
     )
     
@@ -1442,7 +1470,7 @@ runShiny <- function(filePath,outPath,cellMarkers,annotationDB,rownameKeytype) {
                                                   cell_coord=getEmb(inD,"tsne"),
                                                   lab_type=input$tsneLabels),
                                "FALSE"=NULL)
-                  )
+        )
       } else if (input$plotClust1 == "goi") {
         if (is.null(input$goi1)) {
           plot(x=NA,y=NA,xlim=0:1,ylim=0:1,xaxt="n",yaxt="n",xlab=NA,ylab=NA)
@@ -1499,33 +1527,39 @@ runShiny <- function(filePath,outPath,cellMarkers,annotationDB,rownameKeytype) {
     output$goiPlot1Save <- downloadHandler(
       filename="goi1.pdf",
       content=function(file) {
-        pdf(file,width=7,height=7)
-        if (input$plotClust1 == "clust" & length(res()) > 0) {
-          print(plot_tsneClust())
-          if (input$plotLabel1) { print(plot_tsne_labels()) }
-        } else if (input$plotClust1 == "goi") {
-          print(plot_goi(input$goi1))
-          if (input$plotLabel1 & length(res()) > 0 & length(input$goi1) > 0) {
-            print(plot_tsne_labels())
-          }
+        if (input$plotClust2 == "goi" & !is.null(input$goi1)) {
+          pdf(file,width=7,height=7)
+          plot_tsne(cell_coord=getEmb(inD,"tsne"),
+                    md=getExpr(eb1S)[input$goi1,],
+                    md_title=geneNameGOI1(),
+                    md_log=F,
+                    label=switch(as.character(input$plotLabel1),
+                                 "TRUE"=tsne_labels(sCVd=d$SCV[[res()]],
+                                                    cell_coord=getEmb(inD,"tsne"),
+                                                    lab_type=input$tsneLabels),
+                                 "FALSE"=NULL)
+          )
+          dev.off()
         }
-        dev.off()
       }
     )
     output$goiPlot2Save <- downloadHandler(
       filename="goi2.pdf",
       content=function(file) {
-        pdf(file,width=7,height=7)
-        if (input$plotClust2 == "clust" & length(res()) > 0) {
-          print(plot_tsneClust())
-          if (input$plotLabel2) { print(plot_tsne_labels()) }
-        } else if (input$plotClust2 == "goi") {
-          print(plot_goi(input$goi2))
-          if (input$plotLabel2 & length(res()) > 0 & length(input$goi2) > 0) {
-            print(plot_tsne_labels())
-          }
+        if (input$plotClust2 == "goi" & !is.null(input$goi2)) {
+          pdf(file,width=7,height=7)
+          plot_tsne(cell_coord=getEmb(inD,"tsne"),
+                    md=getExpr(eb1S)[input$goi2,],
+                    md_title=geneNameGOI2(),
+                    md_log=F,
+                    label=switch(as.character(input$plotLabel2),
+                                 "TRUE"=tsne_labels(sCVd=d$SCV[[res()]],
+                                                    cell_coord=getEmb(inD,"tsne"),
+                                                    lab_type=input$tsneLabels),
+                                 "FALSE"=NULL)
+          )
+          dev.off()
         }
-        dev.off()
       }
     )
     
@@ -1568,14 +1602,14 @@ runShiny <- function(filePath,outPath,cellMarkers,annotationDB,rownameKeytype) {
     output$CGSsaveA <- downloadHandler(
       filename=function() { paste0("ClustGeneStats_",input$ssA,".txt") },
       content=function(file) {
-        outTable <- d$CGS[[res()]][[input$ssA]][,c("MGE","DR","MDGE")]
+        outTable <- ClustGeneStats(d$SCV[[res()]])[[input$ssA]][,c("MGE","DR","MDGE")]
         write.table(outTable,file,quote=F,sep="\t",row.names=T,col.names=NA)
       }
     )
     output$CGSsaveB <- downloadHandler(
       filename=function() { paste0("ClustGeneStats_",input$ssB,".txt") },
       content=function(file) {
-        outTable <- d$CGS[[res()]][[input$ssB]][,c("MGE","DR","MDGE")]
+        outTable <- ClustGeneStats(d$SCV[[res()]])[[input$ssB]][,c("MGE","DR","MDGE")]
         write.table(outTable,file,quote=F,sep="\t",row.names=T,col.names=NA)
       }
     )
@@ -1615,17 +1649,33 @@ runShiny <- function(filePath,outPath,cellMarkers,annotationDB,rownameKeytype) {
     output$setScatterSave <- downloadHandler(
       filename="setScatter.pdf",
       content=function(file) {
-        pdf(file,width=7,height=7)
-        print(plot_setScatter())
-        dev.off()
+        if (length(res()) > 0) {
+          pdf(file,width=7,height=7)
+          plot_compareClusts(sCVd=d$SCV[[res()]],
+                             clA=input$ssA,
+                             clB=input$ssB,
+                             dataType=input$scatterInput,
+                             labType=input$diffLabelType,
+                             labTypeDiff=input$diffLabelChoice,
+                             labNum=input$diffCount,
+                             labGenes=GOI(),
+                             labAngle=input$scatterLabelAngle)
+          dev.off()
+        }
       }
     )
     
     output$setComparisonSave <- downloadHandler(
-      filename=function() { paste0(input$ssY,"vs",input$ssX,"_",
-                                   input$scatterInput,"_",input$scatterLine,".txt") },
+      filename=function() {
+        temp <- c(paste(input$ssA,input$ssB,sep="-"),paste(input$ssB,input$ssA,sep="-"))
+        tempName <- temp[temp %in% names(DEcombn(d$SCV[[res()]]))]
+        return(paste0("DEcombn_",tempName,".txt"))
+      },
       content=function(file) {
-        write.table(as.data.frame(diffRanked()),file,quote=F,sep="\t",row.names=T,col.names=F)
+        temp <- c(paste(input$ssA,input$ssB,sep="-"),paste(input$ssB,input$ssA,sep="-"))
+        tempName <- temp[temp %in% names(DEcombn(d$SCV[[res()]]))]
+        return(write.table(DEcombn(d$SCV[[res()]])[[tempName]],
+                           file,quote=F,sep="\t",row.names=T,col.names=NA))
       }
     )
     
@@ -1817,7 +1867,7 @@ runShiny <- function(filePath,outPath,cellMarkers,annotationDB,rownameKeytype) {
           d$SCV[[newRes]] <- labelCellTypes(sCV=d$SCV[[newRes]],
                                             cellMarkers=cellMarkers,
                                             symbolMap=symbolMap)
-
+          
           # ^^^ deTissue - DE per cluster vs all other data -------------------------------
           incProgress(amount=2/6,detail="DE vs tissue logGER calculations")
           deTes <- fx_calcESvsRest(nge=getExpr(inD),
@@ -1834,15 +1884,15 @@ runShiny <- function(filePath,outPath,cellMarkers,annotationDB,rownameKeytype) {
                                                        cl=Clusters(d$SCV[[newRes]]),
                                                        deTes=deTes)
           
-          # ^^^ deMarker - DE per cluster vs each other cluster ---------------------------
+          # ^^^ DEmarker - DE per cluster vs each other cluster ---------------------------
           incProgress(amount=1/6,detail="Calculating Set A vs Set B")
-          deMes <- fx_calcESvsCombn(cl=Clusters(d$SCV[[newRes]]),
-                                    CGS=ClustGeneStats(d$SCV[[newRes]]),
-                                    DRthresh=Param(d$SCV[[newRes]],
-                                                   "DRthresh"))
-          DEcombn(d$SCV[[newRes]]) <- fx_calcDEvsCombn(nge=getExpr(inD),
-                                                       cl=Clusters(d$SCV[[newRes]]),
-                                                       deMes=deMes)
+          deMes <- fx_calcEScombn(cl=Clusters(d$SCV[[newRes]]),
+                                  CGS=ClustGeneStats(d$SCV[[newRes]]),
+                                  DRthresh=Param(d$SCV[[newRes]],
+                                                 "DRthresh"))
+          DEcombn(d$SCV[[newRes]]) <- fx_calcDEcombn(nge=getExpr(inD),
+                                                     cl=Clusters(d$SCV[[newRes]]),
+                                                     deMes=deMes)
           
           incProgress(amount=1/6,detail="Done")
           selectedSets$a <- selectedSets$b <- NULL

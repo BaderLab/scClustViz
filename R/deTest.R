@@ -1259,10 +1259,10 @@ setMethod("DEdistNN",signature("matrix"),
 #' @param NN A vector of nearest neighbours from \code{\link{DEdistNN}}.
 #' @param FDRthresh False discovery rate for counting significance.
 #'
-#' @return A named list of named numeric vectors, one entry for each nearest
-#'   neighbouring pair. Each vector is the FDR values for each gene that is
-#'   significantly differentially expressed between that pair of clusters, with
-#'   names corresponding to gene labels.
+#' @return A named list of data frames, one entry for each cluster. Each data
+#'   frame is the results of the gene expression test comparing the cluster to
+#'   its nearest neighbour. See \code{\link{CalcDEcombn}} and
+#'   \code{\link{DEcombn}} for details.
 #'   
 
 
@@ -1278,11 +1278,11 @@ fx_calcNeighb <- function(deVS,NN,FDRthresh) {
   deN <- sapply(seq_along(nb),function(i) {
     temp <- which(deVS[[nb[i]]]$FDR <= FDRthresh &
                     deVS[[nb[i]]]$logGER * nbd[i] > 0)
-    out <- deVS[[nb[i]]]$FDR[temp]
-    names(out) <- rownames(deVS[[nb[i]]])[temp]
+    out <- deVS[[nb[i]]][temp,-which(names(deVS[[nb[i]]]) == "overThreshold")]
+    names(out) <- paste(names(out),paste(names(NN),NN,sep="-")[i],sep="_")
     return(out)
   },simplify=F)
-  names(deN) <- paste(names(NN),NN,sep="-")
+  names(deN) <- names(NN)
   return(deN)
 }
 
@@ -1296,10 +1296,10 @@ fx_calcNeighb <- function(deVS,NN,FDRthresh) {
 #' @param sCVd An sCVdata object.
 #' @param FDRthresh False discovery rate for counting significance.
 #'
-#' @return A named list of named numeric vectors, one entry for each nearest
-#'   neighbouring pair. Each vector is the FDR values for each gene that is
-#'   significantly differentially expressed between that pair of clusters, with
-#'   names corresponding to gene labels.
+#' @return A named list of data frames, one entry for each cluster. Each data
+#'   frame is the results of the gene expression test comparing the cluster to
+#'   its nearest neighbour. See \code{\link{CalcDEcombn}} and
+#'   \code{\link{DEcombn}} for details.
 #'
 #' @name DEneighb
 #'
@@ -1330,10 +1330,10 @@ setMethod("DEneighb","sCVdata",function(sCVd,FDRthresh) fx_calcNeighb(deVS=DEcom
 #' @param deVS List of pairwise DE results from \code{\link{CalcDEcombn}}.
 #' @param FDRthresh False discovery rate for counting significance.
 #'
-#' @return A named list of named numeric vectors, one entry for each cluster.
-#'   Each vector is the FDR values for each gene that is significantly
-#'   positively differentially expressed in that cluster over all other clusters
-#'   in pairwise tests, with names corresponding to gene labels.
+#' @return A named list of data frames, one entry for each cluster. Each data
+#'   frame is the combined results of the set of pairwise gene expression tests
+#'   comparing the cluster to each other cluster in the data. See
+#'   \code{\link{CalcDEcombn}} and \code{\link{DEcombn}} for details.
 #'   
 
 fx_calcMarker <- function(deVS,FDRthresh) {
@@ -1358,12 +1358,19 @@ fx_calcMarker <- function(deVS,FDRthresh) {
       )],simplify=F))
   },simplify=F)
   deM <- sapply(seq_along(mNames),function(i) {
-    temp <- apply(do.call(cbind,sapply(as.integer(names(combosL[[i]])),
-                                       function(l) deVS[[l]][mNames[[i]],"FDR"],
-                                       simplify=F)),
-                  1,max)
-    names(temp) <- mNames[[i]]
-    return(temp)
+    do.call(cbind,lapply(names(combosL[[i]]),function(l) {
+      L <- as.integer(l)
+      temp <- deVS[[L]][mNames[[i]],-which(names(deVS[[L]]) == "overThreshold")]
+      if (combosL[[i]][l] == -1) {
+        temp$logGER <- temp$logGER * combosL[[i]][l]
+        temp$dDR <- temp$dDR * combosL[[i]][l]
+        tempN <- paste(strsplit(names(deVS)[L],split="-")[[1]][c(2,1)],collapse="-")
+        names(temp) <- paste(names(temp),tempN,sep="_")
+      } else {
+        names(temp) <- paste(names(temp),names(deVS)[L],sep="_")
+      }
+      return(temp)
+    }))
   },simplify=F)
   names(deM) <- names(mNames)
   return(deM)
@@ -1379,10 +1386,10 @@ fx_calcMarker <- function(deVS,FDRthresh) {
 #' @param sCVd An sCVdata object.
 #' @param FDRthresh False discovery rate for counting significance.
 #'
-#' @return A named list of named numeric vectors, one entry for each cluster.
-#'   Each vector is the FDR values for each gene that is significantly
-#'   positively differentially expressed in that cluster over all other clusters
-#'   in pairwise tests, with names corresponding to gene labels.
+#' @return A named list of data frames, one entry for each cluster. Each data
+#'   frame is the combined results of the set of pairwise gene expression tests
+#'   comparing the cluster to each other cluster in the data. See
+#'   \code{\link{CalcDEcombn}} and \code{\link{DEcombn}} for details.
 #'
 #' @name DEmarker
 #'
