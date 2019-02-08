@@ -28,7 +28,8 @@ A named list of data frames, one entry for each pairwise combination
   include \code{logGER} (an effect size measure: gene expression ratio in log
   space, often referred to as logFC), \code{dDR} (an effect size measure:
   difference in detection rate), and \code{FDR} (significance measure: false
-  discovery rate).
+  discovery rate). Also included are \code{Wstat} and \code{pVal}, the test
+  statistic and the p-value of the Wilcoxon rank sum test.
 }
 \description{
 Performs differential gene expression tests between each pairwise combination
@@ -71,7 +72,7 @@ DEcombn(your_sCV_obj) <- CalcDEcombn(sCVd=your_sCV_obj,
 MAST_result_list <- apply(
   X=combn(levels(your_seurat_obj@ident),2),
   MARGIN=2,
-  FUN=function(X) 
+  FUN=function(X)
     FindMarkers(your_seurat_obj,
                 ident.1=X[1],
                 ident.2=X[2],
@@ -88,13 +89,13 @@ names(MAST_result_list) <- apply(
 # ^ list entries must be named 'A-B' where clusters are A and B.
 
 for (i in names(MAST_result_list)) {
-  MAST_result_list[[i]]$dDR <- 
+  MAST_result_list[[i]]$dDR <-
     MAST_result_list[[i]]$pct.1 - MAST_result_list[[i]]$pct.2
   # ^ dDR variable must be included
-  
+
   names(MAST_result_list)[names(MAST_result_list) == "avg_logFC"] <- "logGER"
   # ^ logFC effect size variable must be named 'logGER'
-  
+
   names(MAST_result_list)[names(MAST_result_list) == "p_val_adj"] <- "FDR"
   # ^ Significance variable must be named 'FDR'
 }

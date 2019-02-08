@@ -21,9 +21,9 @@ Differential testing results from Wilcoxon rank sum tests comparing a
   where each sample is a gene. \code{logGER} is the log gene expression ratio
   calculated by subtracting the mean expression of the gene (see
   \link{meanLogX} for mean calculation) in all other cells from the mean
-  expression of the gene in this cluster. \code{pVal} is the p-value of the
-  Wilcoxon rank sum test. \code{FDR} is the false discovery rate-corrected
-  p-value of the test.
+  expression of the gene in this cluster. \code{Wstat} and \code{pVal} are
+  the test statistic and the p-value of the Wilcoxon rank sum test.
+  \code{FDR} is the false discovery rate-corrected p-value of the test.
 }
 \description{
 Internal function. See \code{\link{CalcDEvsRest}}.

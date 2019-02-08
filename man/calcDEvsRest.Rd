@@ -26,7 +26,9 @@ A named list of data frames, one entry for each level in
   that cluster to all other cells in the input data. Rows represent genes,
   and variables include \code{logGER} (an effect size measure: gene
   expression ratio in log space, often referred to as logFC) and \code{FDR}
-  (significance measure: false discovery rate).
+  (significance measure: false discovery rate). Also included are
+  \code{Wstat} and \code{pVal}, the test statistic and the p-value of the
+  Wilcoxon rank sum test.
 }
 \description{
 Performs differential gene expression tests for each cluster in an sCVdata
@@ -40,11 +42,11 @@ This function performs Wilcoxon rank sum tests comparing gene expression
 between each cluster and all other cells in the input data. Gene expression
 ratio in log space (\code{logGER}) is reported for all genes in the
 comparison. Genes are tested if they are detected in the cluster at a higher
-proportion than \code{Param(sCVd,"DRthresh")}, and both unadjusted p-values and
-false discovery rates are reported for all genes tested. To help track its
-progress, this function uses progress bars from \code{pbapply}. To disable
-these, set \code{\link[pbapply]{pboptions}(type="none")}. To re-enable, set
-\code{\link[pbapply]{pboptions}(type="timer")}.
+proportion than \code{Param(sCVd,"DRthresh")}, and both unadjusted p-values
+and false discovery rates are reported for all genes tested. To help track
+its progress, this function uses progress bars from \code{pbapply}. To
+disable these, set \code{\link[pbapply]{pboptions}(type="none")}. To
+re-enable, set \code{\link[pbapply]{pboptions}(type="timer")}.
 
 If using existing DE test results, assign results of one vs. all tests for
 every cluster in sCVdata to the \code{\link{DEvsRest}} slot of the
@@ -73,7 +75,7 @@ names(MAST_result)[names(MAST_result) == "p_val_adj"] <- "FDR"
 # ^ Significance variable must be named 'FDR'
 
 MAST_result_list <- sapply(levels(MAST_result$cluster),
-                           function(X) 
+                           function(X)
                              MAST_result[MAST_result$cluster == X,],
                            simplify=F)
 # ^ Must be named list with entries for every cluster.

@@ -815,23 +815,31 @@ plot_GEboxplot <- function(nge,sCVd,gene,geneName,opts) {
 # Cluster comparisons --------
 compareClusts_DF <- function(sCVd,clA,clB,dataType) {
   if (dataType %in% c("MGE","MDGE","DR")) {
-    loc <- c(paste(clA,clB,sep="-"),paste(clB,clA,sep="-"))
-    loc <- loc[loc %in% names(DEcombn(sCVd))]
+    loc1 <- c(paste(clA,clB,sep="-"),paste(clB,clA,sep="-"))
+    loc <- loc1[loc1 %in% names(DEcombn(sCVd))]
+    loc1 <- which(loc1 %in% names(DEcombn(sCVd)))
+    if (loc1 == 2) { loc1 <- -1 }
+    tempW <- DEcombn(sCVd)[[loc]]$Wstat - 
+      DEcombn(sCVd)[[loc]]$Wstat[which.max(DEcombn(sCVd)[[loc]]$pVal)]
     temp <- data.frame(x_diff=ClustGeneStats(sCVd)[[clA]][,dataType] - 
                          ClustGeneStats(sCVd)[[clB]][,dataType],
                        y_mean=rowMeans(cbind(ClustGeneStats(sCVd)[[clA]][,dataType],
                                              ClustGeneStats(sCVd)[[clB]][,dataType])),
                        logGER=DEcombn(sCVd)[[loc]]$logGER,
-                       FDR=DEcombn(sCVd)[[loc]]$FDR)
+                       FDR=DEcombn(sCVd)[[loc]]$FDR,
+                       dir=c(clB,clA)[(tempW * loc1 > 0) + 1])
     rownames(temp) <- rownames(ClustGeneStats(sCVd)[[clA]])
     return(temp)
   } else if (dataType %in% c("GERvDDR","logGER","dDR")) {
-    loc <- which(c(paste(clA,clB,sep="-"),paste(clB,clA,sep="-")) %in% names(DEcombn(sCVd)))
-    if (loc == 2) { loc <- -1 }
-    names(loc) <- which(names(DEcombn(sCVd)) %in% c(paste(clA,clB,sep="-"),paste(clB,clA,sep="-")))
-    temp <- DEcombn(sCVd)[[as.integer(names(loc))]][,c("logGER","dDR","FDR")]
-    temp <- as.data.frame(mapply("*",temp,c(loc,loc,1))) 
+    loc1 <- which(c(paste(clA,clB,sep="-"),paste(clB,clA,sep="-")) %in% names(DEcombn(sCVd)))
+    if (loc1 == 2) { loc1 <- -1 }
+    loc <- which(names(DEcombn(sCVd)) %in% c(paste(clA,clB,sep="-"),paste(clB,clA,sep="-")))
+    temp <- DEcombn(sCVd)[[loc]][,c("logGER","dDR","FDR")]
+    temp <- as.data.frame(mapply("*",temp,c(loc1,loc1,1))) 
     rownames(temp) <- rownames(ClustGeneStats(sCVd)[[clA]])
+    tempW <- DEcombn(sCVd)[[loc]]$Wstat - 
+      DEcombn(sCVd)[[loc]]$Wstat[which.max(DEcombn(sCVd)[[loc]]$pVal)]
+    temp$dir <- c(clB,clA)[(tempW * loc1 > 0) + 1]
     return(temp)
   } 
 }
@@ -858,8 +866,8 @@ plot_compareClusts_MAplot <- function(sCVd,clA,clB,dataType,labType,labNum,labGe
     gnB <- rownames(tail(CGS[order(CGS$x_diff,decreasing=T),],labNum))
   } else if (labType == "de") {
     ts <- order(CGS$FDR,na.last=T)
-    gnA <- rownames(CGS)[ts[CGS[ts,"logGER"] > 0][1:labNum]]
-    gnB <- rownames(CGS)[ts[CGS[ts,"logGER"] < 0][1:labNum]]
+    gnA <- rownames(CGS)[ts[CGS[ts,"dir"] == clA][1:labNum]]
+    gnB <- rownames(CGS)[ts[CGS[ts,"dir"] == clB][1:labNum]]
   }
   
   # ^ plot MA -----
@@ -930,16 +938,21 @@ plot_compareClusts_DEscatter <- function(sCVd,clA,clB,dataType,labType,
     gnB <- rownames(tail(CGS[order(CGS[[labTypeDiff]],decreasing=T),],labNum))
   } else if (labType == "de") {
     ts <- order(CGS$FDR,na.last=T)
-    gnA <- rownames(CGS)[ts[CGS[ts,"logGER"] > 0][1:labNum]]
-    gnB <- rownames(CGS)[ts[CGS[ts,"logGER"] < 0][1:labNum]]
+    gnA <- rownames(CGS)[ts[CGS[ts,"dir"] == clA][1:labNum]]
+    gnB <- rownames(CGS)[ts[CGS[ts,"dir"] == clB][1:labNum]]
   }
+  # Adding a colour scale for FDR
+  # CGS <- CGS[order(CGS$FDR,decreasing=T,na.last=F),]
+  # temp_col <- viridis(100,alpha=0.3,direction=-1)[cut(-log10(CGS$FDR),100,labels=F)]
+  # temp_col[is.na(temp_col)] <- alpha("grey90",0.3)
+  
   # ^ plot MA -----
   par(mar=c(3,3,3.5,1),mgp=c(2,1,0))
   plot(logGER~dDR,data=CGS,
        xlab=paste0("Difference in detection rate (",clA," - ",clB,")"),
        ylab=paste0("Gene expression ratio (",clA," : ",clB,") ",temp_exp),
        main=paste0("Expression difference effect sizes (",clA," vs. ",clB,")"),
-       pch=20,col=alpha("black",0.3))
+       pch=20,col=alpha("black",0.3)) # col=temp_col)
   abline(v=0,h=0,col="gray50")
   lines(x=c(par("usr")[2],par("usr")[2]),y=c(0,par("usr")[4]),lwd=2,xpd=NA,
         col=rainbow2(length(levels(Clusters(sCVd))))[which(levels(Clusters(sCVd)) == clA)])
@@ -991,8 +1004,8 @@ plot_compareClusts_volcano <- function(sCVd,clA,clB,dataType,labType,labNum,labG
     gnB <- rownames(tail(CGS[order(CGS[[dataType]],decreasing=T),],labNum))
   } else if (labType == "de") {
     ts <- order(CGS$FDR,decreasing=T,na.last=T)
-    gnA <- rownames(CGS)[ts[CGS[ts,"logGER"] > 0][1:labNum]]
-    gnB <- rownames(CGS)[ts[CGS[ts,"logGER"] < 0][1:labNum]]
+    gnA <- rownames(CGS)[ts[CGS[ts,"dir"] == clA][1:labNum]]
+    gnB <- rownames(CGS)[ts[CGS[ts,"dir"] == clB][1:labNum]]
   }
   # ^ plot MA -----
   par(mar=c(3,3,3.5,1),mgp=c(2,1,0))

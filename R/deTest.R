@@ -580,6 +580,7 @@ fx_calcESvsRest <- function(nge,cl,CGS,exponent,pseudocount,DRthresh) {
   return(pbapply::pbsapply(levels(cl),function(i) {
     temp <- data.frame(overThreshold = CGS[[i]]$DR >= DRthresh,
                        logGER=NA,
+                       Wstat=NA,
                        pVal=NA,
                        FDR=NA)
     rownames(temp) <- rownames(CGS[[i]])
@@ -612,10 +613,10 @@ fx_calcESvsRest <- function(nge,cl,CGS,exponent,pseudocount,DRthresh) {
 #'   where each sample is a gene. \code{logGER} is the log gene expression ratio
 #'   calculated by subtracting the mean expression of the gene (see
 #'   \link{meanLogX} for mean calculation) in all other cells from the mean
-#'   expression of the gene in this cluster. \code{pVal} is the p-value of the
-#'   Wilcoxon rank sum test. \code{FDR} is the false discovery rate-corrected
-#'   p-value of the test.
-#'
+#'   expression of the gene in this cluster. \code{Wstat} and \code{pVal} are
+#'   the test statistic and the p-value of the Wilcoxon rank sum test.
+#'   \code{FDR} is the false discovery rate-corrected p-value of the test.
+#'   
 
 fx_calcDEvsRest <- function(nge,cl,deTes) {
   message("-- Testing differential expression cluster vs rest --")
@@ -630,11 +631,12 @@ fx_calcDEvsRest <- function(nge,cl,deTes) {
     apply(nge[rownames(deTes[[i]])[deTes[[i]]$overThreshold],],1, #slice by rowname is slower, but safer
           function(X) 
             # suppressWarnings(wilcox.test(X[cl %in% i],X[!cl %in% i],alternative="greater")$p.value)
-            suppressWarnings(wilcox.test(X[cl %in% i],X[!cl %in% i])$p.value)
+            suppressWarnings(unlist(wilcox.test(X[cl %in% i],X[!cl %in% i])[c("statistic","p.value")]))
     ),simplify=F)
   for (i in names(deTes)) {
-    deTes[[i]][names(deT_pVal[[i]]),"pVal"] <- deT_pVal[[i]]
-    deTes[[i]][names(deT_pVal[[i]]),"FDR"] <- p.adjust(deT_pVal[[i]],"fdr")
+    deTes[[i]][colnames(deT_pVal[[i]]),"Wstat"] <- deT_pVal[[i]]["statistic.W",]
+    deTes[[i]][colnames(deT_pVal[[i]]),"pVal"] <- deT_pVal[[i]]["p.value",]
+    deTes[[i]][colnames(deT_pVal[[i]]),"FDR"] <- p.adjust(deT_pVal[[i]]["p.value",],"fdr")
   } 
   return(deTes)
 }
@@ -652,11 +654,11 @@ fx_calcDEvsRest <- function(nge,cl,deTes) {
 #' between each cluster and all other cells in the input data. Gene expression
 #' ratio in log space (\code{logGER}) is reported for all genes in the
 #' comparison. Genes are tested if they are detected in the cluster at a higher
-#' proportion than \code{Param(sCVd,"DRthresh")}, and both unadjusted p-values and
-#' false discovery rates are reported for all genes tested. To help track its
-#' progress, this function uses progress bars from \code{pbapply}. To disable
-#' these, set \code{\link[pbapply]{pboptions}(type="none")}. To re-enable, set
-#' \code{\link[pbapply]{pboptions}(type="timer")}.
+#' proportion than \code{Param(sCVd,"DRthresh")}, and both unadjusted p-values
+#' and false discovery rates are reported for all genes tested. To help track
+#' its progress, this function uses progress bars from \code{pbapply}. To
+#' disable these, set \code{\link[pbapply]{pboptions}(type="none")}. To
+#' re-enable, set \code{\link[pbapply]{pboptions}(type="timer")}.
 #'
 #' If using existing DE test results, assign results of one vs. all tests for
 #' every cluster in sCVdata to the \code{\link{DEvsRest}} slot of the
@@ -675,40 +677,42 @@ fx_calcDEvsRest <- function(nge,cl,deTes) {
 #'   that cluster to all other cells in the input data. Rows represent genes,
 #'   and variables include \code{logGER} (an effect size measure: gene
 #'   expression ratio in log space, often referred to as logFC) and \code{FDR}
-#'   (significance measure: false discovery rate).
+#'   (significance measure: false discovery rate). Also included are
+#'   \code{Wstat} and \code{pVal}, the test statistic and the p-value of the
+#'   Wilcoxon rank sum test.
 #'
 #' @seealso \code{\link{CalcSCV}} for wrapper function to calculate all
 #'   statistics for an sCVdata object,  and \code{\link{fx_calcESvsRest}} and
 #'   \code{\link{fx_calcDEvsRest}} for the internal functions performing the
 #'   calculations.
-#'   
+#'
 #' @examples
 #' \dontrun{
 #' ## Example using CalcDEvsRest ##
 #' DEvsRest(your_sCV_obj) <- CalcDEvsRest(sCVd=your_sCV_obj,
 #'                                        inD=your_scRNAseq_data_object)
-#' 
-#' 
+#'
+#'
 #' ## Example using MAST results from Seurat to replace CalcDEvsRest ##
 #' MAST_result <- Seurat::FindAllMarkers(your_seurat_obj,
 #'                                       test.use="MAST",
 #'                                       latent.vars="nUMI")
-#' 
+#'
 #' names(MAST_result)[names(MAST_result) == "avg_logFC"] <- "logGER"
 #' # ^ Effect size variable must be named 'logGER'
 #' names(MAST_result)[names(MAST_result) == "p_val_adj"] <- "FDR"
 #' # ^ Significance variable must be named 'FDR'
-#' 
+#'
 #' MAST_result_list <- sapply(levels(MAST_result$cluster),
-#'                            function(X) 
+#'                            function(X)
 #'                              MAST_result[MAST_result$cluster == X,],
 #'                            simplify=F)
 #' # ^ Must be named list with entries for every cluster.
-#' 
+#'
 #' DEvsRest(your_sCV_obj) <- MAST_result_list
-#' 
+#'
 #' }
-#' 
+#'
 #' @name CalcDEvsRest
 #'
 #' @export
@@ -799,8 +803,9 @@ fx_calcEScombn <- function(cl,CGS,DRthresh) {
 #'   the two clusters (DR[A] - DR[B]). \code{logGER} is the log gene expression
 #'   ratio calculated by taking the difference in mean expression of the gene
 #'   (see \code{\link{meanLogX}} for mean calculation) between the two clusters
-#'   (MGE[A] - MGE[B]). \code{pVal} is the p-value of the Wilcoxon rank sum
-#'   test. \code{FDR} is the false discovery rate-corrected p-value of the test.
+#'   (MGE[A] - MGE[B]). \code{Wstat} and \code{pVal} are the test statistic and
+#'   the p-value of the Wilcoxon rank sum test. \code{FDR} is the false
+#'   discovery rate-corrected p-value of the test.
 #'   
 
 fx_calcDEcombn <- function(nge,cl,deMes) {
@@ -812,11 +817,14 @@ fx_calcDEcombn <- function(nge,cl,deMes) {
   #                                  X[cl == combosL[[i]][2]])$p.value)))
   deM_pVal <- pbapply::pbsapply(seq_along(combosL),function(i)
     apply(nge[rownames(deMes[[i]])[deMes[[i]]$overThreshold],],1,function(X) 
-      suppressWarnings(wilcox.test(X[cl == combosL[[i]][1]],
-                                   X[cl == combosL[[i]][2]])$p.value)),simplify=F)
+      suppressWarnings(unlist(
+        wilcox.test(X[cl == combosL[[i]][1]],
+                    X[cl == combosL[[i]][2]])[c("statistic","p.value")]
+      ))),simplify=F)
   for (i in seq_along(deMes)) {
-    deMes[[i]][names(deM_pVal[[i]]),"pVal"] <- deM_pVal[[i]]
-    deMes[[i]][names(deM_pVal[[i]]),"FDR"] <- p.adjust(deM_pVal[[i]],"fdr")
+    deMes[[i]][colnames(deM_pVal[[i]]),"Wstat"] <- deM_pVal[[i]]["statistic.W",]
+    deMes[[i]][colnames(deM_pVal[[i]]),"pVal"] <- deM_pVal[[i]]["p.value",]
+    deMes[[i]][colnames(deM_pVal[[i]]),"FDR"] <- p.adjust(deM_pVal[[i]]["p.value",],"fdr")
   } 
   return(deMes)
 }
@@ -861,7 +869,8 @@ fx_calcDEcombn <- function(nge,cl,deMes) {
 #'   include \code{logGER} (an effect size measure: gene expression ratio in log
 #'   space, often referred to as logFC), \code{dDR} (an effect size measure:
 #'   difference in detection rate), and \code{FDR} (significance measure: false
-#'   discovery rate).
+#'   discovery rate). Also included are \code{Wstat} and \code{pVal}, the test
+#'   statistic and the p-value of the Wilcoxon rank sum test.
 #'
 #' @seealso \code{\link{CalcSCV}} for wrapper function to calculate all
 #'   statistics for an sCVdata object, and \code{\link{fx_calcEScombn}} and
@@ -876,11 +885,11 @@ fx_calcDEcombn <- function(nge,cl,deMes) {
 #'
 #'
 #' ## Example using MAST results from Seurat to replace CalcDEcombn ##
-#' 
+#'
 #' MAST_result_list <- apply(
 #'   X=combn(levels(your_seurat_obj@ident),2),
 #'   MARGIN=2,
-#'   FUN=function(X) 
+#'   FUN=function(X)
 #'     FindMarkers(your_seurat_obj,
 #'                 ident.1=X[1],
 #'                 ident.2=X[2],
@@ -888,22 +897,22 @@ fx_calcDEcombn <- function(nge,cl,deMes) {
 #'                 latent.vars="nUMI")
 #' )
 #' # ^ Pairwise testing of all combinations of clusters.
-#' 
+#'
 #' names(MAST_result_list) <- apply(
 #'   X=combn(levels(your_seurat_obj@ident),2),
 #'   MARGIN=2,
 #'   FUN=function(X) paste(X,collapse="-")
 #' )
 #' # ^ list entries must be named 'A-B' where clusters are A and B.
-#' 
+#'
 #' for (i in names(MAST_result_list)) {
-#'   MAST_result_list[[i]]$dDR <- 
+#'   MAST_result_list[[i]]$dDR <-
 #'     MAST_result_list[[i]]$pct.1 - MAST_result_list[[i]]$pct.2
 #'   # ^ dDR variable must be included
-#'   
+#'
 #'   names(MAST_result_list)[names(MAST_result_list) == "avg_logFC"] <- "logGER"
 #'   # ^ logFC effect size variable must be named 'logGER'
-#'   
+#'
 #'   names(MAST_result_list)[names(MAST_result_list) == "p_val_adj"] <- "FDR"
 #'   # ^ Significance variable must be named 'FDR'
 #' }
@@ -1351,11 +1360,10 @@ fx_calcMarker <- function(deVS,FDRthresh) {
   if (missing(FDRthresh)) { FDRthresh <- 1 }
   mNames <- sapply(combosL,function(comp) {
     cn <- as.integer(names(comp))
-    Reduce(intersect,sapply(seq_along(comp),function(i) 
-      rownames(deVS[[cn[i]]])[which(
-        deVS[[cn[i]]]$FDR <= FDRthresh &
-          deVS[[cn[i]]]$logGER * comp[i] > 0
-      )],simplify=F))
+    Reduce(intersect,sapply(seq_along(comp),function(i) {
+      tempW <- deVS[[cn[i]]]$Wstat - deVS[[cn[i]]]$Wstat[which.max(deVS[[cn[i]]]$pVal)]
+      rownames(deVS[[cn[i]]])[which(deVS[[cn[i]]]$FDR <= FDRthresh & tempW * comp[i] > 0)]
+    },simplify=F))
   },simplify=F)
   deM <- sapply(seq_along(mNames),function(i) {
     do.call(cbind,lapply(names(combosL[[i]]),function(l) {
