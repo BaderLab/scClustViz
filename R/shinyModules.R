@@ -1,4 +1,4 @@
-#' @include deTest.R
+#' @include deTest.R speadLabels.R
 NULL
 
 
