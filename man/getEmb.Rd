@@ -22,7 +22,9 @@ This is a wrapper function to the relevant class's cell metadata slot
 accessor / assignment method. Currently supported input object classes:
 \itemize{
   \item Class \code{\link[Seurat]{seurat}} accessed by 
-    \code{\link[Seurat]{GetCellEmbeddings}(x,DRtype)}.
+    \code{x@DRtype.rot} or \code{x@dr$DRtype@cell.embeddings} or 
+    \code{x@reductions$DRtype@cell.embeddings}, 
+    depending on Seurat object version.
   \item Class \code{\link[SingleCellExperiment]{SingleCellExperiment}}
     accessed by \code{\link[SingleCellExperiment]{reducedDim}(x,DRtype)}.
 }

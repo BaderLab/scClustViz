@@ -16,7 +16,7 @@ plot_clustSep <- function(sCVdL,DEtype,FDRthresh,res,Xlim,Ylim) {
                                             silWidth=Silhouette(X)[,"sil_width"]),
                    simplify=F)
   if (is.null(Ylim)) { Ylim <- range(unlist(bpData)) }
-
+  
   if (grepl("^Comp",res)) {
     par(mar=c(3,3,2,1))
     plot(x=NA,y=NA,xlim=0:1,ylim=0:1,xaxt="n",yaxt="n",xlab=NA,ylab=NA)
@@ -35,12 +35,12 @@ plot_clustSep <- function(sCVdL,DEtype,FDRthresh,res,Xlim,Ylim) {
                        # DR="Distance between clusters by gene detection rates",
                        # MGE="Distance between clusters by mean gene expression",
                        scoreDE="Distance between clusters by differential expression score",
-                       deMarker="Positive DE genes per cluster to all other clusters",
-                       deNeighb="Positive DE genes per cluster to nearest cluster"))
+                       DEmarker="Positive DE genes per cluster to all other clusters",
+                       DEneighb="Positive DE genes per cluster to nearest cluster"))
     }
     abline(h=seq(0,max(unlist(bpData)),switch(as.character(diff(Ylim) > 1000),
                                               "FALSE"=10,"TRUE"=100)),
-                 lty=3,col=alpha(1,0.3))
+           lty=3,col=alpha(1,0.3))
     for (i in names(bpData)[names(bpData) != res]) {
       boxplot(bpData[[i]],add=T,at=numClust[i],yaxt="n")
     }
@@ -135,7 +135,7 @@ plot_tsne <- function(cell_coord,md,md_title,md_log,label,
     par(mar=c(3,3,2,1),mgp=2:0)
   }
   if (missing(sel_cells)) { sel_cells <- character() }
-
+  
   plot(x=NULL,y=NULL,xlab="tSNE_1",ylab="tSNE_2",
        xlim=range(cell_coord[,1]),ylim=range(cell_coord[,2]))
   if (length(sel_cells) > 0) {
@@ -164,7 +164,7 @@ plot_tsne <- function(cell_coord,md,md_title,md_log,label,
            pch=4,col="red")
   }
   if (!is.null(label)) {
-    text(label,labels=rownames(label),font=2,cex=1.5)
+    text(label,labels=rownames(label),font=2,cex=1.2)
   }
   if (is.null(md_title)) {
   } else if (is.factor(md) | is.character(md)) {
@@ -290,8 +290,8 @@ plot_mdCompare <- function(MD,mdX,mdY,sel_cells,sel_clust,md_log) {
     tempLY <- "y" 
     if (any(MD[,2] <= 0)) {
       names(MD)[2] <- paste(names(MD)[2],
-                    paste0("(log scale: ",sum(MD[,2] <= 0),
-                           " values <= 0 omitted)"))
+                            paste0("(log scale: ",sum(MD[,2] <= 0),
+                                   " values <= 0 omitted)"))
       MD <- MD[MD[,2] > 0,]
     } else {
       names(MD)[2] <- paste(names(MD)[2],"(log scale)")
@@ -370,8 +370,8 @@ plot_mdPerClust <- function(MD,sel,cl,opt) {
   if ("y" %in% opt & !(is.factor(MD[,1]) | is.character(MD[,1]))) { 
     if (any(MD[,1] <= 0)) {
       names(MD)[1] <- paste(names(MD)[1],
-                   paste0("(log scale: ",sum(MD[,1] <= 0),
-                          " values <= 0 omitted)"))
+                            paste0("(log scale: ",sum(MD[,1] <= 0),
+                                   " values <= 0 omitted)"))
       MD <- MD[MD[,1] > 0,]
     } else {
       names(MD)[1] <- paste(names(MD)[1],"(log scale)")
@@ -430,7 +430,7 @@ plot_deDotplot <- function(sCVd,DEgenes,DEnum) {
          "No genes were statistically significant at the current false discovery rate")
     return(invisible())
   }
-
+  
   temp_DR <- sapply(ClustGeneStats(sCVd),function(X) X[heatGenes,"DR"])
   if (is.vector(temp_DR)) {
     temp_DR <- matrix(temp_DR,1,dimnames=list(NULL,names(temp_DR))) 
@@ -447,13 +447,13 @@ plot_deDotplot <- function(sCVd,DEgenes,DEnum) {
     hG <- list(order=1)
   }
   
-#  if (length(ClustGeneStats(sCVd)) > 2) {
-    hC <- hclust(as.dist(DEdist(sCVd)),"single")
- # } else {
- #    hC <- hclust(dist(t(temp_DR)))
- #  }  
+  #  if (length(ClustGeneStats(sCVd)) > 2) {
+  hC <- hclust(as.dist(DEdist(sCVd)),"single")
+  # } else {
+  #    hC <- hclust(dist(t(temp_DR)))
+  #  }  
   clustCols <- rainbow2(length(levels(Clusters(sCVd))))
-
+  
   dC <- dendrapply(as.dendrogram(hC),function(X) {
     if (is.leaf(X)) {
       attr(X,"edgePar") <- list(
@@ -618,22 +618,35 @@ plot_clusterGenes_markers <- function(sCVd,selClust,cellMarkersS,cellMarkersU) {
                                 MoreArgs=list(col1=cellMarkCols[as.integer(temp[1])],
                                               col2=cellMarkCols[as.integer(temp[2])]))
     }
-    for (x in which(CGS$cMu & CGS$overCut)) {
-      text(x=CGS$DR[x],y=CGS$MDGE[x],
-           labels=CGS$genes[x],srt=325,cex=1.5,font=2,adj=c(1.1,-.1),
+    tempLabels <- spreadLabels(CGS[(CGS$cMu | CGS$cMs) & CGS$overCut,"DR"],
+                               CGS[(CGS$cMu | CGS$cMs) & CGS$overCut,"MDGE"],
+                               CGS[(CGS$cMu | CGS$cMs) & CGS$overCut,"genes"],
+                               str.cex=1.2,str.font=2)
+    rownames(tempLabels) <- CGS[(CGS$cMu | CGS$cMs) & CGS$overCut,"genes"]                        
+    for (gn in CGS[CGS$cMu & CGS$overCut,"genes"]) {
+      rect(xleft=tempLabels[gn,1] - strwidth(gn,cex=1.2,font=2) * .5,
+           xright=tempLabels[gn,1] + strwidth(gn,cex=1.2,font=2) * .5,
+           ybottom=tempLabels[gn,2] - strheight(gn,cex=1.2,font=2) * .5,
+           ytop=tempLabels[gn,2] + strheight(gn,cex=1.2,font=2) * .5,
+           border=NA,col=alpha("white",0.5))
+      text(tempLabels[gn,,drop=F],labels=gn,cex=1.2,font=2,
            col=cellMarkCols[which(sapply(cellMarkersU,function(X) 
-             CGS$genes[x] %in% X))])
+             gn %in% X))])
     }
-    for (x in which(CGS$cMs & CGS$overCut)) {
-      text(x=CGS$DR[x],y=CGS$MDGE[x],
-           labels=CGS$genes[x],srt=325,cex=1.5,font=2,adj=c(1.1,-.1),
+    for (gn in CGS[CGS$cMs & CGS$overCut,"genes"]) {
+      rect(xleft=tempLabels[gn,1] - strwidth(gn,cex=1.2,font=2) * .5,
+           xright=tempLabels[gn,1] + strwidth(gn,cex=1.2,font=2) * .5,
+           ybottom=tempLabels[gn,2] - strheight(gn,cex=1.2,font=2) * .5,
+           ytop=tempLabels[gn,2] + strheight(gn,cex=1.2,font=2) * .5,
+           border=NA,col=alpha("white",0.5))
+      text(tempLabels[gn,,drop=F],labels=gn,cex=1.2,font=2,
            col=cellMarkCols[as.integer(temp[2])])
     }
     legend(x=1.05,y=max(CGS$MDGE),xpd=NA,bty="n",ncol=1,
            pch=19,col=cellMarkCols,legend=names(cellMarkersU))
   }
 }
-    
+
 
 plot_clusterGenes_DEgenes <- function(sCVd,selClust,DEgenes,DEnum,DEtype) {
   par(mar=c(3,3,3,20),mgp=2:0)
@@ -659,11 +672,24 @@ plot_clusterGenes_DEgenes <- function(sCVd,selClust,DEgenes,DEnum,DEtype) {
     box(col=rainbow2(length(levels(Clusters(sCVd))))[selClust],lwd=2)
     if (length(DEgenes[[selClust]]) > 0) {
       DEG <- names(DEgenes[[selClust]])[1:DEnum]
+      DEG <- DEG[!is.na(DEG)]
       points(x=CGS[DEG,"DR"],y=CGS[DEG,"MDGE"],
              pch=16,cex=1.2,col="firebrick2")
       if (any(CGS[DEG,"overCut"])) {
-        text(x=CGS[DEG,"DR"][CGS[DEG,"overCut"]],y=CGS[DEG,"MDGE"][CGS[DEG,"overCut"]],
-             srt=325,cex=1.5,font=2,adj=c(1.1,-.1),col="firebrick2",
+        tempLabels <- spreadLabels(x=CGS[DEG,"DR"][CGS[DEG,"overCut"]],
+                                   y=CGS[DEG,"MDGE"][CGS[DEG,"overCut"]],
+                                   label=CGS[DEG,"genes"][CGS[DEG,"overCut"]],
+                                   str.cex=1.2,str.font=2)
+        rect(xleft=tempLabels[,1] - 
+               strwidth(CGS[DEG,"genes"][CGS[DEG,"overCut"]],cex=1.2,font=2) * .5,
+             xright=tempLabels[,1] + 
+               strwidth(CGS[DEG,"genes"][CGS[DEG,"overCut"]],cex=1.2,font=2) * .5,
+             ybottom=tempLabels[,2] - 
+               strheight(CGS[DEG,"genes"][CGS[DEG,"overCut"]],cex=1.2,font=2) * .5,
+             ytop=tempLabels[,2] +
+               strheight(CGS[DEG,"genes"][CGS[DEG,"overCut"]],cex=1.2,font=2) * .5,
+             border=NA,col=alpha("white",0.5))
+        text(tempLabels,cex=1.2,font=2,col="firebrick2",
              labels=CGS[DEG,"genes"][CGS[DEG,"overCut"]])
       }
     }
@@ -678,7 +704,7 @@ plot_clusterGenes_DEgenes <- function(sCVd,selClust,DEgenes,DEnum,DEtype) {
     
   }
 }
-    
+
 plot_clusterGenes_search <- function(sCVd,selClust,GOI) {
   par(mar=c(3,3,3,20),mgp=2:0)
   if (selClust == "") {
@@ -705,9 +731,21 @@ plot_clusterGenes_search <- function(sCVd,selClust,GOI) {
       points(x=CGS[GOI,"DR"],y=CGS[GOI,"MDGE"],
              pch=16,cex=1.2,col="firebrick2")
       if (any(CGS[GOI,"overCut"])) {
-      text(x=CGS[GOI,"DR"][CGS[GOI,"overCut"]],y=CGS[GOI,"MDGE"][CGS[GOI,"overCut"]],
-           srt=325,cex=1.5,font=2,adj=c(1.1,-.1),col="firebrick2",
-           labels=CGS[GOI,"genes"][CGS[GOI,"overCut"]])
+        tempLabels <- spreadLabels(x=CGS[GOI,"DR"][CGS[GOI,"overCut"]],
+                                   y=CGS[GOI,"MDGE"][CGS[GOI,"overCut"]],
+                                   label=CGS[GOI,"genes"][CGS[GOI,"overCut"]],
+                                   str.cex=1.2,str.font=2)
+        rect(xleft=tempLabels[,1] - 
+               strwidth(CGS[GOI,"genes"][CGS[GOI,"overCut"]],cex=1.2,font=2) * .5,
+             xright=tempLabels[,1] + 
+               strwidth(CGS[GOI,"genes"][CGS[GOI,"overCut"]],cex=1.2,font=2) * .5,
+             ybottom=tempLabels[,2] - 
+               strheight(CGS[GOI,"genes"][CGS[GOI,"overCut"]],cex=1.2,font=2) * .5,
+             ytop=tempLabels[,2] +
+               strheight(CGS[GOI,"genes"][CGS[GOI,"overCut"]],cex=1.2,font=2) * .5,
+             border=NA,col=alpha("white",0.5))
+        text(tempLabels,cex=1.2,font=2,col="firebrick2",
+             labels=CGS[GOI,"genes"][CGS[GOI,"overCut"]])
       }
     }
   }
@@ -870,7 +908,7 @@ plot_compareClusts_MAplot <- function(sCVd,clA,clB,dataType,labType,labNum,labGe
     gnB <- rownames(CGS)[ts[CGS[ts,"dir"] == clB][1:labNum]]
   }
   
-  # ^ plot MA -----
+  # ^ plot -----
   par(mar=c(3,3,3.5,1),mgp=c(2,1,0))
   plot(y_mean~x_diff,data=CGS,
        xlab=paste0("Difference in ",temp_label," (",clA," - ",clB,")"),
@@ -890,17 +928,21 @@ plot_compareClusts_MAplot <- function(sCVd,clA,clB,dataType,labType,labNum,labGe
   if (labType == "search") {
     if (length(labGenes) > 0) {
       points(y_mean~x_diff,data=CGS[labGenes,],pch=16,col=alpha("firebrick2",0.8))
-      text(CGS[labGenes,"x_diff"],CGS[labGenes,"y_mean"],labels=labGenes,
-           adj=temp_adjB,col="firebrick2",cex=1.5,font=2)
+      tempLabel <- spreadLabels(x=CGS[labGenes,"x_diff"],y=CGS[labGenes,"y_mean"],
+                                label=labGenes,str.cex=1.2,str.font=2)
+      text(tempLabel,labels=labGenes,col="firebrick2",cex=1.2,font=2)
     }
   } else {
     points(y_mean~x_diff,data=CGS[gnA,],pch=16,
            col=rainbow2(length(levels(Clusters(sCVd))),.8)[which(levels(Clusters(sCVd)) == clA)])
     points(y_mean~x_diff,data=CGS[gnB,],pch=16,
            col=rainbow2(length(levels(Clusters(sCVd))),.8)[which(levels(Clusters(sCVd)) == clB)])
-    text(CGS[gnA,"x_diff"],CGS[gnA,"y_mean"],labels=gnA,adj=temp_adjA,cex=1.5,font=2,
+    tempLabel <- spreadLabels(x=CGS[c(gnA,gnB),"x_diff"],y=CGS[c(gnA,gnB),"y_mean"],
+                              label=c(gnA,gnB),str.cex=1.2,str.font=2)
+    rownames(tempLabel) <- c(gnA,gnB)
+    text(tempLabel[gnA,],labels=gnA,cex=1.2,font=2,
          col=rainbow2(length(levels(Clusters(sCVd))))[which(levels(Clusters(sCVd)) == clA)])
-    text(CGS[gnB,"x_diff"],CGS[gnB,"y_mean"],labels=gnB,adj=temp_adjB,cex=1.5,font=2,
+    text(tempLabel[gnB,],labels=gnB,cex=1.2,font=2,
          col=rainbow2(length(levels(Clusters(sCVd))))[which(levels(Clusters(sCVd)) == clB)])
   }
   mtext(paste("Higher in",clA),side=1,line=-1.1,adj=.99,font=2,
@@ -946,7 +988,7 @@ plot_compareClusts_DEscatter <- function(sCVd,clA,clB,dataType,labType,
   # temp_col <- viridis(100,alpha=0.3,direction=-1)[cut(-log10(CGS$FDR),100,labels=F)]
   # temp_col[is.na(temp_col)] <- alpha("grey90",0.3)
   
-  # ^ plot MA -----
+  # ^ plot -----
   par(mar=c(3,3,3.5,1),mgp=c(2,1,0))
   plot(logGER~dDR,data=CGS,
        xlab=paste0("Difference in detection rate (",clA," - ",clB,")"),
@@ -965,17 +1007,21 @@ plot_compareClusts_DEscatter <- function(sCVd,clA,clB,dataType,labType,
   if (labType == "search") {
     if (length(labGenes) > 0) {
       points(logGER~dDR,data=CGS[labGenes,],pch=16,col=alpha("firebrick2",0.8))
-      text(CGS[labGenes,"dDR"],CGS[labGenes,"logGER"],labels=labGenes,
-           adj=temp_adjB,col="firebrick2",cex=1.5,font=2)
+      tempLabel <- spreadLabels(CGS[labGenes,"dDR"],CGS[labGenes,"logGER"],
+                                label=labGenes,str.cex=1.2,str.font=2)
+      text(tempLabel,labels=labGenes,col="firebrick2",cex=1.2,font=2)
     }
   } else {
     points(logGER~dDR,data=CGS[gnA,],pch=16,
            col=rainbow2(length(levels(Clusters(sCVd))),.8)[which(levels(Clusters(sCVd)) == clA)])
     points(logGER~dDR,data=CGS[gnB,],pch=16,
            col=rainbow2(length(levels(Clusters(sCVd))),.8)[which(levels(Clusters(sCVd)) == clB)])
-    text(CGS[gnA,"dDR"],CGS[gnA,"logGER"],labels=gnA,adj=temp_adjA,cex=1.5,font=2,
+    tempLabel <- spreadLabels(CGS[c(gnA,gnB),"dDR"],CGS[c(gnA,gnB),"logGER"],
+                              label=c(gnA,gnB),str.cex=1.2,str.font=2)
+    rownames(tempLabel) <- c(gnA,gnB)
+    text(tempLabel[gnA,],labels=gnA,cex=1.2,font=2,
          col=rainbow2(length(levels(Clusters(sCVd))))[which(levels(Clusters(sCVd)) == clA)])
-    text(CGS[gnB,"dDR"],CGS[gnB,"logGER"],labels=gnB,adj=temp_adjB,cex=1.5,font=2,
+    text(tempLabel[gnB,],labels=gnB,cex=1.2,font=2,
          col=rainbow2(length(levels(Clusters(sCVd))))[which(levels(Clusters(sCVd)) == clB)])
   }
   mtext(paste("Higher in",clA),side=3,line=-1.1,adj=.99,font=2,
@@ -1007,7 +1053,7 @@ plot_compareClusts_volcano <- function(sCVd,clA,clB,dataType,labType,labNum,labG
     gnA <- rownames(CGS)[ts[CGS[ts,"dir"] == clA][1:labNum]]
     gnB <- rownames(CGS)[ts[CGS[ts,"dir"] == clB][1:labNum]]
   }
-  # ^ plot MA -----
+  # ^ plot -----
   par(mar=c(3,3,3.5,1),mgp=c(2,1,0))
   plot(x=CGS[[dataType]],y=CGS$FDR,
        xlab=switch(dataType,
@@ -1025,17 +1071,21 @@ plot_compareClusts_volcano <- function(sCVd,clA,clB,dataType,labType,labNum,labG
     if (length(labGenes) > 0) {
       points(x=CGS[labGenes,dataType],y=CGS[labGenes,"FDR"],
              pch=16,col=alpha("firebrick2",0.8))
-      text(x=CGS[labGenes,dataType],y=CGS[labGenes,"FDR"],labels=labGenes,
-           adj=temp_adjB,col="firebrick2",cex=1.5,font=2)
+      tempLabel <- spreadLabels(x=CGS[labGenes,dataType],y=CGS[labGenes,"FDR"],
+                                label=labGenes,str.cex=1.2,str.font=2)
+      text(tempLabel,labels=labGenes,col="firebrick2",cex=1.2,font=2)
     }
   } else {
     points(CGS[gnA,dataType],y=CGS[gnA,"FDR"],pch=16,
            col=rainbow2(length(levels(Clusters(sCVd))),.8)[which(levels(Clusters(sCVd)) == clA)])
     points(CGS[gnB,dataType],y=CGS[gnB,"FDR"],pch=16,
            col=rainbow2(length(levels(Clusters(sCVd))),.8)[which(levels(Clusters(sCVd)) == clB)])
-    text(CGS[gnA,dataType],y=CGS[gnA,"FDR"],labels=gnA,adj=temp_adjA,cex=1.5,font=2,
+    tempLabel <- spreadLabels(CGS[c(gnA,gnB),dataType],CGS[c(gnA,gnB),"FDR"],
+                              label=c(gnA,gnB),str.cex=1.2,str.font=2)
+    rownames(tempLabel) <- c(gnA,gnB)
+    text(tempLabel[gnA,],labels=gnA,cex=1.2,font=2,
          col=rainbow2(length(levels(Clusters(sCVd))))[which(levels(Clusters(sCVd)) == clA)])
-    text(CGS[gnB,dataType],y=CGS[gnB,"FDR"],labels=gnB,adj=temp_adjB,cex=1.5,font=2,
+    text(tempLabel[gnB,],labels=gnB,cex=1.2,font=2,
          col=rainbow2(length(levels(Clusters(sCVd))))[which(levels(Clusters(sCVd)) == clB)])
   }
   mtext(paste("Higher in",clA),side=1,line=-1.1,adj=.99,font=2,

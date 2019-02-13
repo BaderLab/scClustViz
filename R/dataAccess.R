@@ -16,8 +16,9 @@ NULL
 #' This is a wrapper function to the relevant class's normalized data slot
 #' accessor method. Currently supported input object classes:
 #' \itemize{
-#'   \item Class \code{\link[Seurat]{seurat}} accessed by 
-#'     \code{\link[Seurat]{GetAssayData}(x)}.
+#'   \item Class \code{\link[Seurat]{seurat}} stored in
+#'     \code{x@data} or \code{x@assays$RNA@data}, 
+#'     depending on Seurat object version.
 #'   \item Class \code{\link[SingleCellExperiment]{SingleCellExperiment}} 
 #'     accessed by \code{\link[SingleCellExperiment]{logcounts}(x)}.
 #' }
@@ -42,7 +43,8 @@ setGeneric("getExpr",function(x) standardGeneric("getExpr"))
 #' accessor / assignment method. Currently supported input object classes:
 #' \itemize{
 #'   \item Class \code{\link[Seurat]{seurat}} accessed by 
-#'     \code{slot(x,"meta.data")}.
+#'     \code{x@data.info} or \code{x@meta.data}, 
+#'     depending on Seurat object version.
 #'   \item Class \code{\link[SingleCellExperiment]{SingleCellExperiment}}
 #'     accessed by \code{\link[SingleCellExperiment]{colData}(x)}.
 #' }
@@ -54,10 +56,6 @@ setGeneric("getExpr",function(x) standardGeneric("getExpr"))
 #' @export
 #' 
 setGeneric("getMD",function(x) standardGeneric("getMD"))
-
-#' @rdname getMD
-#' @export
-setGeneric("getMD<-",function(x,value) standardGeneric("getMD<-"))
 
 
 # ^ getEmb ----
@@ -72,7 +70,9 @@ setGeneric("getMD<-",function(x,value) standardGeneric("getMD<-"))
 #' accessor / assignment method. Currently supported input object classes:
 #' \itemize{
 #'   \item Class \code{\link[Seurat]{seurat}} accessed by 
-#'     \code{\link[Seurat]{GetCellEmbeddings}(x,DRtype)}.
+#'     \code{x@DRtype.rot} or \code{x@dr$DRtype@cell.embeddings} or 
+#'     \code{x@reductions$DRtype@cell.embeddings}, 
+#'     depending on Seurat object version.
 #'   \item Class \code{\link[SingleCellExperiment]{SingleCellExperiment}}
 #'     accessed by \code{\link[SingleCellExperiment]{reducedDim}(x,DRtype)}.
 #' }
@@ -92,28 +92,57 @@ setGeneric("getEmb",function(x,DRtype) standardGeneric("getEmb"))
 
 # ^ Seurat ----
 suppressMessages(
-  setMethod("getExpr","seurat",
-            function(x) Seurat::GetAssayData(x))
+  setMethod("getExpr","seurat",function(x) {
+    if (.hasSlot(x,"data")) {
+      slot(x,"data")
+    } else {
+      slot(x@assays$RNA,"data")
+    }
+  })
 )
 
 suppressMessages(
-  setMethod("getMD","seurat",
-            function(x) slot(x,"meta.data"))
-)
-
-suppressMessages(
-  setReplaceMethod("getMD","seurat",
-                   function(x,value) initialize(x,meta.data=value))
+  setMethod("getMD","seurat",function(x) {
+    if (.hasSlot(x,"version")) {
+      if (grepl("^[23]",slot(x,"version"))) {
+        slot(x,"meta.data")
+      }
+    } else {
+      slot(x,"data.info") #Seurat v1
+    }
+  })
 )
 
 suppressMessages(
   setMethod("getEmb","seurat",function(x,DRtype) {
-    if (tolower(DRtype) %in% names(slot(x,"dr"))) {
-      Seurat::GetCellEmbeddings(x,tolower(DRtype))
+    if (.hasSlot(x,"version")) {
+      if (grepl("^2",slot(x,"version"))) {
+        if (tolower(DRtype) %in% names(slot(x,"dr"))) {
+          slot(eb1S@dr[[tolower(DRtype)]],"cell.embeddings")
+        } else {
+          stop(paste(paste0("DRtype '",DRtype,"' not found."),
+                     "The following cell embeddings are available in this object:",
+                     paste0(names(slot(x,"dr")),collapse=", "),sep="\n  "))
+        }
+      } else if (grepl("^3",slot(x,"version"))) {
+        if (tolower(DRtype) %in% names(slot(x,"reductions"))) {
+          slot(eb1S@reductions[[tolower(DRtype)]],"cell.embeddings")
+        } else {
+          stop(paste(paste0("DRtype '",DRtype,"' not found."),
+                     "The following cell embeddings are available in this object:",
+                     paste0(names(slot(x,"reductions")),collapse=", "),sep="\n  "))
+        }
+      }
     } else {
-      stop(paste(paste0("DRtype '",DRtype,"' not found."),
-                 "The following cell embeddings are available in this object:",
-                 paste0(names(slot(x,"dr")),collapse=", "),sep="\n  "))
+      if (.hasSlot(x,paste0(tolower(DRtype),".rot"))) {
+        slot(x,paste0(tolower(DRtype),".rot"))
+      } else {
+        oldSrots <- c("pca","ica","tsne")
+        oldSrots <- oldSrots[sapply(oldSrots,function(X) .hasSlot(x,paste0(X,".rot")))]
+        stop(paste(paste0("DRtype '",DRtype,"' not found."),
+                   "The following cell embeddings are available in this object:",
+                   paste0(oldSrots,collapse=", "),sep="\n  "))
+      }
     }
   })
 )
@@ -127,11 +156,6 @@ suppressMessages(
 suppressMessages(
   setMethod("getMD","SingleCellExperiment",
             function(x) SingleCellExperiment::colData(x))
-)
-
-suppressMessages(
-  setReplaceMethod("getMD","SingleCellExperiment",
-                   function(x,value) initialize(x,colData=value))
 )
 
 suppressMessages(

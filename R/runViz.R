@@ -219,9 +219,6 @@ runShiny <- function(filePath,outPath,cellMarkers,annotationDB,rownameKeytype) {
                             rownameKeytype)
   }
   
-  # ^^ Metadata edits -----------
-  getMD(inD) <- getMD(inD)[!names(getMD(inD)) %in% names(sCVdL)]
-  
   # ^^ Cell type annotation from cellMarkers ----------
   if (length(cellMarkers) < 1) {
     cellMarkersS <- cellMarkersU <- list()
@@ -267,7 +264,9 @@ runShiny <- function(filePath,outPath,cellMarkers,annotationDB,rownameKeytype) {
         "represents the number of genes differentially expressed between each cluster",
         "and its nearest neighbour, or marker genes per cluster. The cluster selected",
         "in the pulldown menu is highlighted in red, and the silhouette plot for that",
-        "cluster is shown on the right."
+        "cluster is shown on the right. The plot can be zoomed by clicking and dragging",
+        "to select a region to view, and double-clicking to zoom to it. Double-click",
+        "again to revert view to default."
       )),
       p(paste(
         "A silhouette plot is a horizontal barplot where each bar is a cell, grouped by",
@@ -682,8 +681,9 @@ runShiny <- function(filePath,outPath,cellMarkers,annotationDB,rownameKeytype) {
   
   # Server -------------------------------------------------------------------------------
   server <- function(input,output,session) {
-    d <- reactiveValues(MD=getMD(inD),
+    d <- reactiveValues(MD=getMD(inD)[!names(getMD(inD)) %in% names(sCVdL)],
                         SCV=sCVdL)
+
     #### TESTING ####
     # output$TEST <- renderPrint(NULL) 
     
@@ -1314,7 +1314,7 @@ runShiny <- function(filePath,outPath,cellMarkers,annotationDB,rownameKeytype) {
                  text(.5,.5,"Whooops. input$cgLegend is making up words.")
                })
       }
-    })
+    }) #,res=96) # enlarge plot features in interactive session
     
     output$clusterGenesSave <- downloadHandler(
       filename="clusterGenes.pdf",

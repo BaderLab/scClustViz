@@ -2,12 +2,9 @@
 % Please edit documentation in R/dataAccess.R
 \name{getMD}
 \alias{getMD}
-\alias{getMD<-}
 \title{Get metadata from input data object}
 \usage{
 getMD(x)
-
-getMD(x) <- value
 }
 \arguments{
 \item{x}{The single-cell data object.}
@@ -21,7 +18,8 @@ This is a wrapper function to the relevant class's cell metadata slot
 accessor / assignment method. Currently supported input object classes:
 \itemize{
   \item Class \code{\link[Seurat]{seurat}} accessed by 
-    \code{slot(x,"meta.data")}.
+    \code{x@data.info} or \code{x@meta.data}, 
+    depending on Seurat object version.
   \item Class \code{\link[SingleCellExperiment]{SingleCellExperiment}}
     accessed by \code{\link[SingleCellExperiment]{colData}(x)}.
 }

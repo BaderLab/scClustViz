@@ -40,3 +40,4 @@ Collate:
     'shinyModules.R'
     'runViz.R'
     'scClustViz.R'
+    'spreadLabels.R'

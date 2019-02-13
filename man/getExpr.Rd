@@ -17,8 +17,9 @@ the input data for scClustViz visualization.
 This is a wrapper function to the relevant class's normalized data slot
 accessor method. Currently supported input object classes:
 \itemize{
-  \item Class \code{\link[Seurat]{seurat}} accessed by 
-    \code{\link[Seurat]{GetAssayData}(x)}.
+  \item Class \code{\link[Seurat]{seurat}} stored in
+    \code{x@data} or \code{x@assays$RNA@data}, 
+    depending on Seurat object version.
   \item Class \code{\link[SingleCellExperiment]{SingleCellExperiment}} 
     accessed by \code{\link[SingleCellExperiment]{logcounts}(x)}.
 }
