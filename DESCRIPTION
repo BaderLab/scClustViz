@@ -37,7 +37,7 @@ Collate:
     'dataAccess.R'
     'deTest.R'
     'helperFx.R'
+    'spreadLabels.R'
     'shinyModules.R'
     'runViz.R'
     'scClustViz.R'
-    'spreadLabels.R'
