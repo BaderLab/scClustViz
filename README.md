@@ -13,6 +13,16 @@ install.packages("devtools")
 devtools::install_github("BaderLab/scClustViz")
 ```
 (If you're on linux and getting errors running `devtools::install_github`, make sure RCurl is working - you might need to install libcurl4-openssl-dev).  
+
+```r
+# See example code in the following command for usage:
+?CalcAllSCV
+```
+
+
+
+
+# Everything below this needs updating for v1
 Load data from your Seurat analysis for differential expression testing and visualization in scClustViz:
 ```r
 library(scClustViz)
