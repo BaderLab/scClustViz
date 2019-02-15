@@ -1251,7 +1251,7 @@ setMethod("DEdistNN",signature("numeric"),
 #' @export
 
 setMethod("DEdistNN",signature("matrix"),
-          function(x) apply(x,1,which.min))
+          function(x) apply(x,1,function(X) names(which.min(X))))
 
 
 # DEneighb ----
