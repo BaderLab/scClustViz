@@ -149,6 +149,9 @@ setValidity("sCVdata",function(object) {
     if (any(grepl("-",levels(object@Clusters)))) {
       return("Cluster names cannot contain '-'.")
     }
+    if (any(table(object@Clusters) <= 1)) {
+      return("All clusters must contain more than one cell.")
+    }
   }
   if (length(object@ClustGeneStats) > 0) {
     if (!identical(names(object@ClustGeneStats),levels(object@Clusters)) |

@@ -31,6 +31,9 @@
 #'   function will assume the rownames are official gene symbols. If less than
 #'   80% of rownames map to official gene symbols, the function will try to
 #'   predict the appropriate keytype of the rownames (this takes a bit of time).
+#' @param ... Named options that should be passed to the
+#'   \code{\link[shiny]{runApp}} call (these can be any of the following:
+#'   "port", "launch.browser", "host", "quiet", "display.mode" and "test.mode").
 #'
 #' @return The function causes the scClustViz Shiny GUI app to open in a
 #'   seperate window.
@@ -92,7 +95,7 @@
 #' @export
 #' 
 
-runShiny <- function(filePath,outPath,cellMarkers,annotationDB,rownameKeytype) {
+runShiny <- function(filePath,outPath,cellMarkers,annotationDB,rownameKeytype,...) {
   
   # ^ Load data from file ------------------------------------------------------------------
   while(T) {
@@ -153,13 +156,29 @@ runShiny <- function(filePath,outPath,cellMarkers,annotationDB,rownameKeytype) {
   if (!missing(outPath)) { #Load from both dataPath and outPath if outPath exists.
     for (selDEfile in grep(paste0("^",dataTitle,".+selDE.+RData$"),list.files(outPath),value=T)) {
       temp <- load(paste0(dataPath,selDEfile))
-      sCVdL <- append(sCVdL,get(temp))
+      if (is.list(get(temp))) {
+        if (all(sapply(get(temp),function(X) "sCVdata" %in% is(X)))) {
+          sCVdL <- append(sCVdL,get(temp))
+        }else {
+          warning(paste(selDEfile,"is not a valid list of sCVdata object(s)."))
+        }
+      } else {
+        warning(paste(selDEfile,"is not a valid list of sCVdata object(s)."))
+      }
       rm(list=temp)
     }
   }
   for (selDEfile in grep(paste0("^",dataTitle,".+selDE.+RData$"),list.files(dataPath),value=T)) {
     temp <- load(paste0(dataPath,selDEfile))
-    sCVdL <- append(sCVdL,get(temp))
+    if (is.list(get(temp))) {
+      if (all(sapply(get(temp),function(X) "sCVdata" %in% is(X)))) {
+        sCVdL <- append(sCVdL,get(temp))
+      }else {
+        warning(paste(selDEfile,"is not a valid list of sCVdata object(s)."))
+      }
+    } else {
+      warning(paste(selDEfile,"is not a valid list of sCVdata object(s)."))
+    }
     rm(list=temp)
   }
   #### MEMORY USAGE SHENANIGANS? ####
@@ -683,7 +702,7 @@ runShiny <- function(filePath,outPath,cellMarkers,annotationDB,rownameKeytype) {
   server <- function(input,output,session) {
     d <- reactiveValues(MD=getMD(inD)[!names(getMD(inD)) %in% names(sCVdL)],
                         SCV=sCVdL)
-
+    
     #### TESTING ####
     # output$TEST <- renderPrint(NULL) 
     
@@ -1904,7 +1923,7 @@ runShiny <- function(filePath,outPath,cellMarkers,annotationDB,rownameKeytype) {
       }
     })
     
-    # ^^ Save buttons for set comparison ---------------------------------------
+    # ^^ Save buttons for set comparison ----
     observeEvent(input$updateForViz, {
       withProgress({
         comp_sCVd <- d$SCV[input$res]
@@ -1931,6 +1950,7 @@ runShiny <- function(filePath,outPath,cellMarkers,annotationDB,rownameKeytype) {
     })
     
   }
-  shinyApp(ui,server)
+  # shinyApp ----
+  shinyApp(ui,server,options=list(...))
   
 }

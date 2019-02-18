@@ -152,6 +152,9 @@ CalcAllSCV <- function(inD,
             "https://github.com/BaderLab/scClustViz/issues, thanks!"),
       sep="\n  "))
   }
+  if (is.null(colnames(getExpr(inD))) | is.null(rownames(getExpr(inD)))) {
+    stop("Gene expression matrix returned by 'getExpr(inD)' is missing col/rownames.")
+  }
   if (is.data.frame(clusterDF)) {
     if (nrow(clusterDF) != ncol(getExpr(inD))) {
       stop(paste("clusterDF must be a data frame where each variable (column) is the cluster",
@@ -355,6 +358,9 @@ CalcSCV <- function(inD,
             "https://github.com/BaderLab/scClustViz/issues, thanks!"),
       sep="\n  "))
   }
+  if (is.null(colnames(getExpr(inD))) | is.null(rownames(getExpr(inD)))) {
+    stop("Gene expression matrix returned by 'getExpr(inD)' is missing col/rownames.")
+  }
   if (length(cl) != ncol(getExpr(inD))) {
     stop(paste("cl must be a factor where each value is the cluster assignment",
                "for a cell (column) in the input gene expression matrix.",
@@ -427,8 +433,8 @@ fx_calcCGS <- function(nge,cl,exponent,pseudocount) {
   # DR <- BiocParallel::bplapply(sapply(levels(cl),function(i) nge[,cl %in% i],simplify=F),
   #                              function(X) apply(X,1,function(Y) sum(Y>0)/length(Y)))
   # names(DR) <- levels(cl)
-  DR <- pbapply::pbsapply(sapply(levels(cl),function(i) nge[,cl %in% i],simplify=F),
-                          function(X) apply(X,1,function(Y) sum(Y>0)/length(Y)),simplify=F)
+  DR <- pbapply::pbsapply(sapply(levels(cl),function(i) nge[,cl %in% i,drop=F],simplify=F),
+                          function(X) apply(X,1,function(Y) sum(Y > 0)/length(Y)),simplify=F)
   
   message("-- Calculating mean detected gene expression per cluster --")
   # MDGE <- BiocParallel::bplapply(sapply(levels(cl),function(i) nge[,cl %in% i],simplify=F),
@@ -441,9 +447,9 @@ fx_calcCGS <- function(nge,cl,exponent,pseudocount) {
   #                                  return(temp)
   #                                }))
   # names(MDGE) <- levels(cl)
-  MDGE <- pbapply::pbsapply(sapply(levels(cl),function(i) nge[,cl %in% i],simplify=F),
+  MDGE <- pbapply::pbsapply(sapply(levels(cl),function(i) nge[,cl %in% i,drop=F],simplify=F),
                             function(X) apply(X,1,function(Y) {
-                              temp <- meanLogX(Y[Y>0],
+                              temp <- meanLogX(Y[Y > 0],
                                                ncell=ncol(nge),
                                                ex=exponent,
                                                pc=pseudocount)
@@ -459,7 +465,7 @@ fx_calcCGS <- function(nge,cl,exponent,pseudocount) {
   #                                          ex=exponent,
   #                                          pc=pseudocount)))
   # names(MGE) <- levels(cl)  
-  MGE <- pbapply::pbsapply(sapply(levels(cl),function(i) nge[,cl %in% i],simplify=F),
+  MGE <- pbapply::pbsapply(sapply(levels(cl),function(i) nge[,cl %in% i,drop=F],simplify=F),
                            function(X) apply(X,1,function(Y)
                              meanLogX(Y,
                                       ncell=ncol(nge),
@@ -628,10 +634,10 @@ fx_calcDEvsRest <- function(nge,cl,deTes) {
   #   ))
   # names(deT_pVal) <- levels(cl)
   deT_pVal <- pbapply::pbsapply(levels(cl),function(i)
-    apply(nge[rownames(deTes[[i]])[deTes[[i]]$overThreshold],],1, #slice by rowname is slower, but safer
-          function(X) 
-            # suppressWarnings(wilcox.test(X[cl %in% i],X[!cl %in% i],alternative="greater")$p.value)
-            suppressWarnings(unlist(wilcox.test(X[cl %in% i],X[!cl %in% i])[c("statistic","p.value")]))
+    apply(nge[rownames(deTes[[i]])[deTes[[i]]$overThreshold],],1,function(X) 
+      # ^ slice by rowname is a little slower, but safer
+      # suppressWarnings(wilcox.test(X[cl %in% i],X[!cl %in% i],alternative="greater")$p.value)
+      suppressWarnings(unlist(wilcox.test(X[cl %in% i],X[!cl %in% i])[c("statistic","p.value")]))
     ),simplify=F)
   for (i in names(deTes)) {
     deTes[[i]][colnames(deT_pVal[[i]]),"Wstat"] <- deT_pVal[[i]]["statistic.W",]

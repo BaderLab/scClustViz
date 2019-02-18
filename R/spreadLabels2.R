@@ -65,7 +65,7 @@ overlap.edge <- function(i,ld) {
 #'   Flensburg}.
 #'   
 
-spreadLabels <- function(x,y,label,padding=0,str.cex=par("cex"),str.font=par("font")) {
+spreadLabels2 <- function(x,y,label,padding=0,str.cex=par("cex"),str.font=par("font")) {
   #starting condition
   label.data <- rbind(x=x,y=y,
                       sizeX=strwidth(label,cex=str.cex,font=str.font) * .5 + 

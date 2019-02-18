@@ -1,4 +1,4 @@
-#' @include deTest.R spreadLabels.R
+#' @include deTest.R spreadLabels2.R
 NULL
 
 
@@ -618,7 +618,7 @@ plot_clusterGenes_markers <- function(sCVd,selClust,cellMarkersS,cellMarkersU) {
                                 MoreArgs=list(col1=cellMarkCols[as.integer(temp[1])],
                                               col2=cellMarkCols[as.integer(temp[2])]))
     }
-    tempLabels <- spreadLabels(CGS[(CGS$cMu | CGS$cMs) & CGS$overCut,"DR"],
+    tempLabels <- spreadLabels2(CGS[(CGS$cMu | CGS$cMs) & CGS$overCut,"DR"],
                                CGS[(CGS$cMu | CGS$cMs) & CGS$overCut,"MDGE"],
                                CGS[(CGS$cMu | CGS$cMs) & CGS$overCut,"genes"],
                                str.cex=1.2,str.font=2)
@@ -676,7 +676,7 @@ plot_clusterGenes_DEgenes <- function(sCVd,selClust,DEgenes,DEnum,DEtype) {
       points(x=CGS[DEG,"DR"],y=CGS[DEG,"MDGE"],
              pch=16,cex=1.2,col="firebrick2")
       if (any(CGS[DEG,"overCut"])) {
-        tempLabels <- spreadLabels(x=CGS[DEG,"DR"][CGS[DEG,"overCut"]],
+        tempLabels <- spreadLabels2(x=CGS[DEG,"DR"][CGS[DEG,"overCut"]],
                                    y=CGS[DEG,"MDGE"][CGS[DEG,"overCut"]],
                                    label=CGS[DEG,"genes"][CGS[DEG,"overCut"]],
                                    str.cex=1.2,str.font=2)
@@ -731,7 +731,7 @@ plot_clusterGenes_search <- function(sCVd,selClust,GOI) {
       points(x=CGS[GOI,"DR"],y=CGS[GOI,"MDGE"],
              pch=16,cex=1.2,col="firebrick2")
       if (any(CGS[GOI,"overCut"])) {
-        tempLabels <- spreadLabels(x=CGS[GOI,"DR"][CGS[GOI,"overCut"]],
+        tempLabels <- spreadLabels2(x=CGS[GOI,"DR"][CGS[GOI,"overCut"]],
                                    y=CGS[GOI,"MDGE"][CGS[GOI,"overCut"]],
                                    label=CGS[GOI,"genes"][CGS[GOI,"overCut"]],
                                    str.cex=1.2,str.font=2)
@@ -928,7 +928,7 @@ plot_compareClusts_MAplot <- function(sCVd,clA,clB,dataType,labType,labNum,labGe
   if (labType == "search") {
     if (length(labGenes) > 0) {
       points(y_mean~x_diff,data=CGS[labGenes,],pch=16,col=alpha("firebrick2",0.8))
-      tempLabel <- spreadLabels(x=CGS[labGenes,"x_diff"],y=CGS[labGenes,"y_mean"],
+      tempLabel <- spreadLabels2(x=CGS[labGenes,"x_diff"],y=CGS[labGenes,"y_mean"],
                                 label=labGenes,str.cex=1.2,str.font=2)
       text(tempLabel,labels=labGenes,col="firebrick2",cex=1.2,font=2)
     }
@@ -937,7 +937,7 @@ plot_compareClusts_MAplot <- function(sCVd,clA,clB,dataType,labType,labNum,labGe
            col=rainbow2(length(levels(Clusters(sCVd))),.8)[which(levels(Clusters(sCVd)) == clA)])
     points(y_mean~x_diff,data=CGS[gnB,],pch=16,
            col=rainbow2(length(levels(Clusters(sCVd))),.8)[which(levels(Clusters(sCVd)) == clB)])
-    tempLabel <- spreadLabels(x=CGS[c(gnA,gnB),"x_diff"],y=CGS[c(gnA,gnB),"y_mean"],
+    tempLabel <- spreadLabels2(x=CGS[c(gnA,gnB),"x_diff"],y=CGS[c(gnA,gnB),"y_mean"],
                               label=c(gnA,gnB),str.cex=1.2,str.font=2)
     rownames(tempLabel) <- c(gnA,gnB)
     text(tempLabel[gnA,],labels=gnA,cex=1.2,font=2,
@@ -1007,7 +1007,7 @@ plot_compareClusts_DEscatter <- function(sCVd,clA,clB,dataType,labType,
   if (labType == "search") {
     if (length(labGenes) > 0) {
       points(logGER~dDR,data=CGS[labGenes,],pch=16,col=alpha("firebrick2",0.8))
-      tempLabel <- spreadLabels(CGS[labGenes,"dDR"],CGS[labGenes,"logGER"],
+      tempLabel <- spreadLabels2(CGS[labGenes,"dDR"],CGS[labGenes,"logGER"],
                                 label=labGenes,str.cex=1.2,str.font=2)
       text(tempLabel,labels=labGenes,col="firebrick2",cex=1.2,font=2)
     }
@@ -1016,7 +1016,7 @@ plot_compareClusts_DEscatter <- function(sCVd,clA,clB,dataType,labType,
            col=rainbow2(length(levels(Clusters(sCVd))),.8)[which(levels(Clusters(sCVd)) == clA)])
     points(logGER~dDR,data=CGS[gnB,],pch=16,
            col=rainbow2(length(levels(Clusters(sCVd))),.8)[which(levels(Clusters(sCVd)) == clB)])
-    tempLabel <- spreadLabels(CGS[c(gnA,gnB),"dDR"],CGS[c(gnA,gnB),"logGER"],
+    tempLabel <- spreadLabels2(CGS[c(gnA,gnB),"dDR"],CGS[c(gnA,gnB),"logGER"],
                               label=c(gnA,gnB),str.cex=1.2,str.font=2)
     rownames(tempLabel) <- c(gnA,gnB)
     text(tempLabel[gnA,],labels=gnA,cex=1.2,font=2,
@@ -1071,7 +1071,7 @@ plot_compareClusts_volcano <- function(sCVd,clA,clB,dataType,labType,labNum,labG
     if (length(labGenes) > 0) {
       points(x=CGS[labGenes,dataType],y=CGS[labGenes,"FDR"],
              pch=16,col=alpha("firebrick2",0.8))
-      tempLabel <- spreadLabels(x=CGS[labGenes,dataType],y=CGS[labGenes,"FDR"],
+      tempLabel <- spreadLabels2(x=CGS[labGenes,dataType],y=CGS[labGenes,"FDR"],
                                 label=labGenes,str.cex=1.2,str.font=2)
       text(tempLabel,labels=labGenes,col="firebrick2",cex=1.2,font=2)
     }
@@ -1080,7 +1080,7 @@ plot_compareClusts_volcano <- function(sCVd,clA,clB,dataType,labType,labNum,labG
            col=rainbow2(length(levels(Clusters(sCVd))),.8)[which(levels(Clusters(sCVd)) == clA)])
     points(CGS[gnB,dataType],y=CGS[gnB,"FDR"],pch=16,
            col=rainbow2(length(levels(Clusters(sCVd))),.8)[which(levels(Clusters(sCVd)) == clB)])
-    tempLabel <- spreadLabels(CGS[c(gnA,gnB),dataType],CGS[c(gnA,gnB),"FDR"],
+    tempLabel <- spreadLabels2(CGS[c(gnA,gnB),dataType],CGS[c(gnA,gnB),"FDR"],
                               label=c(gnA,gnB),str.cex=1.2,str.font=2)
     rownames(tempLabel) <- c(gnA,gnB)
     text(tempLabel[gnA,],labels=gnA,cex=1.2,font=2,

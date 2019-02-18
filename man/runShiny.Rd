@@ -4,7 +4,7 @@
 \alias{runShiny}
 \title{Run the scClustViz Shiny app}
 \usage{
-runShiny(filePath, outPath, cellMarkers, annotationDB, rownameKeytype)
+runShiny(filePath, outPath, cellMarkers, annotationDB, rownameKeytype, ...)
 }
 \arguments{
 \item{filePath}{A character vector giving the relative filepath to an RData
@@ -40,6 +40,10 @@ rownames. If the annotationDB argument is present and this is missing, the
 function will assume the rownames are official gene symbols. If less than
 80% of rownames map to official gene symbols, the function will try to
 predict the appropriate keytype of the rownames (this takes a bit of time).}
+
+\item{...}{Named options that should be passed to the
+\code{\link[shiny]{runApp}} call (these can be any of the following:
+"port", "launch.browser", "host", "quiet", "display.mode" and "test.mode").}
 }
 \value{
 The function causes the scClustViz Shiny GUI app to open in a
