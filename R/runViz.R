@@ -230,15 +230,20 @@ runShiny <- function(filePath,outPath,cellMarkers,annotationDB,rownameKeytype,..
       annotationDB <- get(annotationDB)
     }
     if (missing(rownameKeytype)) {
-      rownameKeytype <- findKeyType(getExpr(inD),
+      rownameKeytype <- findKeyType(getExpr(inD,Param(sCVdL[[1]],"assayType")),
                                     annotationDB)
     }
-    symbolMap <- map2symbol(getExpr(inD),
+    symbolMap <- map2symbol(getExpr(inD,Param(sCVdL[[1]],"assayType")),
                             annotationDB,
                             rownameKeytype)
   }
   
   # ^^ Cell type annotation from cellMarkers ----------
+  if (missing(cellMarkers)) { cellMarkers <- list() }
+  if (!is.list(cellMarkers)) {
+    stop("cellMarkers must be a list where each entry is named for a cell type",
+         "and is a character vector of gene names for cell type markers.")
+  }
   if (length(cellMarkers) < 1) {
     cellMarkersS <- cellMarkersU <- list()
   } else {
@@ -1387,7 +1392,7 @@ runShiny <- function(filePath,outPath,cellMarkers,annotationDB,rownameKeytype,..
     # ^^ Boxplots for gene expression comparison ------------------------------------------------------
     output$geneTest <- renderPlot({
       if (length(res()) > 0) {
-        plot_GEboxplot(nge=getExpr(inD),
+        plot_GEboxplot(nge=getExpr(inD,Param(sCVdL[[1]],"assayType")),
                        sCVd=d$SCV[[res()]],
                        gene=input$cgGene,
                        geneName=geneNameBx(),
@@ -1400,7 +1405,7 @@ runShiny <- function(filePath,outPath,cellMarkers,annotationDB,rownameKeytype,..
       content=function(file) {
         if (length(res()) > 0) {
           pdf(file,width=12,height=7)
-          plot_GEboxplot(nge=getExpr(inD),
+          plot_GEboxplot(nge=getExpr(inD,Param(sCVdL[[1]],"assayType")),
                          sCVd=d$SCV[[res()]],
                          gene=input$cgGene,
                          geneName=geneNameBx(),
@@ -1865,15 +1870,15 @@ runShiny <- function(filePath,outPath,cellMarkers,annotationDB,rownameKeytype,..
           temp_warn <- options("warn")
           options(warn=-1)
           
-          temp <- rep("Unselected",ncol(getExpr(inD)))
-          names(temp) <- colnames(getExpr(inD))
+          temp <- rep("Unselected",ncol(getExpr(inD,Param(sCVdL[[1]],"assayType"))))
+          names(temp) <- colnames(getExpr(inD,Param(sCVdL[[1]],"assayType")))
           temp[selectedSets$a] <- "Set A"
           temp[selectedSets$b] <- "Set B"
           d$SCV[[newRes]] <- sCVdata(Clusters=factor(temp,levels=c("Set A","Set B")),
                                      params=Param(d$SCV[[1]]))
           # ^^^ Gene stats per set --------------------------------------------------------
           incProgress(amount=1/6,detail="Cluster-wise gene stats")
-          ClustGeneStats(d$SCV[[newRes]]) <- fx_calcCGS(nge=getExpr(inD),
+          ClustGeneStats(d$SCV[[newRes]]) <- fx_calcCGS(nge=getExpr(inD,Param(sCVdL[[1]],"assayType")),
                                                         cl=Clusters(d$SCV[[newRes]]),
                                                         exponent=Param(d$SCV[[newRes]],
                                                                        "exponent"),
@@ -1889,7 +1894,7 @@ runShiny <- function(filePath,outPath,cellMarkers,annotationDB,rownameKeytype,..
           
           # ^^^ deTissue - DE per cluster vs all other data -------------------------------
           incProgress(amount=2/6,detail="DE vs tissue logGER calculations")
-          deTes <- fx_calcESvsRest(nge=getExpr(inD),
+          deTes <- fx_calcESvsRest(nge=getExpr(inD,Param(sCVdL[[1]],"assayType")),
                                    cl=Clusters(d$SCV[[newRes]]),
                                    CGS=ClustGeneStats(d$SCV[[newRes]]),
                                    exponent=Param(d$SCV[[newRes]],
@@ -1899,7 +1904,7 @@ runShiny <- function(filePath,outPath,cellMarkers,annotationDB,rownameKeytype,..
                                    DRthresh=Param(d$SCV[[newRes]],
                                                   "DRthresh"))
           incProgress(amount=1/6,detail="DE vs tissue Wilcoxon rank sum calculations")
-          DEvsRest(d$SCV[[newRes]]) <- fx_calcDEvsRest(nge=getExpr(inD),
+          DEvsRest(d$SCV[[newRes]]) <- fx_calcDEvsRest(nge=getExpr(inD,Param(sCVdL[[1]],"assayType")),
                                                        cl=Clusters(d$SCV[[newRes]]),
                                                        deTes=deTes)
           
@@ -1909,7 +1914,7 @@ runShiny <- function(filePath,outPath,cellMarkers,annotationDB,rownameKeytype,..
                                   CGS=ClustGeneStats(d$SCV[[newRes]]),
                                   DRthresh=Param(d$SCV[[newRes]],
                                                  "DRthresh"))
-          DEcombn(d$SCV[[newRes]]) <- fx_calcDEcombn(nge=getExpr(inD),
+          DEcombn(d$SCV[[newRes]]) <- fx_calcDEcombn(nge=getExpr(inD,Param(sCVdL[[1]],"assayType")),
                                                      cl=Clusters(d$SCV[[newRes]]),
                                                      deMes=deMes)
           

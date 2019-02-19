@@ -29,6 +29,18 @@ NULL
 #'   dataset. Variables (columns) are cluster solutions with different
 #'   parameters, and rows should correspond to cells of the input gene
 #'   expression matrix.
+#' @param assayType Default = NULL (for Seurat v1/2). A length-one character
+#'   vector representing the assay slot in which the expression data is stored
+#'   in the input object. This is not required for Seurat v1 or v2 objects. See
+#'   \code{\link{getExpr}} for details.
+#' @param DRforClust Default = "pca".A length-one character vector representing
+#'   the dimensionality reduction method used as the input for clustering. This
+#'   is commonly PCA, and should correspond to the slot name of the cell
+#'   embedding in your input data - either the \code{type} argument in
+#'   \code{\link[SingleCellExperiment]{reducedDim}(x,type)} or the
+#'   \code{reduction.type} argument in
+#'   \code{\link[Seurat]{GetDimReduction}(object,reduction.type)} (v2) or
+#'   \code{reduction} in \code{\link[Seurat]{Embeddings}(object,reduction)}.
 #' @param exponent Default = 2. A length-one numeric vector representing the
 #'   base of the log-normalized gene expression data to be processed. Generally
 #'   gene expression data is transformed into log2 space when normalizing (set
@@ -41,14 +53,6 @@ NULL
 #'   differential expression testing. A gene will be included if it is detected
 #'   in at least this proportion of cells in at least one of the clusters being
 #'   compared.
-#' @param DRforClust Default = "pca".A length-one character vector representing
-#'   the dimensionality reduction method used as the input for clustering. This
-#'   is commonly PCA, and should correspond to the slot name of the cell
-#'   embedding in your input data - either the \code{type} argument in
-#'   \code{\link[SingleCellExperiment]{reducedDim}(x,type)} or the
-#'   \code{reduction.type} argument in
-#'   \code{\link[Seurat]{GetDimReduction}(object,reduction.type)} (v2) or
-#'   \code{reduction} in \code{\link[Seurat]{Embeddings}(object,reduction)}.
 #' @param testAll Default = TRUE. Logical value indicating whether to test all
 #'   cluster solutions (\code{TRUE}) or stop testing once a cluster solution has
 #'   been found where there is no differentially expressed genes found between
@@ -106,10 +110,11 @@ NULL
 #'
 #' sCVdata_list <- CalcAllSCV(inD=your_scRNAseq_data_object,
 #'                            clusterDF=your_cluster_results,
+#'                            assayData=NULL,
+#'                            DRforClust="pca",
 #'                            exponent=exp(1),
 #'                            pseudocount=1,
 #'                            DRthresh=0.1,
-#'                            DRforClust="pca",
 #'                            testAll=F,
 #'                            FDRthresh=0.05,
 #'                            calcSil=T,
@@ -132,10 +137,11 @@ NULL
 
 CalcAllSCV <- function(inD,
                        clusterDF,
+                       assayType=NULL,
+                       DRforClust="pca",
                        exponent=2,
                        pseudocount=1,
                        DRthresh=0.1,
-                       DRforClust="pca",
                        testAll=TRUE,
                        FDRthresh=0.05,
                        calcSil=T,
@@ -152,11 +158,11 @@ CalcAllSCV <- function(inD,
             "https://github.com/BaderLab/scClustViz/issues, thanks!"),
       sep="\n  "))
   }
-  if (is.null(colnames(getExpr(inD))) | is.null(rownames(getExpr(inD)))) {
-    stop("Gene expression matrix returned by 'getExpr(inD)' is missing col/rownames.")
+  if (is.null(colnames(getExpr(inD,assayType))) | is.null(rownames(getExpr(inD,assayType)))) {
+    stop("Gene expression matrix returned by 'getExpr(inD,assayType)' is missing col/rownames.")
   }
   if (is.data.frame(clusterDF)) {
-    if (nrow(clusterDF) != ncol(getExpr(inD))) {
+    if (nrow(clusterDF) != ncol(getExpr(inD,assayType))) {
       stop(paste("clusterDF must be a data frame where each variable (column) is the cluster",
                  "assignments for all cells (rows) from each cluster solution tested.",sep="\n  "))
     }
@@ -164,8 +170,8 @@ CalcAllSCV <- function(inD,
     stop(paste("clusterDF must be a data frame where each variable (column) is the cluster",
                "assignments for all cells (rows) from each cluster solution tested.",sep="\n  "))
   }
-  if (!identical(rownames(clusterDF),colnames(getExpr(inD)))) {
-    rownames(clusterDF) <- colnames(getExpr(inD))
+  if (!identical(rownames(clusterDF),colnames(getExpr(inD,assayType)))) {
+    rownames(clusterDF) <- colnames(getExpr(inD,assayType))
   }
   
   # If testAll == F, cluster solutions are sorted in ascending order of number
@@ -196,10 +202,11 @@ CalcAllSCV <- function(inD,
     names(temp) <- rownames(clusterDF)
     outList[[X]] <- CalcSCV(inD=inD,
                             cl=temp,
+                            assayType=assayType,
+                            DRforClust=DRforClust,
                             exponent=exponent,
                             pseudocount=pseudocount,
                             DRthresh=DRthresh,
-                            DRforClust=DRforClust,
                             calcSil=calcSil,
                             calcDEvsRest=calcDEvsRest,
                             calcDEcombn=calcDEcombn)
@@ -237,6 +244,18 @@ CalcAllSCV <- function(inD,
 #'   for other data objects here!}
 #' @param cl a factor where each value is the cluster assignment for a cell
 #'   (column) in the input gene expression matrix.
+#' @param assayType Default = NULL (for Seurat v1/2). A length-one character
+#'   vector representing the assay slot in which the expression data is stored
+#'   in the input object. This is not required for Seurat v1 or v2 objects. See
+#'   \code{\link{getExpr}} for details.
+#' @param DRforClust Default = "pca".A length-one character vector representing
+#'   the dimensionality reduction method used as the input for clustering. This
+#'   is commonly PCA, and should correspond to the slot name of the cell
+#'   embedding in your input data - either the \code{type} argument in
+#'   \code{\link[SingleCellExperiment]{reducedDim}(x,type)} or the
+#'   \code{reduction.type} argument in
+#'   \code{\link[Seurat]{GetDimReduction}(object,reduction.type)} (v2) or
+#'   \code{reduction} in \code{\link[Seurat]{Embeddings}(object,reduction)}.
 #' @param exponent Default = 2. A length-one numeric vector representing the
 #'   base of the log-normalized gene expression data to be processed. Generally
 #'   gene expression data is transformed into log2 space when normalizing (set
@@ -249,14 +268,6 @@ CalcAllSCV <- function(inD,
 #'   differential expression testing. A gene will be included if it is detected
 #'   in at least this proportion of cells in at least one of the clusters being
 #'   compared.
-#' @param DRforClust Default = "pca".A length-one character vector representing
-#'   the dimensionality reduction method used as the input for clustering. This
-#'   is commonly PCA, and should correspond to the slot name of the cell
-#'   embedding in your input data - either the \code{type} argument in
-#'   \code{\link[SingleCellExperiment]{reducedDim}(x,type)} or the
-#'   \code{reduction.type} argument in
-#'   \code{\link[Seurat]{GetDimReduction}(object,reduction.type)} (v2) or
-#'   \code{reduction} in \code{\link[Seurat]{Embeddings}(object,reduction)}.
 #' @param calcSil Default = TRUE. A logical vector of length 1. If TRUE,
 #'   silhouette widths (a cluster cohesion/separation metric) will be calculated
 #'   for all cells. This calculation is performed using the function
@@ -307,10 +318,11 @@ CalcAllSCV <- function(inD,
 #'   
 #'   curr_sCVdata <- CalcSCV(inD=your_seurat_obj,
 #'                           clusterDF=Seurat::Idents(your_seurat_obj),
+#'                           assayType=NULL,
+#'                           DRforClust="pca",
 #'                           exponent=exp(1),
 #'                           pseudocount=1,
 #'                           DRthresh=0.1,
-#'                           DRforClust="pca",
 #'                           calcSil=T,
 #'                           calcDEvsRest=T,
 #'                           calcDEcombn=T)
@@ -340,10 +352,11 @@ CalcAllSCV <- function(inD,
 
 CalcSCV <- function(inD,
                     cl,
+                    assayType=NULL,
+                    DRforClust="pca",
                     exponent=2,
                     pseudocount=1,
                     DRthresh=0.1,
-                    DRforClust="pca",
                     calcSil=T,
                     calcDEvsRest=T,
                     calcDEcombn=T) {
@@ -358,10 +371,10 @@ CalcSCV <- function(inD,
             "https://github.com/BaderLab/scClustViz/issues, thanks!"),
       sep="\n  "))
   }
-  if (is.null(colnames(getExpr(inD))) | is.null(rownames(getExpr(inD)))) {
-    stop("Gene expression matrix returned by 'getExpr(inD)' is missing col/rownames.")
+  if (is.null(colnames(getExpr(inD,assayType))) | is.null(rownames(getExpr(inD,assayType)))) {
+    stop("Gene expression matrix returned by 'getExpr(inD,assayType)' is missing col/rownames.")
   }
-  if (length(cl) != ncol(getExpr(inD))) {
+  if (length(cl) != ncol(getExpr(inD,assayType))) {
     stop(paste("cl must be a factor where each value is the cluster assignment",
                "for a cell (column) in the input gene expression matrix.",
                sep="\n  "))
@@ -369,18 +382,19 @@ CalcSCV <- function(inD,
   if (is.character(cl)) {
     cl <- as.factor(cl)
   }
-  if (!all(names(cl) == colnames(getExpr(inD))) | is.null(names(cl))) {
-    names(cl) <- colnames(getExpr(inD))
+  if (!all(names(cl) == colnames(getExpr(inD,assayType))) | is.null(names(cl))) {
+    names(cl) <- colnames(getExpr(inD,assayType))
   }
   if (any(grepl("-",levels(cl)))) {
     stop("Cluster names (levels in 'cl') cannot contain '-'.")
   }
   
   out <- sCVdata(Clusters=cl,
-                 params=sCVparams(exponent=exponent,
+                 params=sCVparams(assayType=assayType,
+                                  DRforClust=DRforClust,
+                                  exponent=exponent,
                                   pseudocount=pseudocount,
-                                  DRthresh=DRthresh,
-                                  DRforClust=DRforClust))
+                                  DRthresh=DRthresh))
   if (calcSil) { #Doing this first in case DRforClust is set incorrectly.
     if (require(cluster)) {
       Silhouette(out) <- CalcSilhouette(out,inD)
@@ -528,7 +542,7 @@ setGeneric("CalcCGS",function(sCVd,inD) standardGeneric("CalcCGS"))
 
 setMethod("CalcCGS",signature("sCVdata"),
           function(sCVd,inD) {
-            fx_calcCGS(nge=getExpr(inD),
+            fx_calcCGS(nge=getExpr(inD,Param(sCVd,"assayType")),
                        cl=Clusters(sCVd),
                        exponent=Param(sCVd,"exponent"),
                        pseudocount=Param(sCVd,"pseudocount"))
@@ -737,13 +751,13 @@ setMethod("CalcDEvsRest",signature("sCVdata","ANY"),
                          paste(findMethodSignatures(getExpr),collapse=", "),
                          sep="\n  "))
             }
-            deTes <- fx_calcESvsRest(nge=getExpr(inD),
+            deTes <- fx_calcESvsRest(nge=getExpr(inD,Param(sCVd,"assayType")),
                                      cl=Clusters(sCVd),
                                      CGS=ClustGeneStats(sCVd),
                                      exponent=Param(sCVd,"exponent"),
                                      pseudocount=Param(sCVd,"pseudocount"),
                                      DRthresh=Param(sCVd,"DRthresh"))
-            deTes <- fx_calcDEvsRest(nge=getExpr(inD),
+            deTes <- fx_calcDEvsRest(nge=getExpr(inD,Param(sCVd,"assayType")),
                                      cl=Clusters(sCVd),
                                      deTes=deTes)
             return(deTes)
@@ -948,7 +962,7 @@ setMethod("CalcDEcombn",signature("sCVdata","ANY"), #ANY should be a supported s
             deMes <- fx_calcEScombn(cl=Clusters(sCVd),
                                     CGS=ClustGeneStats(sCVd),
                                     DRthresh=Param(sCVd,"DRthresh"))
-            deMes <- fx_calcDEcombn(nge=getExpr(inD),
+            deMes <- fx_calcDEcombn(nge=getExpr(inD,Param(sCVd,"assayType")),
                                     cl=Clusters(sCVd),
                                     deMes=deMes)
             return(deMes)

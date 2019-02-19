@@ -7,6 +7,18 @@
 #' \code{\link{Param}}. Slots are accessed using
 #' \code{\link{Param}(sCVdata,slotName)}
 #'
+#' @slot assayType A length-one character vector representing the assay slot in
+#'   which the expression data is stored in the input object. This is not
+#'   required for Seurat v1 or v2 objects. See \code{\link{getExpr}} for
+#'   details.
+#' @slot DRforClust A length-one character vector representing the
+#'   dimensionality reduction method used as the input for clustering. This is
+#'   commonly PCA, and should correspond to the slot name of the cell embedding
+#'   in your input data - either the \code{type} argument in
+#'   \code{\link[SingleCellExperiment]{reducedDim}(x,type)} or the
+#'   \code{reduction.type} argument in
+#'   \code{\link[Seurat]{GetDimReduction}(object,reduction.type)} (v2) or
+#'   \code{reduction} in \code{\link[Seurat]{Embeddings}(object,reduction)}.
 #' @slot exponent A length-one numeric vector representing the base of the
 #'   log-normalized gene expression data to be processed. Generally gene
 #'   expression data is transformed into log2 space when normalizing (set this
@@ -19,14 +31,6 @@
 #'   expression testing. A gene will be included if it is detected in at least
 #'   this proportion of cells in at least one of the clusters being compared.
 #'   Commonly set to 0.1.
-#' @slot DRforClust A length-one character vector representing the
-#'   dimensionality reduction method used as the input for clustering. This is
-#'   commonly PCA, and should correspond to the slot name of the cell embedding
-#'   in your input data - either the \code{type} argument in
-#'   \code{\link[SingleCellExperiment]{reducedDim}(x,type)} or the
-#'   \code{reduction.type} argument in
-#'   \code{\link[Seurat]{GetDimReduction}(object,reduction.type)} (v2) or
-#'   \code{reduction} in \code{\link[Seurat]{Embeddings}(object,reduction)}.
 #'
 #' @seealso \code{\link{sCVdata}} for containing class.
 #'
@@ -34,11 +38,23 @@
 #' 
 
 sCVparams <- setClass(Class="sCVparams",
-                      slots=c(exponent="numeric",
+                      slots=c(assayType="character",
+                              DRforClust="character",
+                              exponent="numeric",
                               pseudocount="numeric",
-                              DRthresh="numeric",
-                              DRforClust="character"))
+                              DRthresh="numeric"))
 setValidity("sCVparams",function(object) {
+  if (length(object@assayType) > 1) {
+    return(paste("assayType should be the slot of the input object where the",
+                 "expression data is stored. See ?getExpr"))
+  }
+  if (length(object@DRforClust) > 1) {
+    return(paste("DRforThresh refers to the dimensionality reduction method used",
+                 "prior to clustering, and should be a character vector of length 1",
+                 "that would be used as the 'type' argument in",
+                 "SingleCellExperiment::reducedDim(x,type) or the 'reduction.type'",
+                 "argument in Seurat::GetDimReduction(object,reduction.type)"))
+  }
   if (length(object@exponent) > 1) {
     return(paste("exponent refers to the log base of the normalized data",
                  "(generally 2, Seurat uses exp(1)) and should be a single value."))
@@ -55,13 +71,6 @@ setValidity("sCVparams",function(object) {
                    "at least one of the clusters being compared.",
                    "DRthresh should be a single value between 0 and 1"))
     }
-  }
-  if (length(object@DRforClust) > 1) {
-    return(paste("DRforThresh refers to the dimensionality reduction method used",
-                 "prior to clustering, and should be a character vector of length 1",
-                 "that would be used as the 'type' argument in",
-                 "SingleCellExperiment::reducedDim(x,type) or the 'reduction.type'",
-                 "argument in Seurat::GetDimReduction(object,reduction.type)"))
   }
 })
 

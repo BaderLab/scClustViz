@@ -14,6 +14,20 @@ this object from the containing \code{\link{sCVdata}} object with
 \section{Slots}{
 
 \describe{
+\item{\code{assayType}}{A length-one character vector representing the assay slot in
+which the expression data is stored in the input object. This is not
+required for Seurat v1 or v2 objects. See \code{\link{getExpr}} for
+details.}
+
+\item{\code{DRforClust}}{A length-one character vector representing the
+dimensionality reduction method used as the input for clustering. This is
+commonly PCA, and should correspond to the slot name of the cell embedding
+in your input data - either the \code{type} argument in
+\code{\link[SingleCellExperiment]{reducedDim}(x,type)} or the
+\code{reduction.type} argument in
+\code{\link[Seurat]{GetDimReduction}(object,reduction.type)} (v2) or
+\code{reduction} in \code{\link[Seurat]{Embeddings}(object,reduction)}.}
+
 \item{\code{exponent}}{A length-one numeric vector representing the base of the
 log-normalized gene expression data to be processed. Generally gene
 expression data is transformed into log2 space when normalizing (set this
@@ -28,15 +42,6 @@ detection rate threshold for inclusion of a gene in the differential
 expression testing. A gene will be included if it is detected in at least
 this proportion of cells in at least one of the clusters being compared.
 Commonly set to 0.1.}
-
-\item{\code{DRforClust}}{A length-one character vector representing the
-dimensionality reduction method used as the input for clustering. This is
-commonly PCA, and should correspond to the slot name of the cell embedding
-in your input data - either the \code{type} argument in
-\code{\link[SingleCellExperiment]{reducedDim}(x,type)} or the
-\code{reduction.type} argument in
-\code{\link[Seurat]{GetDimReduction}(object,reduction.type)} (v2) or
-\code{reduction} in \code{\link[Seurat]{Embeddings}(object,reduction)}.}
 }}
 
 \seealso{

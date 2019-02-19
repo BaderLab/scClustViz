@@ -21,7 +21,7 @@ scClustViz visualization.
 This is a wrapper function to the relevant class's cell metadata slot
 accessor / assignment method. Currently supported input object classes:
 \itemize{
-  \item Class \code{\link[Seurat]{seurat}} accessed by 
+  \item Class \code{\link[Seurat]{seurat}/\link[Seurat]{Seurat}} accessed by 
     \code{x@DRtype.rot} or \code{x@dr$DRtype@cell.embeddings} or 
     \code{x@reductions$DRtype@cell.embeddings}, 
     depending on Seurat object version.

@@ -17,7 +17,7 @@ containing the input data for scClustViz visualization.
 This is a wrapper function to the relevant class's cell metadata slot
 accessor / assignment method. Currently supported input object classes:
 \itemize{
-  \item Class \code{\link[Seurat]{seurat}} accessed by 
+  \item Class \code{\link[Seurat]{seurat}/\link[Seurat]{Seurat}} accessed by 
     \code{x@data.info} or \code{x@meta.data}, 
     depending on Seurat object version.
   \item Class \code{\link[SingleCellExperiment]{SingleCellExperiment}}

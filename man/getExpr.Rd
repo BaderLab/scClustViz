@@ -4,10 +4,13 @@
 \alias{getExpr}
 \title{Get gene expression matrix from input data object}
 \usage{
-getExpr(x)
+getExpr(x, assayType)
 }
 \arguments{
 \item{x}{The single-cell data object.}
+
+\item{assayType}{The name of the assay slot to access. Not required for 
+Seurat v1 or v2.}
 }
 \description{
 Extract the gene expression matrix from a single-cell data object containing
@@ -17,11 +20,11 @@ the input data for scClustViz visualization.
 This is a wrapper function to the relevant class's normalized data slot
 accessor method. Currently supported input object classes:
 \itemize{
-  \item Class \code{\link[Seurat]{seurat}} stored in
-    \code{x@data} or \code{x@assays$RNA@data}, 
+  \item Class \code{\link[Seurat]{seurat}/\link[Seurat]{Seurat}} stored in
+    \code{x@data} or \code{x@assays[[assayType]]@data}, 
     depending on Seurat object version.
   \item Class \code{\link[SingleCellExperiment]{SingleCellExperiment}} 
-    accessed by \code{\link[SingleCellExperiment]{logcounts}(x)}.
+    accessed by \code{\link[SummarizedExperiment]{assay}(x,assayType)}.
 }
 \href{https://github.com/BaderLab/scClustViz/issues}{Please submit requests
 for other data objects here!}
