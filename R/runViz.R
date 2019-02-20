@@ -1503,7 +1503,7 @@ runShiny <- function(filePath,outPath,cellMarkers,annotationDB,rownameKeytype,..
                            "then select the gene from the drop-down list.",sep="\n"))
         } else {
           plot_tsne(cell_coord=getEmb(inD,"tsne"),
-                    md=getExpr(eb1S)[input$goi1,],
+                    md=getExpr(inD,Param(sCVdL[[1]],"assayType"))[input$goi1,],
                     md_title=geneNameGOI1(),
                     md_log=F,
                     label=switch(as.character(input$plotLabel1),
@@ -1535,7 +1535,7 @@ runShiny <- function(filePath,outPath,cellMarkers,annotationDB,rownameKeytype,..
                            "then select the gene from the drop-down list.",sep="\n"))
         } else {
           plot_tsne(cell_coord=getEmb(inD,"tsne"),
-                    md=getExpr(eb1S)[input$goi2,],
+                    md=getExpr(inD,Param(sCVdL[[1]],"assayType"))[input$goi2,],
                     md_title=geneNameGOI2(),
                     md_log=F,
                     label=switch(as.character(input$plotLabel2),
@@ -1554,7 +1554,7 @@ runShiny <- function(filePath,outPath,cellMarkers,annotationDB,rownameKeytype,..
         if (input$plotClust2 == "goi" & !is.null(input$goi1)) {
           pdf(file,width=7,height=7)
           plot_tsne(cell_coord=getEmb(inD,"tsne"),
-                    md=getExpr(eb1S)[input$goi1,],
+                    md=getExpr(inD,Param(sCVdL[[1]],"assayType"))[input$goi1,],
                     md_title=geneNameGOI1(),
                     md_log=F,
                     label=switch(as.character(input$plotLabel1),
@@ -1573,7 +1573,7 @@ runShiny <- function(filePath,outPath,cellMarkers,annotationDB,rownameKeytype,..
         if (input$plotClust2 == "goi" & !is.null(input$goi2)) {
           pdf(file,width=7,height=7)
           plot_tsne(cell_coord=getEmb(inD,"tsne"),
-                    md=getExpr(eb1S)[input$goi2,],
+                    md=getExpr(inD,Param(sCVdL[[1]],"assayType"))[input$goi2,],
                     md_title=geneNameGOI2(),
                     md_log=F,
                     label=switch(as.character(input$plotLabel2),
