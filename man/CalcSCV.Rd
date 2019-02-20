@@ -4,7 +4,7 @@
 \alias{CalcSCV}
 \title{Create sCVdata object with calculation results for a cluster}
 \usage{
-CalcSCV(inD, cl, assayType = NULL, DRforClust = "pca", exponent = 2,
+CalcSCV(inD, cl, assayType = "", DRforClust = "pca", exponent = 2,
   pseudocount = 1, DRthresh = 0.1, calcSil = T, calcDEvsRest = T,
   calcDEcombn = T)
 }

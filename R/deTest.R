@@ -137,7 +137,7 @@ NULL
 
 CalcAllSCV <- function(inD,
                        clusterDF,
-                       assayType=NULL,
+                       assayType="",
                        DRforClust="pca",
                        exponent=2,
                        pseudocount=1,
@@ -352,7 +352,7 @@ CalcAllSCV <- function(inD,
 
 CalcSCV <- function(inD,
                     cl,
-                    assayType=NULL,
+                    assayType="",
                     DRforClust="pca",
                     exponent=2,
                     pseudocount=1,
