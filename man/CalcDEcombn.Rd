@@ -6,9 +6,9 @@
 \alias{CalcDEcombn,sCVdata-method}
 \title{Performs DE testing between pairs of clusters in sCVdata}
 \usage{
-CalcDEcombn(sCVd, inD)
+CalcDEcombn(sCVd, inD, storeAllDE)
 
-\S4method{CalcDEcombn}{sCVdata}(sCVd, inD)
+\S4method{CalcDEcombn}{sCVdata}(sCVd, inD, storeAllDE)
 }
 \arguments{
 \item{sCVd}{An sCVdata object.}
@@ -18,6 +18,12 @@ or \code{\link[SingleCellExperiment]{SingleCellExperiment}}. Other data
 classes are not currently supported.
 \href{https://github.com/BaderLab/scClustViz/issues}{Please submit requests
 for other data objects here!}}
+
+\item{storeAllDE}{A logical vector of length 1 indicating whether to
+calculate and store effect size information for all genes in the comparison
+(TRUE), or just those passing the detection rate threshold for the Wilcoxon
+rank-sum test (FALSE). Setting this to FALSE will reduce the size of the
+output sCVdata object.}
 }
 \value{
 A named list of data frames, one entry for each pairwise combination

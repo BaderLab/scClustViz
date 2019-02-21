@@ -863,10 +863,11 @@ compareClusts_DF <- function(sCVd,clA,clB,dataType) {
                          ClustGeneStats(sCVd)[[clB]][,dataType],
                        y_mean=rowMeans(cbind(ClustGeneStats(sCVd)[[clA]][,dataType],
                                              ClustGeneStats(sCVd)[[clB]][,dataType])),
-                       logGER=DEcombn(sCVd)[[loc]]$logGER,
-                       FDR=DEcombn(sCVd)[[loc]]$FDR,
-                       dir=c(clB,clA)[(tempW * loc1 > 0) + 1])
+                       logGER=NA,FDR=NA,dir=NA)
     rownames(temp) <- rownames(ClustGeneStats(sCVd)[[clA]])
+    temp[rownames(DEcombn(sCVd)[[loc]]),"logGER"] <- DEcombn(sCVd)[[loc]]$logGER
+    temp[rownames(DEcombn(sCVd)[[loc]]),"FDR"] <- DEcombn(sCVd)[[loc]]$FDR
+    temp[rownames(DEcombn(sCVd)[[loc]]),"dir"] <- c(clB,clA)[(tempW * loc1 > 0) + 1]
     return(temp)
   } else if (dataType %in% c("GERvDDR","logGER","dDR")) {
     loc1 <- which(c(paste(clA,clB,sep="-"),paste(clB,clA,sep="-")) %in% names(DEcombn(sCVd)))
@@ -874,7 +875,7 @@ compareClusts_DF <- function(sCVd,clA,clB,dataType) {
     loc <- which(names(DEcombn(sCVd)) %in% c(paste(clA,clB,sep="-"),paste(clB,clA,sep="-")))
     temp <- DEcombn(sCVd)[[loc]][,c("logGER","dDR","FDR")]
     temp <- as.data.frame(mapply("*",temp,c(loc1,loc1,1))) 
-    rownames(temp) <- rownames(ClustGeneStats(sCVd)[[clA]])
+    rownames(temp) <- rownames(DEcombn(sCVd)[[loc]])
     tempW <- DEcombn(sCVd)[[loc]]$Wstat - 
       DEcombn(sCVd)[[loc]]$Wstat[which.max(DEcombn(sCVd)[[loc]]$pVal)]
     temp$dir <- c(clB,clA)[(tempW * loc1 > 0) + 1]
@@ -882,7 +883,7 @@ compareClusts_DF <- function(sCVd,clA,clB,dataType) {
   } 
 }
 
-plot_compareClusts_MAplot <- function(sCVd,clA,clB,dataType,labType,labNum,labGenes,labAngle) {
+plot_compareClusts_MAplot <- function(sCVd,clA,clB,dataType,labType,labNum,labGenes) {
   # ^ setup -----
   CGS <- compareClusts_DF(sCVd,clA,clB,dataType)
   temp_exp <- switch(as.character(Param(sCVd,"exponent") == exp(1)),
@@ -892,13 +893,6 @@ plot_compareClusts_MAplot <- function(sCVd,clA,clB,dataType,labType,labNum,labGe
                        "MGE"=paste("mean normalized gene expression",temp_exp),
                        "MDGE"=paste("mean normalized gene expression where detected",temp_exp),
                        "DR"="proportion of cells in which gene was detected")
-  if ("flip" %in% labAngle) {
-    temp_adjB <- c(-0.1,0.5)
-    temp_adjA <- c(1.1,0.5)
-  } else {
-    temp_adjB <- c(1.1,0.5)
-    temp_adjA <- c(-0.1,0.5)
-  }
   if (labType == "diff") {
     gnA <- rownames(head(CGS[order(CGS$x_diff,decreasing=T),],labNum))
     gnB <- rownames(tail(CGS[order(CGS$x_diff,decreasing=T),],labNum))
@@ -962,19 +956,12 @@ plot_compareClusts_MAplot <- function(sCVd,clA,clB,dataType,labType,labNum,labGe
 } 
 
 plot_compareClusts_DEscatter <- function(sCVd,clA,clB,dataType,labType,
-                                         labTypeDiff,labNum,labGenes,labAngle) {
+                                         labTypeDiff,labNum,labGenes) {
   # ^ setup -----
   CGS <- compareClusts_DF(sCVd,clA,clB,dataType)
   temp_exp <- switch(as.character(Param(sCVd,"exponent") == exp(1)),
                      "TRUE"="(natural log scale)",
                      "FALSE"=paste0("(log",Param(sCVd,"exponent")," scale)"))
-  if ("flip" %in% labAngle) {
-    temp_adjB <- c(-0.1,0.5)
-    temp_adjA <- c(1.1,0.5)
-  } else {
-    temp_adjB <- c(1.1,0.5)
-    temp_adjA <- c(-0.1,0.5)
-  }
   if (labType == "diff") {
     gnA <- rownames(head(CGS[order(CGS[[labTypeDiff]],decreasing=T),],labNum))
     gnB <- rownames(tail(CGS[order(CGS[[labTypeDiff]],decreasing=T),],labNum))
@@ -1030,7 +1017,7 @@ plot_compareClusts_DEscatter <- function(sCVd,clA,clB,dataType,labType,
         col=rainbow2(length(levels(Clusters(sCVd))))[which(levels(Clusters(sCVd)) == clB)])
 }
 
-plot_compareClusts_volcano <- function(sCVd,clA,clB,dataType,labType,labNum,labGenes,labAngle) {
+plot_compareClusts_volcano <- function(sCVd,clA,clB,dataType,labType,labNum,labGenes) {
   # ^ setup -----
   CGS <- compareClusts_DF(sCVd,clA,clB,dataType)
   CGS <- CGS[!is.na(CGS$FDR),]
@@ -1038,13 +1025,6 @@ plot_compareClusts_volcano <- function(sCVd,clA,clB,dataType,labType,labNum,labG
   temp_exp <- switch(as.character(Param(sCVd,"exponent") == exp(1)),
                      "TRUE"="(natural log scale)",
                      "FALSE"=paste0("(log",Param(sCVd,"exponent")," scale)"))
-  if ("flip" %in% labAngle) {
-    temp_adjB <- c(-0.1,0.5)
-    temp_adjA <- c(1.1,0.5)
-  } else {
-    temp_adjB <- c(1.1,0.5)
-    temp_adjA <- c(-0.1,0.5)
-  }
   if (labType == "diff") {
     gnA <- rownames(head(CGS[order(CGS[[dataType]],decreasing=T),],labNum))
     gnB <- rownames(tail(CGS[order(CGS[[dataType]],decreasing=T),],labNum))
@@ -1095,15 +1075,15 @@ plot_compareClusts_volcano <- function(sCVd,clA,clB,dataType,labType,labNum,labG
 }
 
 
-plot_compareClusts <- function(sCVd,clA,clB,dataType,labType,labTypeDiff,labNum,labGenes,labAngle) {
+plot_compareClusts <- function(sCVd,clA,clB,dataType,labType,labTypeDiff,labNum,labGenes) {
   if (clA %in% levels(Clusters(sCVd)) & 
       clB %in% levels(Clusters(sCVd))) {
     if (dataType %in% c("MGE","MDGE","DR")) {
-      plot_compareClusts_MAplot(sCVd,clA,clB,dataType,labType,labNum,labGenes,labAngle)
+      plot_compareClusts_MAplot(sCVd,clA,clB,dataType,labType,labNum,labGenes)
     } else if (dataType == "GERvDDR") {
-      plot_compareClusts_DEscatter(sCVd,clA,clB,dataType,labType,labTypeDiff,labNum,labGenes,labAngle)
+      plot_compareClusts_DEscatter(sCVd,clA,clB,dataType,labType,labTypeDiff,labNum,labGenes)
     } else if (dataType %in% c("logGER","dDR")) {
-      plot_compareClusts_volcano(sCVd,clA,clB,dataType,labType,labNum,labGenes,labAngle)
+      plot_compareClusts_volcano(sCVd,clA,clB,dataType,labType,labNum,labGenes)
     }
   } else {
     plot(x=NA,y=NA,xlim=0:1,ylim=0:1,xaxt="n",yaxt="n",xlab=NA,ylab=NA)

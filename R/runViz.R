@@ -626,9 +626,9 @@ runShiny <- function(filePath,outPath,cellMarkers,annotationDB,rownameKeytype,..
                                             choices=c("Most significant"="de",
                                                       "Most different"="diff",
                                                       "From gene search"="search")),
-                               uiOutput("diffLabelChoice"),
-                               checkboxGroupInput("scatterLabelAngle",label="Plot options:",
-                                                  choices=c("Flip label angle"="flip"))
+                               uiOutput("diffLabelChoice")
+                               # checkboxGroupInput("scatterLabelAngle",label="Plot options:",
+                               #                    choices=c("Flip label angle"="flip"))
                       )
                )
              ),
@@ -1665,8 +1665,7 @@ runShiny <- function(filePath,outPath,cellMarkers,annotationDB,rownameKeytype,..
                            labType=input$diffLabelType,
                            labTypeDiff=input$diffLabelChoice,
                            labNum=input$diffCount,
-                           labGenes=GOI(),
-                           labAngle=input$scatterLabelAngle)
+                           labGenes=GOI())
       }
     )
     
@@ -1682,8 +1681,7 @@ runShiny <- function(filePath,outPath,cellMarkers,annotationDB,rownameKeytype,..
                              labType=input$diffLabelType,
                              labTypeDiff=input$diffLabelChoice,
                              labNum=input$diffCount,
-                             labGenes=GOI(),
-                             labAngle=input$scatterLabelAngle)
+                             labGenes=GOI())
           dev.off()
         }
       }

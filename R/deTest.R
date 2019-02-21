@@ -65,6 +65,11 @@ NULL
 #'   differentially expressed genes between nearest neighbouring clusters,
 #'   assuming \code{testAll} is set FALSE If \code{testAll} is TRUE, this
 #'   argument is unused.
+#' @param storeAllDE Default = TRUE. A logical vector of length 1 indicating
+#'   whether to calculate and store effect size information for all genes in the
+#'   comparison (TRUE), or just those passing the detection rate threshold for
+#'   the Wilcoxon rank-sum test (FALSE). Setting this to FALSE will reduce the
+#'   size of the output sCVdata object.
 #' @param calcSil Default = TRUE. A logical vector of length 1. If TRUE,
 #'   silhouette widths (a cluster cohesion/separation metric) will be calculated
 #'   for all cells. This calculation is performed using the function
@@ -144,6 +149,7 @@ CalcAllSCV <- function(inD,
                        DRthresh=0.1,
                        testAll=TRUE,
                        FDRthresh=0.05,
+                       storeAllDE=T,
                        calcSil=T,
                        calcDEvsRest=T,
                        calcDEcombn=T) {
@@ -207,6 +213,7 @@ CalcAllSCV <- function(inD,
                             exponent=exponent,
                             pseudocount=pseudocount,
                             DRthresh=DRthresh,
+                            storeAllDE=storeAllDE,
                             calcSil=calcSil,
                             calcDEvsRest=calcDEvsRest,
                             calcDEcombn=calcDEcombn)
@@ -268,6 +275,11 @@ CalcAllSCV <- function(inD,
 #'   differential expression testing. A gene will be included if it is detected
 #'   in at least this proportion of cells in at least one of the clusters being
 #'   compared.
+#' @param storeAllDE Default = TRUE. A logical vector of length 1 indicating
+#'   whether to calculate and store effect size information for all genes in the
+#'   comparison (TRUE), or just those passing the detection rate threshold for
+#'   the Wilcoxon rank-sum test (FALSE). Setting this to FALSE will reduce the
+#'   size of the output sCVdata object.
 #' @param calcSil Default = TRUE. A logical vector of length 1. If TRUE,
 #'   silhouette widths (a cluster cohesion/separation metric) will be calculated
 #'   for all cells. This calculation is performed using the function
@@ -304,18 +316,18 @@ CalcAllSCV <- function(inD,
 #' @examples
 #' \dontrun{
 #' ## This example shows integration of scClustViz with Seurat clustering ##
-#' 
+#'
 #' DE_bw_clust <- TRUE
 #' seurat_resolution <- 0
 #' sCVdata_list <- list()
-#' 
+#'
 #' while(DE_bw_clust) {
-#'   seurat_resolution <- seurat_resolution + 0.2 
-#'   # ^ iteratively incrementing resolution parameter 
-#'   
+#'   seurat_resolution <- seurat_resolution + 0.2
+#'   # ^ iteratively incrementing resolution parameter
+#'
 #'   your_seurat_obj <- Seurat::FindClusters(your_seurat_obj,
 #'                                           resolution=seurat_resolution)
-#'   
+#'
 #'   curr_sCVdata <- CalcSCV(inD=your_seurat_obj,
 #'                           clusterDF=Seurat::Idents(your_seurat_obj),
 #'                           assayType=NULL,
@@ -326,16 +338,16 @@ CalcAllSCV <- function(inD,
 #'                           calcSil=T,
 #'                           calcDEvsRest=T,
 #'                           calcDEcombn=T)
-#'   
+#'
 #'   DE_bw_NN <- sapply(DEneighb(curr_sCVdata,0.05),length)
 #'   # ^ counts # of DE genes between neighbouring clusters at 5% FDR
-#'   
+#'
 #'   if (min(DE_bw_NN) < 1) { DE_bw_clust <- FALSE }
 #'   # ^ If no DE genes between nearest neighbours, don't loop again.
-#'   
+#'
 #'   sCVdata_list[[paste0("res.",seurat_resolution)]] <- curr_sCVdata
 #' }
-#' 
+#'
 #' save(your_seurat_obj,sCVdata_list,
 #'      file="for_scClustViz.RData")
 #'
@@ -357,6 +369,7 @@ CalcSCV <- function(inD,
                     exponent=2,
                     pseudocount=1,
                     DRthresh=0.1,
+                    storeAllDE=T,
                     calcSil=T,
                     calcDEvsRest=T,
                     calcDEcombn=T) {
@@ -408,11 +421,11 @@ CalcSCV <- function(inD,
   ClustGeneStats(out) <- CalcCGS(out,inD) #this is not optional, since everything depends on it.
   
   if (calcDEvsRest) {
-    DEvsRest(out) <- CalcDEvsRest(out,inD)
+    DEvsRest(out) <- CalcDEvsRest(out,inD,storeAllDE)
   }
   
   if (calcDEcombn) {
-    DEcombn(out) <- CalcDEcombn(out,inD)
+    DEcombn(out) <- CalcDEcombn(out,inD,storeAllDE)
   }
   return(out)
 }
@@ -690,6 +703,11 @@ fx_calcDEvsRest <- function(nge,cl,deTes) {
 #'   classes are not currently supported.
 #'   \href{https://github.com/BaderLab/scClustViz/issues}{Please submit requests
 #'   for other data objects here!}
+#' @param storeAllDE A logical vector of length 1 indicating whether to
+#'   calculate and store effect size information for all genes in the comparison
+#'   (TRUE), or just those passing the detection rate threshold for the Wilcoxon
+#'   rank-sum test (FALSE). Setting this to FALSE will reduce the size of the
+#'   output sCVdata object.
 #'
 #' @return A named list of data frames, one entry for each level in
 #'   \code{Clusters(sCVd)} (with corresponding name).Each entry is data frame
@@ -738,14 +756,14 @@ fx_calcDEvsRest <- function(nge,cl,deTes) {
 #' @export
 #' 
 
-setGeneric("CalcDEvsRest",function(sCVd,inD) standardGeneric("CalcDEvsRest"))
+setGeneric("CalcDEvsRest",function(sCVd,inD,storeAllDE) standardGeneric("CalcDEvsRest"))
 
 
 #' @describeIn CalcDEvsRest Calculate one vs. all DE tests for sCVdata
 #' @export
 
-setMethod("CalcDEvsRest",signature("sCVdata","ANY"),
-          function(sCVd,inD) {
+setMethod("CalcDEvsRest","sCVdata",
+          function(sCVd,inD,storeAllDE) {
             if (!is(inD)[1] %in% findMethodSignatures(getExpr)) {
               stop(paste("The input data object must be one of:",
                          paste(findMethodSignatures(getExpr),collapse=", "),
@@ -757,6 +775,9 @@ setMethod("CalcDEvsRest",signature("sCVdata","ANY"),
                                      exponent=Param(sCVd,"exponent"),
                                      pseudocount=Param(sCVd,"pseudocount"),
                                      DRthresh=Param(sCVd,"DRthresh"))
+            if (!storeAllDE) { 
+              deTes <- sapply(deTes,function(X) X[X$overThreshold,],simplify=F) 
+            }
             deTes <- fx_calcDEvsRest(nge=getExpr(inD,Param(sCVd,"assayType")),
                                      cl=Clusters(sCVd),
                                      deTes=deTes)
@@ -880,6 +901,11 @@ fx_calcDEcombn <- function(nge,cl,deMes) {
 #'   classes are not currently supported.
 #'   \href{https://github.com/BaderLab/scClustViz/issues}{Please submit requests
 #'   for other data objects here!}
+#' @param storeAllDE A logical vector of length 1 indicating whether to
+#'   calculate and store effect size information for all genes in the comparison
+#'   (TRUE), or just those passing the detection rate threshold for the Wilcoxon
+#'   rank-sum test (FALSE). Setting this to FALSE will reduce the size of the
+#'   output sCVdata object.
 #'
 #' @return A named list of data frames, one entry for each pairwise combination
 #'   of levels in \code{Clusters(sCVd)} (with corresponding name where levels
@@ -946,14 +972,14 @@ fx_calcDEcombn <- function(nge,cl,deMes) {
 #' @export
 #' 
 
-setGeneric("CalcDEcombn",function(sCVd,inD) standardGeneric("CalcDEcombn"))
+setGeneric("CalcDEcombn",function(sCVd,inD,storeAllDE) standardGeneric("CalcDEcombn"))
 
 
 #' @describeIn CalcDEcombn Calculate DE between cluster pairs
 #' @export
 
-setMethod("CalcDEcombn",signature("sCVdata","ANY"), #ANY should be a supported single-cell object
-          function(sCVd,inD) {
+setMethod("CalcDEcombn","sCVdata",
+          function(sCVd,inD,storeAllDE) {
             if (!is(inD)[1] %in% findMethodSignatures(getExpr)) {
               stop(paste("The input data object must be one of:",
                          paste(findMethodSignatures(getExpr),collapse=", "),
@@ -962,6 +988,9 @@ setMethod("CalcDEcombn",signature("sCVdata","ANY"), #ANY should be a supported s
             deMes <- fx_calcEScombn(cl=Clusters(sCVd),
                                     CGS=ClustGeneStats(sCVd),
                                     DRthresh=Param(sCVd,"DRthresh"))
+            if (!storeAllDE) { 
+              deMes <- sapply(deMes,function(X) X[X$overThreshold,],simplify=F) 
+            }
             deMes <- fx_calcDEcombn(nge=getExpr(inD,Param(sCVd,"assayType")),
                                     cl=Clusters(sCVd),
                                     deMes=deMes)
@@ -1084,10 +1113,12 @@ fx_calcDist_numDE <- function(deVS,FDRthresh) {
 #'   
 
 fx_calcDist_scoreDE <- function(deVS) {
-  temp <- sapply(deVS,function(X) -log10(X$FDR))
-  temp[is.na(temp)] <- 0
-  temp[temp == Inf] <- max(temp[temp < Inf]) + 1
-  d <- colSums(temp^2)^.5
+  d <- vapply(deVS,function(X) {
+    temp <- -log10(X$FDR) 
+    temp[is.na(temp)] <- 0
+    temp[temp == Inf] <- max(temp[temp < Inf]) + 1
+    return(sum(temp^2))
+    },FUN.VALUE=numeric(1))^0.5
   cb <- strsplit(names(deVS),"-")
   cl <- unique(unlist(cb))
   tempOut <- matrix(nrow=length(cl),ncol=length(cl),dimnames=list(cl,cl))

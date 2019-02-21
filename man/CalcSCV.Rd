@@ -5,8 +5,8 @@
 \title{Create sCVdata object with calculation results for a cluster}
 \usage{
 CalcSCV(inD, cl, assayType = "", DRforClust = "pca", exponent = 2,
-  pseudocount = 1, DRthresh = 0.1, calcSil = T, calcDEvsRest = T,
-  calcDEcombn = T)
+  pseudocount = 1, DRthresh = 0.1, storeAllDE = T, calcSil = T,
+  calcDEvsRest = T, calcDEcombn = T)
 }
 \arguments{
 \item{inD}{The input dataset. An object of class \code{\link[Seurat]{seurat}}
@@ -46,6 +46,12 @@ representing the detection rate threshold for inclusion of a gene in the
 differential expression testing. A gene will be included if it is detected
 in at least this proportion of cells in at least one of the clusters being
 compared.}
+
+\item{storeAllDE}{Default = TRUE. A logical vector of length 1 indicating
+whether to calculate and store effect size information for all genes in the
+comparison (TRUE), or just those passing the detection rate threshold for
+the Wilcoxon rank-sum test (FALSE). Setting this to FALSE will reduce the
+size of the output sCVdata object.}
 
 \item{calcSil}{Default = TRUE. A logical vector of length 1. If TRUE,
 silhouette widths (a cluster cohesion/separation metric) will be calculated
@@ -110,12 +116,12 @@ seurat_resolution <- 0
 sCVdata_list <- list()
 
 while(DE_bw_clust) {
-  seurat_resolution <- seurat_resolution + 0.2 
-  # ^ iteratively incrementing resolution parameter 
-  
+  seurat_resolution <- seurat_resolution + 0.2
+  # ^ iteratively incrementing resolution parameter
+
   your_seurat_obj <- Seurat::FindClusters(your_seurat_obj,
                                           resolution=seurat_resolution)
-  
+
   curr_sCVdata <- CalcSCV(inD=your_seurat_obj,
                           clusterDF=Seurat::Idents(your_seurat_obj),
                           assayType=NULL,
@@ -126,13 +132,13 @@ while(DE_bw_clust) {
                           calcSil=T,
                           calcDEvsRest=T,
                           calcDEcombn=T)
-  
+
   DE_bw_NN <- sapply(DEneighb(curr_sCVdata,0.05),length)
   # ^ counts # of DE genes between neighbouring clusters at 5\% FDR
-  
+
   if (min(DE_bw_NN) < 1) { DE_bw_clust <- FALSE }
   # ^ If no DE genes between nearest neighbours, don't loop again.
-  
+
   sCVdata_list[[paste0("res.",seurat_resolution)]] <- curr_sCVdata
 }
 
