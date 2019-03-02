@@ -6,9 +6,9 @@
 \alias{CalcDEcombn,sCVdata-method}
 \title{Performs DE testing between pairs of clusters in sCVdata}
 \usage{
-CalcDEcombn(sCVd, inD, storeAllDE)
+CalcDEcombn(sCVd, inD, storeAllDE, UseBiocParallel)
 
-\S4method{CalcDEcombn}{sCVdata}(sCVd, inD, storeAllDE)
+\S4method{CalcDEcombn}{sCVdata}(sCVd, inD, storeAllDE, UseBiocParallel)
 }
 \arguments{
 \item{sCVd}{An sCVdata object.}
@@ -24,6 +24,9 @@ calculate and store effect size information for all genes in the comparison
 (TRUE), or just those passing the detection rate threshold for the Wilcoxon
 rank-sum test (FALSE). Setting this to FALSE will reduce the size of the
 output sCVdata object.}
+
+\item{UseBiocParallel}{Default = FALSE. Very experimental implementation of
+BiocParallel for calculations. Not recommended.}
 }
 \value{
 A named list of data frames, one entry for each pairwise combination

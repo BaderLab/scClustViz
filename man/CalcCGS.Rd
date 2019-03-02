@@ -6,9 +6,9 @@
 \alias{CalcCGS,sCVdata-method}
 \title{Calculate cluster-wise gene statistics for sCVdata}
 \usage{
-CalcCGS(sCVd, inD)
+CalcCGS(sCVd, inD, UseBiocParallel)
 
-\S4method{CalcCGS}{sCVdata}(sCVd, inD)
+\S4method{CalcCGS}{sCVdata}(sCVd, inD, UseBiocParallel)
 }
 \arguments{
 \item{sCVd}{An sCVdata object.}
@@ -18,6 +18,9 @@ or \code{\link[SingleCellExperiment]{SingleCellExperiment}}. Other data
 classes are not currently supported.
 \href{https://github.com/BaderLab/scClustViz/issues}{Please submit requests
 for other data objects here!}}
+
+\item{UseBiocParallel}{Default = FALSE. Very experimental implementation of
+BiocParallel for calculations. Not recommended.}
 }
 \value{
 The function returns a list of dataframes. Each list element contains

@@ -6,7 +6,7 @@
 \usage{
 CalcSCV(inD, cl, assayType = "", DRforClust = "pca", exponent = 2,
   pseudocount = 1, DRthresh = 0.1, storeAllDE = T, calcSil = T,
-  calcDEvsRest = T, calcDEcombn = T)
+  calcDEvsRest = T, calcDEcombn = T, UseBiocParallel = F)
 }
 \arguments{
 \item{inD}{The input dataset. An object of class \code{\link[Seurat]{seurat}}
@@ -81,6 +81,9 @@ perform DE testing on the same set of comparisons using a statistical
 method of your choice. This can be passed into your \code{sCVdata} objects
 in the list returned by \code{CalcAllSCV} using the function
 \code{\link{calcDEcombn}}. See function documentation for details.}
+
+\item{UseBiocParallel}{Default = FALSE. Very experimental implementation of
+BiocParallel for calculations. Not recommended.}
 }
 \value{
 The function returns an \code{\link{sCVdata}} object with all slots

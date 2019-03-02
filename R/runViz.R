@@ -31,6 +31,11 @@
 #'   function will assume the rownames are official gene symbols. If less than
 #'   80% of rownames map to official gene symbols, the function will try to
 #'   predict the appropriate keytype of the rownames (this takes a bit of time).
+#' @param imageFileType Default="pdf". The file format for saved figures. One of
+#'   \code{"pdf"} (generated with \code{\link[grDevices]{cairo_pdf}}),
+#'   \code{"eps"} (generated with \code{\link[grDevices]{cairo_ps}}),
+#'   \code{"tiff"} (generated with \code{\link[grDevices]{tiff}}), or
+#'   \code{"png"} (generated with \code{\link[grDevices]{png}}).
 #' @param ... Named options that should be passed to the
 #'   \code{\link[shiny]{runApp}} call (these can be any of the following:
 #'   "port", "launch.browser", "host", "quiet", "display.mode" and "test.mode").
@@ -95,7 +100,9 @@
 #' @export
 #' 
 
-runShiny <- function(filePath,outPath,cellMarkers,annotationDB,rownameKeytype,...) {
+runShiny <- function(filePath,outPath,
+                     cellMarkers,annotationDB,rownameKeytype,
+                     imageFileType="pdf",...) {
   
   # ^ Load data from file ------------------------------------------------------------------
   while(T) {
@@ -221,6 +228,11 @@ runShiny <- function(filePath,outPath,cellMarkers,annotationDB,rownameKeytype,..
   if (!missing(outPath)) { dataPath <- outPath }
   
   
+  if (!imageFileType %in% c("pdf","eps","png","tiff")) {
+    warning('imageFileType must be one of c("pdf","eps","png","tiff"). Setting to "pdf".')
+    imageFileType <- "pdf"
+  }
+  
   # ^ Helper calcs for Shiny -----------------------------------------------------
   # ^^ Map rownames to gene symbol -------------------
   symbolMap <- NULL
@@ -304,7 +316,7 @@ runShiny <- function(filePath,outPath,cellMarkers,annotationDB,rownameKeytype,..
         "where all nearest neighbouring clusters have differentially expressed genes",
         "between them), click <b>View clusters at this resolution</b> to proceed. If you",
         "want to save this cluster solution as the default for next time, click <b>Save",
-        "this resolution as default</b>. All figures can be downloaded as PDFs by clicking",
+        "this resolution as default</b>. All figures can be downloaded by clicking",
         "the buttons next to each figure."
       ))),
       h1()
@@ -329,8 +341,8 @@ runShiny <- function(filePath,outPath,cellMarkers,annotationDB,rownameKeytype,..
       column(6,plotOutput("sil",height="670px"))
     ),
     fixedRow(
-      column(6,downloadButton("clustSepSave","Save as PDF"),align="left"),
-      column(6,downloadButton("silSave","Save as PDF"),align="right")
+      column(6,downloadButton("clustSepSave",paste("Save as",toupper(imageFileType))),align="left"),
+      column(6,downloadButton("silSave",paste("Save as",toupper(imageFileType))),align="right")
     ),
     hr(),
     
@@ -372,8 +384,8 @@ runShiny <- function(filePath,outPath,cellMarkers,annotationDB,rownameKeytype,..
       column(6,plotOutput("tsneMD",height="580px"))
     ),
     fixedRow(
-      column(6,align="left",downloadButton("tsneSave","Save as PDF")),
-      column(6,align="right",downloadButton("tsneMDSave","Save as PDF"))
+      column(6,align="left",downloadButton("tsneSave",paste("Save as",toupper(imageFileType)))),
+      column(6,align="right",downloadButton("tsneMDSave",paste("Save as",toupper(imageFileType))))
     ),
     hr(),
     
@@ -390,8 +402,8 @@ runShiny <- function(filePath,outPath,cellMarkers,annotationDB,rownameKeytype,..
       column(6,plotOutput("mdFactor",height="560px"))
     ),
     fixedRow(
-      column(6,align="left",downloadButton("mdScatterSave","Save as PDF")),
-      column(6,align="right",downloadButton("mdFactorSave","Save as PDF"))
+      column(6,align="left",downloadButton("mdScatterSave",paste("Save as",toupper(imageFileType)))),
+      column(6,align="right",downloadButton("mdFactorSave",paste("Save as",toupper(imageFileType))))
     ),
     hr(),
     
@@ -431,13 +443,13 @@ runShiny <- function(filePath,outPath,cellMarkers,annotationDB,rownameKeytype,..
     
     fixedRow(
       column(2,uiOutput("heatDEtype"),
-             numericInput("FDRthresh2",label="FDR",value=.01,max=1)),
+             numericInput("FDRthresh2",label="FDR",value=.05,max=1)),
       column(6,uiOutput("DEgeneSlider")),
       column(2,uiOutput("DEclustSelect")),
       column(2,
              downloadButton("CGSsave0","Download cluster gene stats"),
              downloadButton("deGeneSave","Download DE results"),
-             downloadButton("heatmapSave","Save as PDF"))
+             downloadButton("heatmapSave",paste("Save as",toupper(imageFileType))))
     ),
     fixedRow(plotOutput("dotplot",height="600px")),
     hr(),
@@ -480,7 +492,7 @@ runShiny <- function(filePath,outPath,cellMarkers,annotationDB,rownameKeytype,..
     ),
     fixedRow(align="right",
              plotOutput("clusterGenes",height="600px",click="cgClick"),
-             downloadButton("clusterGenesSave","Save as PDF")
+             downloadButton("clusterGenesSave",paste("Save as",toupper(imageFileType)))
     ),
     fixedRow(
       column(3,radioButtons("searchType",label="Search by:",
@@ -503,7 +515,7 @@ runShiny <- function(filePath,outPath,cellMarkers,annotationDB,rownameKeytype,..
                                                "Include detection rate"="dr")))
     ),
     fixedRow(plotOutput("geneTest",height="500px"),
-             downloadButton("geneTestSave","Save as PDF")
+             downloadButton("geneTestSave",paste("Save as",toupper(imageFileType)))
     ),
     hr(),
     
@@ -554,8 +566,8 @@ runShiny <- function(filePath,outPath,cellMarkers,annotationDB,rownameKeytype,..
       column(6,plotOutput("goiPlot2",height="580px"))
     ),
     fixedRow(
-      column(6,align="left",downloadButton("goiPlot1Save","Save as PDF")),
-      column(6,align="right",downloadButton("goiPlot2Save","Save as PDF"))
+      column(6,align="left",downloadButton("goiPlot1Save",paste("Save as",toupper(imageFileType)))),
+      column(6,align="right",downloadButton("goiPlot2Save",paste("Save as",toupper(imageFileType))))
     ),
     hr(),
     
@@ -634,7 +646,7 @@ runShiny <- function(filePath,outPath,cellMarkers,annotationDB,rownameKeytype,..
              ),
              fixedRow(column(12,uiOutput("diffLabelSelect"))),
              fixedRow(
-               column(4,downloadButton("setScatterSave","Save as PDF")),
+               column(4,downloadButton("setScatterSave",paste("Save as",toupper(imageFileType)))),
                column(4,downloadButton("setComparisonSave","Download DE results"))
              )
       )
@@ -811,16 +823,20 @@ runShiny <- function(filePath,outPath,cellMarkers,annotationDB,rownameKeytype,..
     })
     
     output$clustSepSave <- downloadHandler(
-      filename="clustSep.pdf",
+      filename=paste0("clustSep.",imageFileType),
       content=function(file) {
-        pdf(file,width=7,height=6)
+        switch(imageFileType,
+               "pdf"=grDevices::cairo_pdf(file,height=6,width=7,fallback_resolution=600),
+               "eps"=grDevices::cairo_ps(file,height=6,width=7,fallback_resolution=600),
+               "tiff"=grDevices::tiff(file,height=6,width=7,units="in",res=600),
+               "png"=grDevices::png(file,height=6,width=7,units="in",res=600))
         print(plot_clustSep(sCVdL=d$SCV[!grepl("^Comp:",names(d$SCV))],
                             DEtype=input$deType,
                             FDRthresh=input$FDRthresh1,
                             res=input$res,
                             Xlim=clustSepRanges$x,
                             Ylim=clustSepRanges$y))
-        dev.off()
+        grDevices::dev.off()
       }
     )
     
@@ -828,7 +844,7 @@ runShiny <- function(filePath,outPath,cellMarkers,annotationDB,rownameKeytype,..
     output$FDRthresh1 <- renderUI({
       if (input$deType %in% c("DEneighb","DEmarker")) {
         numericInput("FDRthresh1",label="FDR",
-                     value=.01,max=1)
+                     value=.05,max=1)
       }
     })
     
@@ -853,12 +869,16 @@ runShiny <- function(filePath,outPath,cellMarkers,annotationDB,rownameKeytype,..
     })
     
     output$silSave <- downloadHandler(
-      filename="sil.pdf",
+      filename=paste0("sil.",imageFileType),
       content=function(file) {
         if (!is.null(Silhouette(d$SCV[[input$res]]))) {
-          pdf(file,width=6,height=7)
+          switch(imageFileType,
+                 "pdf"=grDevices::cairo_pdf(file,height=7,width=6,fallback_resolution=600),
+                 "eps"=grDevices::cairo_ps(file,height=7,width=6,fallback_resolution=600),
+                 "tiff"=grDevices::tiff(file,height=7,width=6,units="in",res=600),
+                 "png"=grDevices::png(file,height=7,width=6,units="in",res=600))
           plot_sil(d$SCV[[input$res]])
-          dev.off()
+          grDevices::dev.off()
         }
       }
     )
@@ -905,10 +925,14 @@ runShiny <- function(filePath,outPath,cellMarkers,annotationDB,rownameKeytype,..
     })
     
     output$tsneSave <- downloadHandler(
-      filename="tsne.pdf",
+      filename=paste0("tsne.",imageFileType),
       content=function(file) {
         if (length(res()) > 0) {
-          pdf(file,width=7,height=7)
+          switch(imageFileType,
+                 "pdf"=grDevices::cairo_pdf(file,height=7,width=7,fallback_resolution=600),
+                 "eps"=grDevices::cairo_ps(file,height=7,width=7,fallback_resolution=600),
+                 "tiff"=grDevices::tiff(file,height=7,width=7,units="in",res=600),
+                 "png"=grDevices::png(file,height=7,width=7,units="in",res=600))
           plot_tsne(cell_coord=getEmb(inD,"tsne"),
                     md=Clusters(d$SCV[[res()]]),
                     md_title=NULL,
@@ -926,7 +950,7 @@ runShiny <- function(filePath,outPath,cellMarkers,annotationDB,rownameKeytype,..
                      x0=temp_labels[X,1],y0=temp_labels[X,2],
                      x1=temp_labels[temp_nn[[X]],1],y1=temp_labels[temp_nn[[X]],2]))
           }
-          dev.off()
+          grDevices::dev.off()
         }
       }
     )
@@ -1003,10 +1027,14 @@ runShiny <- function(filePath,outPath,cellMarkers,annotationDB,rownameKeytype,..
     })
     
     output$tsneMDSave <- downloadHandler(
-      filename="tsneMD.pdf",
+      filename=paste0("tsneMD.",imageFileType),
       content=function(file) {
         if (length(res()) > 0) {
-          pdf(file,width=7,height=7)
+          switch(imageFileType,
+                 "pdf"=grDevices::cairo_pdf(file,height=7,width=7,fallback_resolution=600),
+                 "eps"=grDevices::cairo_ps(file,height=7,width=7,fallback_resolution=600),
+                 "tiff"=grDevices::tiff(file,height=7,width=7,units="in",res=600),
+                 "png"=grDevices::png(file,height=7,width=7,units="in",res=600))
           if (length(input$tsneMDlog) > 0) { 
             if (input$tsneMDlog == "log") { temp_log <- T } 
           } else { temp_log <- F }
@@ -1018,7 +1046,7 @@ runShiny <- function(filePath,outPath,cellMarkers,annotationDB,rownameKeytype,..
                                       cell_coord=getEmb(inD,"tsne"),
                                       lab_type=input$tsneLabels),
                     sel_cells=selCells())
-          dev.off()
+          grDevices::dev.off()
         }
       }
     )
@@ -1079,17 +1107,21 @@ runShiny <- function(filePath,outPath,cellMarkers,annotationDB,rownameKeytype,..
     })
     
     output$mdScatterSave <- downloadHandler(
-      filename="mdScatter.pdf",
+      filename=paste0("mdScatter.",imageFileType),
       content=function(file) {
         if (length(res()) > 0) {
-          pdf(file,width=7,height=7)
+          switch(imageFileType,
+                 "pdf"=grDevices::cairo_pdf(file,height=7,width=7,fallback_resolution=600),
+                 "eps"=grDevices::cairo_ps(file,height=7,width=7,fallback_resolution=600),
+                 "tiff"=grDevices::tiff(file,height=7,width=7,units="in",res=600),
+                 "png"=grDevices::png(file,height=7,width=7,units="in",res=600))
           plot_mdCompare(MD=d$MD,
                          mdX=input$mdScatterX,
                          mdY=input$mdScatterY,
                          sel_cells=selCells(),
                          sel_clust=selClustName(),
                          md_log=input$scatterLog)
-          dev.off()
+          grDevices::dev.off()
         }
       }
     )
@@ -1131,7 +1163,7 @@ runShiny <- function(filePath,outPath,cellMarkers,annotationDB,rownameKeytype,..
     })
     
     output$mdFactorSave <- downloadHandler(
-      filename="mdFactor.pdf",
+      filename=paste0("mdFactor.",imageFileType),
       content=function(file) {
         if (length(res()) > 0) {
           if (is.character(d$MD[[input$mdFactorData]]) | 
@@ -1144,12 +1176,16 @@ runShiny <- function(filePath,outPath,cellMarkers,annotationDB,rownameKeytype,..
               temp_opts <- input$mdFactorOptsN
             }
           }
-          pdf(file,width=7,height=7)
+          switch(imageFileType,
+                 "pdf"=grDevices::cairo_pdf(file,height=7,width=7,fallback_resolution=600),
+                 "eps"=grDevices::cairo_ps(file,height=7,width=7,fallback_resolution=600),
+                 "tiff"=grDevices::tiff(file,height=7,width=7,units="in",res=600),
+                 "png"=grDevices::png(file,height=7,width=7,units="in",res=600))
           plot_mdPerClust(MD=d$MD,
                           sel=input$mdFactorData,
                           cl=Clusters(d$SCV[[res()]]),
                           opt=temp_opts)
-          dev.off()
+          grDevices::dev.off()
         }
       }
     )
@@ -1223,14 +1259,18 @@ runShiny <- function(filePath,outPath,cellMarkers,annotationDB,rownameKeytype,..
     })
     
     output$heatmapSave <- downloadHandler(
-      filename="heatmap.pdf",
+      filename=paste0("heatmap.",imageFileType),
       content=function(file) {
         if (length(res()) > 0) {
-          pdf(file,width=11,height=7)
+          switch(imageFileType,
+                 "pdf"=grDevices::cairo_pdf(file,height=7,width=11,fallback_resolution=600),
+                 "eps"=grDevices::cairo_ps(file,height=7,width=11,fallback_resolution=600),
+                 "tiff"=grDevices::tiff(file,height=7,width=11,units="in",res=600),
+                 "png"=grDevices::png(file,height=7,width=11,units="in",res=600))
           plot_deDotplot(sCVd=d$SCV[[res()]],
                          DEgenes=DEgenes(),
                          DEnum=input$DEgeneCount)
-          dev.off()
+          grDevices::dev.off()
         }
       }
     )
@@ -1341,10 +1381,14 @@ runShiny <- function(filePath,outPath,cellMarkers,annotationDB,rownameKeytype,..
     }) #,res=96) # enlarge plot features in interactive session
     
     output$clusterGenesSave <- downloadHandler(
-      filename="clusterGenes.pdf",
+      filename=paste0("clusterGenes.",imageFileType),
       content=function(file) {
         if (length(res()) > 0) {
-          pdf(file,width=12,height=7)
+          switch(imageFileType,
+                 "pdf"=grDevices::cairo_pdf(file,height=7,width=12,fallback_resolution=600),
+                 "eps"=grDevices::cairo_ps(file,height=7,width=12,fallback_resolution=600),
+                 "tiff"=grDevices::tiff(file,height=7,width=12,units="in",res=600),
+                 "png"=grDevices::png(file,height=7,width=12,units="in",res=600))
           switch(input$cgLegend,
                  markers=plot_clusterGenes_markers(sCVd=d$SCV[[res()]],
                                                    selClust=selClust(),
@@ -1362,7 +1406,7 @@ runShiny <- function(filePath,outPath,cellMarkers,annotationDB,rownameKeytype,..
                    plot(x=NA,y=NA,xlim=0:1,ylim=0:1,xaxt="n",yaxt="n",xlab=NA,ylab=NA)
                    text(.5,.5,"Whooops. input$cgLegend is making up words.")
                  })
-          dev.off()
+          grDevices::dev.off()
         }
       }
     )
@@ -1401,16 +1445,20 @@ runShiny <- function(filePath,outPath,cellMarkers,annotationDB,rownameKeytype,..
     })
     
     output$geneTestSave <- downloadHandler(
-      filename="geneTest.pdf",
+      filename=paste0("geneBoxplot.",imageFileType),
       content=function(file) {
         if (length(res()) > 0) {
-          pdf(file,width=12,height=7)
+          switch(imageFileType,
+                 "pdf"=grDevices::cairo_pdf(file,height=7,width=12,fallback_resolution=600),
+                 "eps"=grDevices::cairo_ps(file,height=7,width=12,fallback_resolution=600),
+                 "tiff"=grDevices::tiff(file,height=7,width=12,units="in",res=600),
+                 "png"=grDevices::png(file,height=7,width=12,units="in",res=600))
           plot_GEboxplot(nge=getExpr(inD,Param(sCVdL[[1]],"assayType")),
                          sCVd=d$SCV[[res()]],
                          gene=input$cgGene,
                          geneName=geneNameBx(),
                          opts=input$bxpOpts)
-          dev.off()
+          grDevices::dev.off()
         }
       }
     )
@@ -1549,10 +1597,14 @@ runShiny <- function(filePath,outPath,cellMarkers,annotationDB,rownameKeytype,..
     })
     
     output$goiPlot1Save <- downloadHandler(
-      filename="goi1.pdf",
+      filename=paste0("goi1.",imageFileType),
       content=function(file) {
         if (input$plotClust2 == "goi" & !is.null(input$goi1)) {
-          pdf(file,width=7,height=7)
+          switch(imageFileType,
+                 "pdf"=grDevices::cairo_pdf(file,height=7,width=7,fallback_resolution=600),
+                 "eps"=grDevices::cairo_ps(file,height=7,width=7,fallback_resolution=600),
+                 "tiff"=grDevices::tiff(file,height=7,width=7,units="in",res=600),
+                 "png"=grDevices::png(file,height=7,width=7,units="in",res=600))
           plot_tsne(cell_coord=getEmb(inD,"tsne"),
                     md=getExpr(inD,Param(sCVdL[[1]],"assayType"))[input$goi1,],
                     md_title=geneNameGOI1(),
@@ -1563,15 +1615,19 @@ runShiny <- function(filePath,outPath,cellMarkers,annotationDB,rownameKeytype,..
                                                     lab_type=input$tsneLabels),
                                  "FALSE"=NULL)
           )
-          dev.off()
+          grDevices::dev.off()
         }
       }
     )
     output$goiPlot2Save <- downloadHandler(
-      filename="goi2.pdf",
+      filename=paste0("goi2.",imageFileType),
       content=function(file) {
         if (input$plotClust2 == "goi" & !is.null(input$goi2)) {
-          pdf(file,width=7,height=7)
+          switch(imageFileType,
+                 "pdf"=grDevices::cairo_pdf(file,height=7,width=7,fallback_resolution=600),
+                 "eps"=grDevices::cairo_ps(file,height=7,width=7,fallback_resolution=600),
+                 "tiff"=grDevices::tiff(file,height=7,width=7,units="in",res=600),
+                 "png"=grDevices::png(file,height=7,width=7,units="in",res=600))
           plot_tsne(cell_coord=getEmb(inD,"tsne"),
                     md=getExpr(inD,Param(sCVdL[[1]],"assayType"))[input$goi2,],
                     md_title=geneNameGOI2(),
@@ -1582,7 +1638,7 @@ runShiny <- function(filePath,outPath,cellMarkers,annotationDB,rownameKeytype,..
                                                     lab_type=input$tsneLabels),
                                  "FALSE"=NULL)
           )
-          dev.off()
+          grDevices::dev.off()
         }
       }
     )
@@ -1670,10 +1726,14 @@ runShiny <- function(filePath,outPath,cellMarkers,annotationDB,rownameKeytype,..
     )
     
     output$setScatterSave <- downloadHandler(
-      filename="setScatter.pdf",
+      filename=paste0("setScatter.",imageFileType),
       content=function(file) {
         if (length(res()) > 0) {
-          pdf(file,width=7,height=7)
+          switch(imageFileType,
+                 "pdf"=grDevices::cairo_pdf(file,height=7,width=7,fallback_resolution=600),
+                 "eps"=grDevices::cairo_ps(file,height=7,width=7,fallback_resolution=600),
+                 "tiff"=grDevices::tiff(file,height=7,width=7,units="in",res=600),
+                 "png"=grDevices::png(file,height=7,width=7,units="in",res=600))
           plot_compareClusts(sCVd=d$SCV[[res()]],
                              clA=input$ssA,
                              clB=input$ssB,
@@ -1682,7 +1742,7 @@ runShiny <- function(filePath,outPath,cellMarkers,annotationDB,rownameKeytype,..
                              labTypeDiff=input$diffLabelChoice,
                              labNum=input$diffCount,
                              labGenes=GOI())
-          dev.off()
+          grDevices::dev.off()
         }
       }
     )

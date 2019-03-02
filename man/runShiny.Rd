@@ -4,7 +4,8 @@
 \alias{runShiny}
 \title{Run the scClustViz Shiny app}
 \usage{
-runShiny(filePath, outPath, cellMarkers, annotationDB, rownameKeytype, ...)
+runShiny(filePath, outPath, cellMarkers, annotationDB, rownameKeytype,
+  imageFileType = "pdf", ...)
 }
 \arguments{
 \item{filePath}{A character vector giving the relative filepath to an RData
@@ -40,6 +41,12 @@ rownames. If the annotationDB argument is present and this is missing, the
 function will assume the rownames are official gene symbols. If less than
 80% of rownames map to official gene symbols, the function will try to
 predict the appropriate keytype of the rownames (this takes a bit of time).}
+
+\item{imageFileType}{Default="pdf". The file format for saved figures. One of
+\code{"pdf"} (generated with \code{\link[grDevices]{cairo_pdf}}),
+\code{"eps"} (generated with \code{\link[grDevices]{cairo_ps}}),
+\code{"tiff"} (generated with \code{\link[grDevices]{tiff}}), or
+\code{"png"} (generated with \code{\link[grDevices]{png}}).}
 
 \item{...}{Named options that should be passed to the
 \code{\link[shiny]{runApp}} call (these can be any of the following:
