@@ -85,6 +85,7 @@ cosineSim <- function(A,B) sum(A*B)/sqrt(sum(A^2)*sum(B^2))
 #' 
 #' @seealso \code{\link{map2symbol}}
 #' 
+#' @export
 
 findKeyType <- function(nge,annotationDB) {
   rownameKeytype <- "SYMBOL"
@@ -122,6 +123,7 @@ findKeyType <- function(nge,annotationDB) {
 #' @seealso \code{\link{findKeyType}},\code{\link[AnnotationDbi]{mapIds}},
 #'   \code{\link{addCellMarkersToCGS}}, and \code{\link{labelCellTypes}}.
 #' 
+#' @export
 
 map2symbol <- function(nge,annotationDB,rownameKeytype) {
   if (rownameKeytype != "SYMBOL") {
@@ -161,7 +163,8 @@ map2symbol <- function(nge,annotationDB,rownameKeytype) {
 #'
 #' @seealso \code{\link{findKeyType}}, \code{\link{map2symbol}}, and
 #'   \code{\link[AnnotationDbi]{mapIds}}.
-#' 
+#'   
+#' @export
 
 addCellMarkersToCGS <- function(sCV,cellMarkersU,cellMarkersS,symbolMap) {
   if (is.null(ClustGeneStats(sCV))) {
@@ -186,7 +189,7 @@ addCellMarkersToCGS <- function(sCV,cellMarkersU,cellMarkersS,symbolMap) {
 }
 
 
-#' Add predicted cell type names to cluster labels
+#' scClustViz helper fx: Add predicted cell type names to cluster labels
 #'
 #' A bare-bones method of predicting cell types from marker genes.
 #'
@@ -203,7 +206,8 @@ addCellMarkersToCGS <- function(sCV,cellMarkersU,cellMarkersS,symbolMap) {
 #' @return Returns the sCVdata object with an added attribute
 #'   '\code{ClusterNames}' to \code{Clusters(sCV)} containing the assigned cell
 #'   type names for each cluster.
-#'   
+#' 
+#' @export
 
 labelCellTypes <- function(sCV,cellMarkers,symbolMap) {
   if (length(cellMarkers) < 1) {

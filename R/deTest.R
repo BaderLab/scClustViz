@@ -96,6 +96,8 @@ NULL
 #'   method of your choice. This can be passed into your \code{sCVdata} objects
 #'   in the list returned by \code{CalcAllSCV} using the function
 #'   \code{\link{calcDEcombn}}. See function documentation for details.
+#' @param UseBiocParallel Default = FALSE. Very experimental implementation of
+#'   BiocParallel for calculations. Not recommended.
 #'
 #' @return The function returns a list containing \code{\link{sCVdata}} objects
 #'   for each cluster resolution (sample) in the \code{clusterDF} data frame.
@@ -111,7 +113,7 @@ NULL
 #'                               names(getMD(your_scRNAseq_data_object)))
 #' # ^ Finds the cluster columns of the metadata in a Seurat object.
 #'
-#' your_cluster_results <- getMD(your_scRNAseq_data_object)[,your_cluster_columns]
+#' your_cluster_results <- getMD(your_scRNAseq_data_object)[your_cluster_columns]
 #'
 #' sCVdata_list <- CalcAllSCV(inD=your_scRNAseq_data_object,
 #'                            clusterDF=your_cluster_results,
@@ -152,7 +154,8 @@ CalcAllSCV <- function(inD,
                        storeAllDE=T,
                        calcSil=T,
                        calcDEvsRest=T,
-                       calcDEcombn=T) {
+                       calcDEcombn=T,
+                       UseBiocParallel=F) {
   if (!is(inD)[1] %in% findMethodSignatures(getExpr)) {
     stop(paste(
       paste0("Input data object must be one of: ",
@@ -183,13 +186,13 @@ CalcAllSCV <- function(inD,
   # If testAll == F, cluster solutions are sorted in ascending order of number
   # of clusters found.
   if (!testAll) {
-    warning(paste("  Testing cluster solutions in ascending order of number of clusters found.",
+    message(paste("  Testing cluster solutions in ascending order of number of clusters found.",
                   "Testing will stop after finding a solution with 0 differentially expressed",
                   "genes between nearest neighbouring clusters, and the resulting list of",
                   "sCVdata objects will be in ascending order of number of clusters found.",
                   sep="\n  "))
     sortedClusts <- order(sapply(clusterDF,function(X) length(unique(X))))
-    clusterDF <- clusterDF[,sortedClusts]
+    clusterDF <- clusterDF[sortedClusts]
   }
   
   # This loop iterates through every cluster solution, and does DE testing
@@ -216,9 +219,10 @@ CalcAllSCV <- function(inD,
                             storeAllDE=storeAllDE,
                             calcSil=calcSil,
                             calcDEvsRest=calcDEvsRest,
-                            calcDEcombn=calcDEcombn)
+                            calcDEcombn=calcDEcombn,
+                            UseBiocParallel=UseBiocParallel)
     if (!testAll) {
-      if (min(sapply(DEneighb(outList[[X]],FDRthresh),length)) < 1) { break }
+      if (min(sapply(DEneighb(outList[[X]],FDRthresh),nrow)) < 1) { break }
     }
   }
   
@@ -306,6 +310,8 @@ CalcAllSCV <- function(inD,
 #'   method of your choice. This can be passed into your \code{sCVdata} objects
 #'   in the list returned by \code{CalcAllSCV} using the function
 #'   \code{\link{calcDEcombn}}. See function documentation for details.
+#' @param UseBiocParallel Default = FALSE. Very experimental implementation of
+#'   BiocParallel for calculations. Not recommended.
 #'
 #' @return The function returns an \code{\link{sCVdata}} object with all slots
 #'   populated by default, and at least the \code{Clusters},
@@ -372,7 +378,8 @@ CalcSCV <- function(inD,
                     storeAllDE=T,
                     calcSil=T,
                     calcDEvsRest=T,
-                    calcDEcombn=T) {
+                    calcDEcombn=T,
+                    UseBiocParallel=F) {
   if (!is(inD)[1] %in% findMethodSignatures(getExpr)) {
     stop(paste(
       paste0("Input data object must be one of: ",
@@ -418,14 +425,15 @@ CalcSCV <- function(inD,
     }
   }
   
-  ClustGeneStats(out) <- CalcCGS(out,inD) #this is not optional, since everything depends on it.
+  #this is not optional, since everything depends on it.
+  ClustGeneStats(out) <- CalcCGS(out,inD,UseBiocParallel) 
   
   if (calcDEvsRest) {
-    DEvsRest(out) <- CalcDEvsRest(out,inD,storeAllDE)
+    DEvsRest(out) <- CalcDEvsRest(out,inD,storeAllDE,UseBiocParallel)
   }
   
   if (calcDEcombn) {
-    DEcombn(out) <- CalcDEcombn(out,inD,storeAllDE)
+    DEcombn(out) <- CalcDEcombn(out,inD,storeAllDE,UseBiocParallel)
   }
   return(out)
 }
@@ -457,23 +465,10 @@ CalcSCV <- function(inD,
 
 fx_calcCGS <- function(nge,cl,exponent,pseudocount) {
   message("-- Calculating gene detection rate per cluster --")
-  # DR <- BiocParallel::bplapply(sapply(levels(cl),function(i) nge[,cl %in% i],simplify=F),
-  #                              function(X) apply(X,1,function(Y) sum(Y>0)/length(Y)))
-  # names(DR) <- levels(cl)
   DR <- pbapply::pbsapply(sapply(levels(cl),function(i) nge[,cl %in% i,drop=F],simplify=F),
                           function(X) apply(X,1,function(Y) sum(Y > 0)/length(Y)),simplify=F)
   
   message("-- Calculating mean detected gene expression per cluster --")
-  # MDGE <- BiocParallel::bplapply(sapply(levels(cl),function(i) nge[,cl %in% i],simplify=F),
-  #                                function(X) apply(X,1,function(Y) {
-  #                                  temp <- meanLogX(Y[Y>0],
-  #                                                   ncell=ncol(nge),
-  #                                                   ex=exponent,
-  #                                                   pc=pseudocount)
-  #                                  if (is.na(temp)) { temp <- 0 }
-  #                                  return(temp)
-  #                                }))
-  # names(MDGE) <- levels(cl)
   MDGE <- pbapply::pbsapply(sapply(levels(cl),function(i) nge[,cl %in% i,drop=F],simplify=F),
                             function(X) apply(X,1,function(Y) {
                               temp <- meanLogX(Y[Y > 0],
@@ -485,13 +480,6 @@ fx_calcCGS <- function(nge,cl,exponent,pseudocount) {
                             }),simplify=F)
   
   message("-- Calculating mean gene expression per cluster --")
-  # MGE <- BiocParallel::bplapply(sapply(levels(cl),function(i) nge[,cl %in% i],simplify=F),
-  #                               function(X) apply(X,1,function(Y) 
-  #                                 meanLogX(Y,
-  #                                          ncell=ncol(nge),
-  #                                          ex=exponent,
-  #                                          pc=pseudocount)))
-  # names(MGE) <- levels(cl)  
   MGE <- pbapply::pbsapply(sapply(levels(cl),function(i) nge[,cl %in% i,drop=F],simplify=F),
                            function(X) apply(X,1,function(Y)
                              meanLogX(Y,
@@ -499,6 +487,59 @@ fx_calcCGS <- function(nge,cl,exponent,pseudocount) {
                                       ex=exponent,
                                       pc=pseudocount)),simplify=F)
   
+  return(sapply(levels(cl),function(X) 
+    data.frame(DR=DR[[X]],MDGE=MDGE[[X]],MGE=MGE[[X]]),simplify=F))
+}
+
+#' Internal fx for cluster-wise gene statistics using BiocParallel
+#'
+#' Internal function. See \code{\link{CalcCGS}}.
+#'
+#' @param nge The log-normalized gene expression matrix.
+#' @param cl The factor with cluster assignments per cell (column of nge).
+#' @param exponent The log base of your normalized input data. Seurat
+#'   normalization uses the natural log (set this to exp(1)), while other
+#'   normalization methods generally use log2 (set this to 2).
+#' @param pseudocount The pseudocount added to all log-normalized values in your
+#'   input data. Most methods use a pseudocount of 1 to eliminate log(0) errors.
+#' 
+#' @return The function returns a list of dataframes. Each list element contains
+#'   a named list of clusters at that resolution. Each of those list elements
+#'   contains a dataframe of three variables, where each sample is a gene.
+#'   \code{DR} is the proportion of cells in the cluster in which that gene was
+#'   detected. \code{MDGE} is mean normalized gene expression for that gene in
+#'   only the cells in which it was detected (see \code{\link{meanLogX}} for
+#'   mean calculation). \code{MGE} is the mean normalized gene expression for
+#'   that gene in all cells of the cluster (see \code{\link{meanLogX}} for mean
+#'   calculation).
+
+fx_calcCGS_BP <- function(nge,cl,exponent,pseudocount) {
+  message("-- Calculating gene detection rate per cluster --")
+  DR <- BiocParallel::bplapply(sapply(levels(cl),function(i) nge[,cl %in% i],simplify=F),
+                               function(X) apply(X,1,function(Y) sum(Y>0)/length(Y)))
+  names(DR) <- levels(cl)
+
+  message("-- Calculating mean detected gene expression per cluster --")
+  MDGE <- BiocParallel::bplapply(sapply(levels(cl),function(i) nge[,cl %in% i],simplify=F),
+                                 function(X) apply(X,1,function(Y) {
+                                   temp <- meanLogX(Y[Y>0],
+                                                    ncell=ncol(nge),
+                                                    ex=exponent,
+                                                    pc=pseudocount)
+                                   if (is.na(temp)) { temp <- 0 }
+                                   return(temp)
+                                 }))
+  names(MDGE) <- levels(cl)
+
+  message("-- Calculating mean gene expression per cluster --")
+  MGE <- BiocParallel::bplapply(sapply(levels(cl),function(i) nge[,cl %in% i],simplify=F),
+                                function(X) apply(X,1,function(Y)
+                                  meanLogX(Y,
+                                           ncell=ncol(nge),
+                                           ex=exponent,
+                                           pc=pseudocount)))
+  names(MGE) <- levels(cl)
+
   return(sapply(levels(cl),function(X) 
     data.frame(DR=DR[[X]],MDGE=MDGE[[X]],MGE=MGE[[X]]),simplify=F))
 }
@@ -521,6 +562,8 @@ fx_calcCGS <- function(nge,cl,exponent,pseudocount) {
 #'   classes are not currently supported.
 #'   \href{https://github.com/BaderLab/scClustViz/issues}{Please submit requests
 #'   for other data objects here!}
+#' @param UseBiocParallel Default = FALSE. Very experimental implementation of
+#'   BiocParallel for calculations. Not recommended.
 #'
 #' @return The function returns a list of dataframes. Each list element contains
 #'   a named list of clusters at that resolution. Each of those list elements
@@ -547,18 +590,25 @@ fx_calcCGS <- function(nge,cl,exponent,pseudocount) {
 #' @export
 #' 
 
-setGeneric("CalcCGS",function(sCVd,inD) standardGeneric("CalcCGS"))
+setGeneric("CalcCGS",function(sCVd,inD,UseBiocParallel) standardGeneric("CalcCGS"))
 
 
 #' @describeIn CalcCGS Calculate cluster-wise gene stats for sCVdata
 #' @export
 
 setMethod("CalcCGS",signature("sCVdata"),
-          function(sCVd,inD) {
-            fx_calcCGS(nge=getExpr(inD,Param(sCVd,"assayType")),
-                       cl=Clusters(sCVd),
-                       exponent=Param(sCVd,"exponent"),
-                       pseudocount=Param(sCVd,"pseudocount"))
+          function(sCVd,inD,UseBiocParallel) {
+            if (UseBiocParallel) {
+              fx_calcCGS_BP(nge=getExpr(inD,Param(sCVd,"assayType")),
+                            cl=Clusters(sCVd),
+                            exponent=Param(sCVd,"exponent"),
+                            pseudocount=Param(sCVd,"pseudocount"))
+            } else {
+              fx_calcCGS(nge=getExpr(inD,Param(sCVd,"assayType")),
+                         cl=Clusters(sCVd),
+                         exponent=Param(sCVd,"exponent"),
+                         pseudocount=Param(sCVd,"pseudocount"))
+            }
           })
 
 
@@ -594,22 +644,6 @@ setMethod("CalcCGS",signature("sCVdata"),
 
 fx_calcESvsRest <- function(nge,cl,CGS,exponent,pseudocount,DRthresh) {
   message("-- Calculating differential expression cluster vs rest effect size --")
-  # temp <- BiocParallel::bplapply(levels(cl),function(i) {
-  #   temp <- data.frame(overThreshold = CGS[[i]]$DR >= DRthresh,
-  #                      logGER=NA,
-  #                      pVal=NA,
-  #                      FDR=NA)
-  #   rownames(temp) <- rownames(CGS[[i]])
-  #   temp[temp$overThreshold,"logGER"] <- CGS[[i]][temp$overThreshold,"MGE"] - 
-  #     apply(nge[temp$overThreshold,(!cl %in% i | is.na(cl))],1,function(Y) 
-  #       meanLogX(Y,ncell=ncol(nge),ex=exponent,pc=pseudocount))
-  #   # temp$overThreshold <- temp$logGER > 0
-  #   # temp[is.na(temp$overThreshold),"overThreshold"] <- F
-  #   return(temp)
-  # })
-  # names(temp) <- levels(cl)
-  # return(temp)
-  
   return(pbapply::pbsapply(levels(cl),function(i) {
     temp <- data.frame(overThreshold = CGS[[i]]$DR >= DRthresh,
                        logGER=NA,
@@ -620,10 +654,55 @@ fx_calcESvsRest <- function(nge,cl,CGS,exponent,pseudocount,DRthresh) {
     temp[temp$overThreshold,"logGER"] <- CGS[[i]][temp$overThreshold,"MGE"] - 
       apply(nge[temp$overThreshold,(!cl %in% i | is.na(cl))],1,function(Y) 
         meanLogX(Y,ncell=ncol(nge),ex=exponent,pc=pseudocount))
-    # temp$overThreshold <- temp$logGER > 0
-    # temp[is.na(temp$overThreshold),"overThreshold"] <- F
     return(temp)
   },simplify=F))
+}
+
+
+#' Internal fx to calculate logGER for DEvsRest calculation using BiocParallel
+#'
+#' Internal function. See \code{\link{CalcDEvsRest}}.
+#'
+#' Calculates the log-ratios of gene expression for all genes in each one-vs-all
+#' comparison of a cluster vs the rest of the data. This is used to determine
+#' the genes used in DEvsRest calculations.
+#'
+#' @param nge The log-normalized gene expression matrix.
+#' @param cl The factor with cluster assignments per cell (column of nge).
+#' @param CGS The output from \code{\link{CalcCGS}}.
+#' @param exponent The log base of your normalized input data. Seurat
+#'   normalization uses the natural log (set this to exp(1)), while other
+#'   normalization methods generally use log2 (set this to 2).
+#' @param pseudocount The pseudocount added to all log-normalized values in your
+#'   input data. Most methods use a pseudocount of 1 to eliminate log(0) errors.
+#' @param DRthresh The threshold for minimum detection rate of a gene in the
+#'   cluster for the gene to be considered in the following Wilcoxon rank-sum
+#'   test.
+#'
+#' @return The function returns a list where each list element is the log-ratios
+#'   of gene expression when comparing each gene in a cluster to the rest of the
+#'   cells as a whole in a one vs all comparison. These logGER tables are
+#'   filtered to only include those gene that pass logGER threshold, and thus
+#'   the names for each list entry correspond to the genes to test in
+#'   \code{\link{fx_calcDEvsRest}}.
+#'   
+
+fx_calcESvsRest_BP <- function(nge,cl,CGS,exponent,pseudocount,DRthresh) {
+  message("-- Calculating differential expression cluster vs rest effect size --")
+  temp <- BiocParallel::bplapply(levels(cl),function(i) {
+    temp <- data.frame(overThreshold = CGS[[i]]$DR >= DRthresh,
+                       logGER=NA,
+                       Wstat=NA,
+                       pVal=NA,
+                       FDR=NA)
+    rownames(temp) <- rownames(CGS[[i]])
+    temp[temp$overThreshold,"logGER"] <- CGS[[i]][temp$overThreshold,"MGE"] -
+      apply(nge[temp$overThreshold,(!cl %in% i | is.na(cl))],1,function(Y)
+        meanLogX(Y,ncell=ncol(nge),ex=exponent,pc=pseudocount))
+    return(temp)
+  })
+  names(temp) <- levels(cl)
+  return(temp)
 }
 
 
@@ -653,19 +732,53 @@ fx_calcESvsRest <- function(nge,cl,CGS,exponent,pseudocount,DRthresh) {
 
 fx_calcDEvsRest <- function(nge,cl,deTes) {
   message("-- Testing differential expression cluster vs rest --")
-  # deT_pVal <- BiocParallel::bplapply(levels(cl),function(i)
-  #   apply(nge[rownames(deTes[[i]])[deTes[[i]]$overThreshold],],1, #slice by rowname is slower, but safer
-  #         function(X) 
-  #           # suppressWarnings(wilcox.test(X[cl %in% i],X[!cl %in% i],alternative="greater")$p.value)
-  #           suppressWarnings(wilcox.test(X[cl %in% i],X[!cl %in% i])$p.value)
-  #   ))
-  # names(deT_pVal) <- levels(cl)
   deT_pVal <- pbapply::pbsapply(levels(cl),function(i)
     apply(nge[rownames(deTes[[i]])[deTes[[i]]$overThreshold],],1,function(X) 
       # ^ slice by rowname is a little slower, but safer
       # suppressWarnings(wilcox.test(X[cl %in% i],X[!cl %in% i],alternative="greater")$p.value)
       suppressWarnings(unlist(wilcox.test(X[cl %in% i],X[!cl %in% i])[c("statistic","p.value")]))
     ),simplify=F)
+  for (i in names(deTes)) {
+    deTes[[i]][colnames(deT_pVal[[i]]),"Wstat"] <- deT_pVal[[i]]["statistic.W",]
+    deTes[[i]][colnames(deT_pVal[[i]]),"pVal"] <- deT_pVal[[i]]["p.value",]
+    deTes[[i]][colnames(deT_pVal[[i]]),"FDR"] <- p.adjust(deT_pVal[[i]]["p.value",],"fdr")
+  } 
+  return(deTes)
+}
+
+
+#' Internal fx to perform one vs all DE testing using BiocParallel
+#'
+#' Internal function. See \code{\link{CalcDEvsRest}}.
+#'
+#' Calculates Wilcoxon rank-sum tests for all genes in each one-vs-all
+#' comparison of a cluster vs the rest of the data. You probably don't need to
+#' use this unless you're trying to customize \code{\link{clusterWiseDEtest}}.
+#'
+#' @param nge The log-normalized gene expression matrix.
+#' @param cl The factor with cluster assignments per cell (column of nge).
+#' @param deTes The output from \code{\link{fx_calcESvsRest}}.
+#'
+#' @return Differential testing results from Wilcoxon rank sum tests comparing a
+#'   gene in each cluster to the rest of the cells as a whole in a one vs all
+#'   comparison. The results are stored as a named list of dataframes. There is
+#'   a list element for each cluster containing a dataframe of three variables,
+#'   where each sample is a gene. \code{logGER} is the log gene expression ratio
+#'   calculated by subtracting the mean expression of the gene (see
+#'   \link{meanLogX} for mean calculation) in all other cells from the mean
+#'   expression of the gene in this cluster. \code{Wstat} and \code{pVal} are
+#'   the test statistic and the p-value of the Wilcoxon rank sum test.
+#'   \code{FDR} is the false discovery rate-corrected p-value of the test.
+#'   
+
+fx_calcDEvsRest_BP <- function(nge,cl,deTes) {
+  message("-- Testing differential expression cluster vs rest --")
+  deT_pVal <- BiocParallel::bplapply(levels(cl),function(i)
+    apply(nge[rownames(deTes[[i]])[deTes[[i]]$overThreshold],],1,function(X)
+      # suppressWarnings(wilcox.test(X[cl %in% i],X[!cl %in% i],alternative="greater")$p.value)
+      suppressWarnings(unlist(wilcox.test(X[cl %in% i],X[!cl %in% i])[c("statistic","p.value")]))
+    ))
+  names(deT_pVal) <- levels(cl)
   for (i in names(deTes)) {
     deTes[[i]][colnames(deT_pVal[[i]]),"Wstat"] <- deT_pVal[[i]]["statistic.W",]
     deTes[[i]][colnames(deT_pVal[[i]]),"pVal"] <- deT_pVal[[i]]["p.value",]
@@ -708,6 +821,8 @@ fx_calcDEvsRest <- function(nge,cl,deTes) {
 #'   (TRUE), or just those passing the detection rate threshold for the Wilcoxon
 #'   rank-sum test (FALSE). Setting this to FALSE will reduce the size of the
 #'   output sCVdata object.
+#' @param UseBiocParallel Default = FALSE. Very experimental implementation of
+#'   BiocParallel for calculations. Not recommended.
 #'
 #' @return A named list of data frames, one entry for each level in
 #'   \code{Clusters(sCVd)} (with corresponding name).Each entry is data frame
@@ -756,31 +871,47 @@ fx_calcDEvsRest <- function(nge,cl,deTes) {
 #' @export
 #' 
 
-setGeneric("CalcDEvsRest",function(sCVd,inD,storeAllDE) standardGeneric("CalcDEvsRest"))
+setGeneric("CalcDEvsRest",function(sCVd,inD,storeAllDE,UseBiocParallel) 
+  standardGeneric("CalcDEvsRest"))
 
 
 #' @describeIn CalcDEvsRest Calculate one vs. all DE tests for sCVdata
 #' @export
 
 setMethod("CalcDEvsRest","sCVdata",
-          function(sCVd,inD,storeAllDE) {
+          function(sCVd,inD,storeAllDE,UseBiocParallel) {
             if (!is(inD)[1] %in% findMethodSignatures(getExpr)) {
               stop(paste("The input data object must be one of:",
                          paste(findMethodSignatures(getExpr),collapse=", "),
                          sep="\n  "))
             }
-            deTes <- fx_calcESvsRest(nge=getExpr(inD,Param(sCVd,"assayType")),
-                                     cl=Clusters(sCVd),
-                                     CGS=ClustGeneStats(sCVd),
-                                     exponent=Param(sCVd,"exponent"),
-                                     pseudocount=Param(sCVd,"pseudocount"),
-                                     DRthresh=Param(sCVd,"DRthresh"))
+            if (UseBiocParallel) {
+              deTes <- fx_calcESvsRest_BP(nge=getExpr(inD,Param(sCVd,"assayType")),
+                                          cl=Clusters(sCVd),
+                                          CGS=ClustGeneStats(sCVd),
+                                          exponent=Param(sCVd,"exponent"),
+                                          pseudocount=Param(sCVd,"pseudocount"),
+                                          DRthresh=Param(sCVd,"DRthresh"))
+            } else {
+              deTes <- fx_calcESvsRest(nge=getExpr(inD,Param(sCVd,"assayType")),
+                                       cl=Clusters(sCVd),
+                                       CGS=ClustGeneStats(sCVd),
+                                       exponent=Param(sCVd,"exponent"),
+                                       pseudocount=Param(sCVd,"pseudocount"),
+                                       DRthresh=Param(sCVd,"DRthresh"))
+            }
             if (!storeAllDE) { 
               deTes <- sapply(deTes,function(X) X[X$overThreshold,],simplify=F) 
             }
-            deTes <- fx_calcDEvsRest(nge=getExpr(inD,Param(sCVd,"assayType")),
-                                     cl=Clusters(sCVd),
-                                     deTes=deTes)
+            if (UseBiocParallel) {
+              deTes <- fx_calcDEvsRest_BP(nge=getExpr(inD,Param(sCVd,"assayType")),
+                                          cl=Clusters(sCVd),
+                                          deTes=deTes)
+            } else {
+              deTes <- fx_calcDEvsRest(nge=getExpr(inD,Param(sCVd,"assayType")),
+                                       cl=Clusters(sCVd),
+                                       deTes=deTes)
+            }
             return(deTes)
           })
 
@@ -852,16 +983,58 @@ fx_calcEScombn <- function(cl,CGS,DRthresh) {
 fx_calcDEcombn <- function(nge,cl,deMes) {
   combosL <- strsplit(names(deMes),"-")
   message("-- Testing differential expression between clusters --")
-  # deM_pVal <- BiocParallel::bplapply(seq_along(combosL),function(i)
-  #   apply(nge[rownames(deMes[[i]])[deMes[[i]]$overThreshold],],1,function(X) 
-  #     suppressWarnings(wilcox.test(X[cl == combosL[[i]][1]],
-  #                                  X[cl == combosL[[i]][2]])$p.value)))
   deM_pVal <- pbapply::pbsapply(seq_along(combosL),function(i)
     apply(nge[rownames(deMes[[i]])[deMes[[i]]$overThreshold],],1,function(X) 
       suppressWarnings(unlist(
         wilcox.test(X[cl == combosL[[i]][1]],
                     X[cl == combosL[[i]][2]])[c("statistic","p.value")]
       ))),simplify=F)
+  for (i in seq_along(deMes)) {
+    deMes[[i]][colnames(deM_pVal[[i]]),"Wstat"] <- deM_pVal[[i]]["statistic.W",]
+    deMes[[i]][colnames(deM_pVal[[i]]),"pVal"] <- deM_pVal[[i]]["p.value",]
+    deMes[[i]][colnames(deM_pVal[[i]]),"FDR"] <- p.adjust(deM_pVal[[i]]["p.value",],"fdr")
+  } 
+  return(deMes)
+}
+
+
+#' Internal fx to calculate DE between combinations of clusters using BiocParallel
+#'
+#' Internal function. See \code{\link{CalcDEcombn}}.
+#'
+#' Calculates Wilcoxon rank-sum tests for all genes in each of the potential
+#' combinations of clusters to compare.
+#'
+#' @param nge The log-normalized gene expression matrix.
+#' @param cl The factor with cluster assignments per cell (column of nge).
+#' @param deMes The output from \code{\link{fx_calcEScombn}}.
+#'
+#' @return Differential testing results from Wilcoxon rank sum tests comparing a
+#'   gene in each cluster to that gene in every other cluster in a series of
+#'   tests. The results are stored as a nested list of dataframes. Each list
+#'   element contains a named list of clusters (cluster A). Each of those lists
+#'   contains a named list of all the other clusters (cluster B). Each of those
+#'   list elements contains a dataframe of four variables, where each sample is
+#'   a gene. \code{dDR} is the difference in detection rate of that gene between
+#'   the two clusters (DR[A] - DR[B]). \code{logGER} is the log gene expression
+#'   ratio calculated by taking the difference in mean expression of the gene
+#'   (see \code{\link{meanLogX}} for mean calculation) between the two clusters
+#'   (MGE[A] - MGE[B]). \code{Wstat} and \code{pVal} are the test statistic and
+#'   the p-value of the Wilcoxon rank sum test. \code{FDR} is the false
+#'   discovery rate-corrected p-value of the test.
+#'   
+
+fx_calcDEcombn_BP <- function(nge,cl,deMes) {
+  combosL <- strsplit(names(deMes),"-")
+  message("-- Testing differential expression between clusters --")
+  deM_pVal <- BiocParallel::bplapply(seq_along(combosL),function(i)
+    apply(nge[rownames(deMes[[i]])[deMes[[i]]$overThreshold],],1,function(X)
+      suppressWarnings(unlist(
+        wilcox.test(X[cl == combosL[[i]][1]],
+                    X[cl == combosL[[i]][2]])[c("statistic","p.value")]
+      ))
+    )
+  )
   for (i in seq_along(deMes)) {
     deMes[[i]][colnames(deM_pVal[[i]]),"Wstat"] <- deM_pVal[[i]]["statistic.W",]
     deMes[[i]][colnames(deM_pVal[[i]]),"pVal"] <- deM_pVal[[i]]["p.value",]
@@ -906,6 +1079,8 @@ fx_calcDEcombn <- function(nge,cl,deMes) {
 #'   (TRUE), or just those passing the detection rate threshold for the Wilcoxon
 #'   rank-sum test (FALSE). Setting this to FALSE will reduce the size of the
 #'   output sCVdata object.
+#' @param UseBiocParallel Default = FALSE. Very experimental implementation of
+#'   BiocParallel for calculations. Not recommended.
 #'
 #' @return A named list of data frames, one entry for each pairwise combination
 #'   of levels in \code{Clusters(sCVd)} (with corresponding name where levels
@@ -972,14 +1147,15 @@ fx_calcDEcombn <- function(nge,cl,deMes) {
 #' @export
 #' 
 
-setGeneric("CalcDEcombn",function(sCVd,inD,storeAllDE) standardGeneric("CalcDEcombn"))
+setGeneric("CalcDEcombn",function(sCVd,inD,storeAllDE,UseBiocParallel)
+  standardGeneric("CalcDEcombn"))
 
 
 #' @describeIn CalcDEcombn Calculate DE between cluster pairs
 #' @export
 
 setMethod("CalcDEcombn","sCVdata",
-          function(sCVd,inD,storeAllDE) {
+          function(sCVd,inD,storeAllDE,UseBiocParallel) {
             if (!is(inD)[1] %in% findMethodSignatures(getExpr)) {
               stop(paste("The input data object must be one of:",
                          paste(findMethodSignatures(getExpr),collapse=", "),
@@ -991,9 +1167,15 @@ setMethod("CalcDEcombn","sCVdata",
             if (!storeAllDE) { 
               deMes <- sapply(deMes,function(X) X[X$overThreshold,],simplify=F) 
             }
-            deMes <- fx_calcDEcombn(nge=getExpr(inD,Param(sCVd,"assayType")),
-                                    cl=Clusters(sCVd),
-                                    deMes=deMes)
+            if (UseBiocParallel) {
+              deMes <- fx_calcDEcombn_BP(nge=getExpr(inD,Param(sCVd,"assayType")),
+                                         cl=Clusters(sCVd),
+                                         deMes=deMes)
+            } else {
+              deMes <- fx_calcDEcombn(nge=getExpr(inD,Param(sCVd,"assayType")),
+                                      cl=Clusters(sCVd),
+                                      deMes=deMes)
+            }
             return(deMes)
           })
 

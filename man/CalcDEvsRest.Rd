@@ -6,9 +6,9 @@
 \alias{CalcDEvsRest,sCVdata-method}
 \title{Calculates one vs. all DE tests for sCVdata}
 \usage{
-CalcDEvsRest(sCVd, inD, storeAllDE)
+CalcDEvsRest(sCVd, inD, storeAllDE, UseBiocParallel)
 
-\S4method{CalcDEvsRest}{sCVdata}(sCVd, inD, storeAllDE)
+\S4method{CalcDEvsRest}{sCVdata}(sCVd, inD, storeAllDE, UseBiocParallel)
 }
 \arguments{
 \item{sCVd}{An sCVdata object.}
@@ -24,6 +24,9 @@ calculate and store effect size information for all genes in the comparison
 (TRUE), or just those passing the detection rate threshold for the Wilcoxon
 rank-sum test (FALSE). Setting this to FALSE will reduce the size of the
 output sCVdata object.}
+
+\item{UseBiocParallel}{Default = FALSE. Very experimental implementation of
+BiocParallel for calculations. Not recommended.}
 }
 \value{
 A named list of data frames, one entry for each level in

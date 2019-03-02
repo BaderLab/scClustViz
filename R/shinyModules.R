@@ -3,8 +3,54 @@ NULL
 
 
 # Cluster Solution DE boxplots -------------
-plot_clustSep <- function(sCVdL,DEtype,FDRthresh,res,Xlim,Ylim) {
+
+#' scClustViz plot: Cluster separation boxplots
+#'
+#' This function plots metrics of cluster solution cohesion or overfitting as a
+#' function of the number of clusters found.
+#'
+#' @param sCVdL A named list of sCVdata objects, output of
+#'   \code{\link{CalcAllSCV}}.
+#' @param DEtype One of "DEneighb", "DEmarker", or "silWidth". "DEneighb" shows
+#'   number of significantly differentially expressed genes between nearest
+#'   neighbouring clusters. "DEmarker" shows number of marker genes per cluster,
+#'   significantly positively differentially expressed genes in all pairwise
+#'   comparisons with other clusters. "silWidth" shows silhouette widths with
+#'   average silhouette width as a trace across all clustering solutions. (see
+#'   \code{\link[cluster]{silhouette}}).
+#' @param FDRthresh Default=0.05. The false discovery rate threshold for
+#'   determining significance of differential gene expression.
+#' @param res Optional. Name of cluster resolution to highlight. Must be one of
+#'   \code{names(sCVdL)}.
+#' @param Xlim Optional. Passed to
+#'   \code{\link[graphics]{plot.default}(xlim=Xlim)}.
+#' @param Ylim Optional. Passed to
+#'   \code{\link[graphics]{plot.default}(ylim=Ylim)}.
+#'
+#' @examples
+#' \dontrun{
+#' plot_clustSep(sCVdL,DEtype="DEneighb",FDRthresh=0.05,res="res.0.8")
+#' }
+#'
+#' @export
+
+plot_clustSep <- function(sCVdL,DEtype,FDRthresh=0.05,res,Xlim,Ylim) {
+  if (missing(Xlim)) { Xlim <- NULL }
+  if (missing(Ylim)) { Ylim <- NULL }
+  if (missing(res)) { res <- "" }
+  if (!res %in% c(names(sCVdL),"")) {
+    warning(paste(paste0("res = '",res,"' not found in cluster resolutions."),
+                  "Cluster resolutions are names(sCVdL):",
+                  paste(names(sCVdL),collapse=", "),sep="\n  "))
+  }
+  if (!DEtype %in% c("DEneighb","DEmarker","silWidth")) {
+    stop('DEtype must be one of "DEneighb", "DEmarker", or "silWidth".')
+  }
   numClust <- sapply(sCVdL,function(X) length(levels(Clusters(X))))
+  for (X in unique(numClust[duplicated(numClust)])) {
+    numClust[numClust == X] <- seq(X-.25,X+.25,length.out=sum(numClust == X))
+  }
+  
   if (is.null(Xlim)) { Xlim <- range(numClust) }
   bpData <- sapply(sCVdL,function(X) switch(DEtype,
                                             # DR=DEdist(X,"DR"),
@@ -26,10 +72,10 @@ plot_clustSep <- function(sCVdL,DEtype,FDRthresh,res,Xlim,Ylim) {
   } else {
     par(mar=c(3,3,2,1),mgp=2:0)
     if (DEtype == "silWidth") {
-      plot(x=NA,y=NA,xlim=Xlim + c(-.5,.5),ylim=Ylim,
+      plot(x=NA,y=NA,xlim=Xlim + c(-.5,.5),ylim=Ylim,xaxt="n",
            xlab="Number of clusters",ylab="Silhouette width per cluster")
     } else {
-      plot(x=numClust,y=sapply(bpData,median),type="l",
+      plot(x=numClust,y=sapply(bpData,median),type="l",xaxt="n",
            xlim=Xlim + c(-.5,.5),ylim=Ylim,xlab="Number of clusters",
            ylab=switch(DEtype,
                        # DR="Distance between clusters by gene detection rates",
@@ -38,11 +84,17 @@ plot_clustSep <- function(sCVdL,DEtype,FDRthresh,res,Xlim,Ylim) {
                        DEmarker="Positive DE genes per cluster to all other clusters",
                        DEneighb="Positive DE genes per cluster to nearest cluster"))
     }
+    axis(side=3,at=seq(round(min(numClust)) - 0.5,round(max(numClust)) + 0.5,by=1),
+         labels=F,tick=T,pos=par("usr")[3])
+    axis(side=1,at=seq(round(min(numClust)) - 0.5,round(max(numClust)) + 0.5,by=1),
+         labels=F,tick=T,pos=par("usr")[3])
+    axis(side=1,at=seq(round(min(numClust)),round(max(numClust)),by=1),labels=T,tick=F)
+    
     abline(h=seq(0,max(unlist(bpData)),switch(as.character(diff(Ylim) > 1000),
                                               "FALSE"=10,"TRUE"=100)),
            lty=3,col=alpha(1,0.3))
     for (i in names(bpData)[names(bpData) != res]) {
-      boxplot(bpData[[i]],add=T,at=numClust[i],yaxt="n")
+      boxplot(bpData[[i]],add=T,at=numClust[i],yaxt="n",col=alpha("white",.5))
     }
     if (any(names(bpData) == res)) {
       if (DEtype == "silWidth") {
@@ -71,9 +123,18 @@ plot_clustSep <- function(sCVdL,DEtype,FDRthresh,res,Xlim,Ylim) {
   }
 }
 
-# plot_clustSep(sCVdL,DEtype="deMarker",FDRthresh=0.05,res="res.0.8",Ylim=NULL,Xlim=NULL)
 
 # Silhouette plot ------
+
+#' scClustViz plot: Silhouette plot
+#'
+#' This function is a wrapper to \code{plot(silhouette(x))}.
+#'
+#' @param sCVd An \code{\link{sCVdata}} object with a non-null \code{Silhouette}
+#'   slot.
+#'
+#' @export
+
 plot_sil <- function(sCVd) {
   par(mar=c(4.5,.5,1.5,1.5),mgp=2:0)
   plot(Silhouette(sCVd),
@@ -84,7 +145,27 @@ plot_sil <- function(sCVd) {
 
 
 # tsnePlot -------------------
+
+#' scClustViz plot element: Cluster names on cluster centroid.
+#'
+#' See \code{\link{plot_tsne}} for application.
+#'
+#' @param sCVd An sCVdata object.
+#' @param cell_coord A numeric matrix where named rows are cells, and two
+#'   columns are the x and y dimensions of the cell embedding.
+#' @param lab_type One of "ClusterNames", "ClusterNamesAll", or "Clusters".
+#'   "ClusterNames" places cluster names (added to sCVdata object by
+#'   \code{\link{labelCellTypes}}) at the centroid of all points sharing that
+#'   cluster name (can span clusters). "ClusterNamesAll" places cluster names at
+#'   the centroid of each cluster. "Clusters" places cluster ID
+#'   (\code{levels(Clusters(sCVd))}) at the centroid of each cluster.
+#'   
+#' @export
+
 tsne_labels <- function(sCVd,cell_coord,lab_type) {
+  if (!lab_type %in% c("ClusterNames","ClusterNamesAll","Clusters")) {
+    stop('lab_type must be one of "ClusterNames","ClusterNamesAll","Clusters"')
+  }
   if (lab_type == "ClusterNames") {
     temp_labelNames <- sapply(unique(attr(Clusters(sCVd),"ClusterNames")),function(X) 
       names(which(attr(Clusters(sCVd),"ClusterNames") == X)),simplify=F)
@@ -106,7 +187,60 @@ tsne_labels <- function(sCVd,cell_coord,lab_type) {
   return(temp_labels)
 }
 
-plot_tsne <- function(cell_coord,md,md_title,md_log,label,
+#' scClustViz plot: Plot cell embedding in 2D
+#'
+#' This function plots cells in two dimensions, with various overlays.
+#'
+#' @param cell_coord A numeric matrix where named rows are cells, and two
+#'   columns are the x and y dimensions of the cell embedding.
+#' @param md The overlay information. Either a factor or numeric vector matching
+#'   the rows (cells) of the \code{cell_coord} matrix. If this is a factor, the
+#'   cells will be coloured by the factor levels. If a numeric vector, the cells
+#'   will be coloured using the \code{\link[viridis]{viridis}} colourscale.
+#' @param md_title NULL or a character vector of one. If NULL, \code{md} is
+#'   assumed to be cluster assignments. Otherwise this should be the title of
+#'   the overlay represented by \code{md}.
+#' @param md_log Default=FALSE. Logical vector of length one indicating whether
+#'   \code{md} should be log-transformed. Only to be used when \code{md} is
+#'   numeric.
+#' @param label Default=NULL. The output of \code{\link{tsne_labels}} to have
+#'   cluster names overlaid on the plot.
+#' @param sel_cells Optional. A character vector of cell names (rownames of
+#'   \code{cell_coord}) to highlight in the plot.
+#' @param sel_cells_A Optional. Alternative highlighting method to sel_cells,
+#'   can be used in conjunction. Meant for indicating a selected set of cells
+#'   when building manual cell set comparisons, in conjunction with
+#'   \code{sel_cells_B}.
+#' @param sel_cells_B Optional. See \code{sel_cells_A}.
+#' 
+#' @examples
+#' \dontrun{
+#' # Cluster overlay:
+#' plot_tsne(cell_coord=getEmb(input_data_obj,"tsne"),
+#'           md=Clusters(sCVdata),
+#'           md_title=NULL,
+#'           label=tsne_labels(sCVd=sCVdata,
+#'                             cell_coord=getEmb(input_data_obj,"tsne"),
+#'                             lab_type="ClusterNames"))
+#'
+#' # Metadata overlay:
+#' plot_tsne(cell_coord=getEmb(input_data_obj,"tsne"),
+#'           md=getMD(input_data_obj)$total_counts,
+#'           md_title="Library Size",
+#'           md_log=TRUE,
+#'           label=tsne_labels(sCVd=sCVdata,
+#'                             cell_coord=getEmb(input_data_obj,"tsne"),
+#'                             lab_type="ClusterNames"))
+#'
+#' # Gene expression overlay:
+#' plot_tsne(cell_coord=getEmb(input_data_obj,"tsne"),
+#'           md=getExpr(input_data_obj,Param(sCVdata,"assayType"))["Actb",],
+#'           md_title="Actb")
+#' }
+#'
+#' @export
+
+plot_tsne <- function(cell_coord,md,md_title,md_log=F,label=NULL,
                       sel_cells,sel_cells_A,sel_cells_B) {
   if (is.null(md_title)) {
     id <- as.factor(md)
@@ -270,7 +404,41 @@ plot_mdBoxplotY <- function(MD,sel_clust,md_log) {
 }
 
 
+#' scClustViz plot: Plot to compare cell metadata
+#'
+#' This function makes scatter/boxplots comparing cellular metadata.
+#'
+#' @param MD A dataframe of cellular metadata. See \code{\link{getMD}}.
+#' @param mdX A character vector of one refering to the variable name from
+#'   \code{MD} to plot on the x-axis.
+#' @param mdY A character vector of one refering to the variable name from
+#'   \code{MD} to plot on the y-axis.
+#' @param sel_cells Optional. A character vector of cell names (rownames of
+#'   \code{MD}) to highlight in the plot.
+#' @param sel_clust Optional. The name of the selected cluster
+#'   (\code{sel_cells}) to include in the legend. If
+#'   \code{\link{labelCellTypes}} has been run, pass the appropriate element of
+#'   \code{attr(Clusters(sCV),"ClusterNames")} to this argument to show both
+#'   cluster number and cell type label in the legend.
+#' @param md_log Optional. A character vector indicating which axes should be
+#'   log scaled. \code{c("x","y")} to log-scale both axes.
+#'
+#' @examples
+#' \dontrun{
+#' plot_mdCompare(MD=getMD(input_data_obj),
+#'                mdX="total_counts",
+#'                mdY="total_features",
+#'                sel_cells=names(Clusters(sCVdata))[Clusters(sCVdata) == "1"],
+#'                sel_clust="1",
+#'                md_log="x")
+#' }
+#'
+#' @export
+
 plot_mdCompare <- function(MD,mdX,mdY,sel_cells,sel_clust,md_log) {
+  if (missing(sel_cells)) { sel_cells <- "" }
+  if (missing(sel_clust)) { sel_clust <- "" }
+  if (missing(md_log)) { md_log <- "" }
   MD <- data.frame(MD[,c(mdX,mdY)])
   MD$sel_cells <- rownames(MD) %in% sel_cells
   if ("x" %in% md_log & !(is.factor(MD[,1]) | is.character(MD[,1]))) {
@@ -316,14 +484,6 @@ plot_mdCompare <- function(MD,mdX,mdY,sel_cells,sel_clust,md_log) {
 }
 
 
-# plot_mdCompare(MD=getMD(inD),
-#                mdX="total_counts",
-#                mdY="cyclonePhases",
-#                sel_cells=Clusters(sCVdL$res.1.4) == "1", # rep(F,nrow(getMD(inD))),
-#                sel_clust=attr(Clusters(sCVdL$res.1.4),"ClusterNames")[1],
-#                md_log=c("x","y"))
-
-
 # ^ mdPerClust -------
 plot_mdBarplot <- function(MD,opt) {
   temp_par <- par(no.readonly=T)
@@ -364,7 +524,34 @@ plot_mdBoxplot <- function(MD,opt) {
   par(temp_par)
 }
 
-plot_mdPerClust <- function(MD,sel,cl,opt) {
+
+#' scClustViz plot: Plot to view cellular metadata by cluster
+#'
+#' This function makes boxplots / stacked barplots of cellular metadata
+#' separated by cluster.
+#'
+#' @param MD A dataframe of cellular metadata. See \code{\link{getMD}}.
+#' @param sel A character vector of one refering to the variable name from
+#'   \code{MD} to plot.
+#' @param cl A factor of cluster assignments. See \code{\link{Cluster}}.
+#' @param opt Default="absolute". A character vector of plotting options. One of
+#'   \code{"absolute"}, \code{"relative"}, or \code{"y"}. \code{"y"} sets
+#'   log-scales the data for postive numerical metadata. For categorical
+#'   metadata, \code{"absolute"} plots a stacked barplot of raw counts, whereas
+#'   \code{"relative"} plots the proportion of each cluster represented by each
+#'   category.
+#'
+#' @examples
+#' \dontrun{
+#' plot_mdPerClust(MD=getMD(input_data_obj),
+#'                 sel="cyclonePhases",
+#'                 cl=Clusters(sCVdata),
+#'                 opt="relative")
+#' }
+#'
+#' @export
+
+plot_mdPerClust <- function(MD,sel,cl,opt="absolute") {
   MD <- MD[sel]
   MD$cl <- cl
   if ("y" %in% opt & !(is.factor(MD[,1]) | is.character(MD[,1]))) { 
@@ -384,10 +571,32 @@ plot_mdPerClust <- function(MD,sel,cl,opt) {
   }
 }
 
-# plot_mdPerClust(MD=getMD(inD),sel="cyclonePhases",cl=Clusters(sCVdL$res.0.8),opt="absolute")
-
 
 # DE gene dotplot -----------
+
+#' scClustViz plot helper function: Return DE genes per cluster
+#'
+#' This function returns a named numeric vector of FDR-corrected p-values for
+#' statistically significant differentially expressed genes for a set comparison
+#' type and FDR threshold. For \code{"DEmarker"}, the returned value is the max
+#' of all comparisons.
+#'
+#' @param sCVd The sCVdata object.
+#' @param DEtype One of: \code{"DEvsRest"} - see \code{\link{DEvsRest}};
+#'   \code{"DEneighb"} - see \code{\link{DEneighb}}; \code{"DEmarker"} - see
+#'   \code{\link{DEmarker}}.
+#' @param FDRthresh A numeric vector of length 1 setting a false discovery rate
+#'   threshold for statistical significance.
+#'
+#' @examples
+#' \dontrun{
+#' dotplotDEgenes(sCVdata,
+#'                DEtype="DEneighb",
+#'                FDRthresh=0.01)
+#' }
+#'
+#' @export
+
 dotplotDEgenes <- function(sCVd,DEtype,FDRthresh) {
   if (missing(FDRthresh)) { FDRthresh <- 1 }
   if (DEtype == "DEvsRest") {
@@ -415,9 +624,34 @@ dotplotDEgenes <- function(sCVd,DEtype,FDRthresh) {
     return(outL)
   }
 }
-# returns A named list of named numeric vectors, one entry for each cluster.
-# Names are genes passing FDR threshold, and value is (maximum) FDR of comparison.
 
+
+#' scClustViz plot: Plot gene expression dotplots.
+#'
+#' This function makes dotplots (a heatmap analogue) showing gene expression for
+#' a set of genes across all clusters.
+#'
+#' When generated in an interactive context (i.e. RStudio), this can sometimes
+#' result in a \code{figure margins too large} error. See example for suggested
+#' dimensions of the graphic device.
+#'
+#' @param sCVd The sCVdata object.
+#' @param DEgenes The output of \code{\link{dotplotDEgenes}}.
+#' @param DEnum Single integer representing the maximum number of DE genes per
+#'   cluster to include in the dotplot.
+#'
+#' @examples
+#' \dontrun{
+#' pdf("filepath.pdf",width=11,height=7)
+#' plot_deDotplot(sCVd=sCVdata,
+#'                DEgenes=dotplotDEgenes(sCVdata,
+#'                                       DEtype="DEneighb",
+#'                                       FDRthresh=0.01)
+#'                DEnum=5)
+#' dev.off()
+#' }
+#'
+#' @export
 
 plot_deDotplot <- function(sCVd,DEgenes,DEnum) {
   # ^ Setup ----
@@ -480,7 +714,11 @@ plot_deDotplot <- function(sCVd,DEgenes,DEnum) {
     return(X)
   })
   
-  tempLabCol <- ClustGeneStats(sCVd)[[1]][heatGenes,"genes"]
+  if ("genes" %in% names(ClustGeneStats(sCVd)[[1]])) {
+    tempLabCol <- ClustGeneStats(sCVd)[[1]][heatGenes,"genes"]
+  } else {
+    tempLabCol <- rownames(ClustGeneStats(sCVd)[[1]][heatGenes,])
+  }
   DR <- temp_DR[hG$order,hC$order,drop=F]
   temp <- range(sapply(ClustGeneStats(sCVd),function(X) X[,"MDGE"]))
   temp <- seq(temp[1],temp[2],length.out=101)
@@ -575,6 +813,60 @@ singleDot <- function(col1){
 } 
 
 
+#' scClustViz plot: Plot within-cluster gene expression highlighting marker
+#' genes
+#'
+#' This function makes a scatterplot of gene detection rate vs. mean detected
+#' gene abundance, highlighting genes identified as cell type specific markers
+#' by the user. \strong{This function will not work unless
+#' \code{\link{addCellMarkersToCGS}} has been run on the sCVdata object prior.}
+#'
+#' @param sCVd The sCVdata object.
+#' @param selClust A named character vector representing the cluster to be
+#'   displayed. If \code{\link{labelCellTypes}} has been run, pass the
+#'   appropriate element of \code{attr(Clusters(sCV),"ClusterNames")} to this
+#'   argument to show both cluster number and cell type label in the legend.
+#' @param cellMarkersU Derived from the \code{cellMarkers} argument to
+#'   \code{\link{runShiny}}. A list of the unique gene symbols for each cell
+#'   type in \code{cellMarkers}.
+#' @param cellMarkersS Derived from the \code{cellMarkers} argument to
+#'   \code{\link{runShiny}}. A list of the gene symbols common to two or more
+#'   cell types in \code{cellMarkers}. Each entry is named for the indicies of
+#'   \code{cellMarkers} that share the gene.
+#'
+#' @examples
+#' \dontrun{
+#' cellMarkers <- list("Cortical precursors"=c("Mki67","Sox2","Pax6",
+#'                                                   "Pcna","Nes","Cux1","Cux2"),
+#'                           "Interneurons"=c("Gad1","Gad2","Npy","Sst","Lhx6",
+#'                                            "Tubb3","Rbfox3","Dcx"),
+#'                           "Cajal-Retzius neurons"="Reln",
+#'                           "Intermediate progenitors"="Eomes",
+#'                           "Projection neurons"=c("Tbr1","Satb2","Fezf2",
+#'                                                  "Bcl11b","Tle4","Nes",
+#'                                                  "Cux1","Cux2","Tubb3",
+#'                                                  "Rbfox3","Dcx")
+#'                           )
+#' cellMarkersS <- apply(combn(seq_along(cellMarkers),2),2,
+#'                       function(X) do.call(intersect,unname(cellMarkers[X])))
+#' try(names(cellMarkersS) <- apply(combn(seq_along(cellMarkers),2),2,
+#'                                  function(X) paste(X,collapse="&")),silent=T)
+#' cellMarkersS <- cellMarkersS[sapply(cellMarkersS,length) > 0]
+#' cellMarkersU <- lapply(cellMarkers,function(X) X[!X %in% unlist(cellMarkersS)])
+#' sCVdata <- addCellMarkersToCGS(sCVdata,
+#'                                cellMarkersU=cellMarkersU,
+#'                                cellMarkersS=cellMarkersS,
+#'                                symbolMap=NULL)
+#' 
+#' pdf("filepath.pdf",width=12,height=7)
+#' plot_clusterGenes_markers(sCVd=sCVdata,
+#'                           selClust="1",
+#'                           cellMarkersS=cellMarkersS
+#'                           cellMarkersU=cellMarkersU)
+#' dev.off()
+#' }
+#'
+#' @export
 
 plot_clusterGenes_markers <- function(sCVd,selClust,cellMarkersS,cellMarkersU) {
   cellMarkCols <- rainbow2(length(cellMarkersU))
@@ -619,9 +911,9 @@ plot_clusterGenes_markers <- function(sCVd,selClust,cellMarkersS,cellMarkersU) {
                                               col2=cellMarkCols[as.integer(temp[2])]))
     }
     tempLabels <- spreadLabels2(CGS[(CGS$cMu | CGS$cMs) & CGS$overCut,"DR"],
-                               CGS[(CGS$cMu | CGS$cMs) & CGS$overCut,"MDGE"],
-                               CGS[(CGS$cMu | CGS$cMs) & CGS$overCut,"genes"],
-                               str.cex=1.2,str.font=2)
+                                CGS[(CGS$cMu | CGS$cMs) & CGS$overCut,"MDGE"],
+                                CGS[(CGS$cMu | CGS$cMs) & CGS$overCut,"genes"],
+                                str.cex=1.2,str.font=2)
     rownames(tempLabels) <- CGS[(CGS$cMu | CGS$cMs) & CGS$overCut,"genes"]                        
     for (gn in CGS[CGS$cMu & CGS$overCut,"genes"]) {
       rect(xleft=tempLabels[gn,1] - strwidth(gn,cex=1.2,font=2) * .5,
@@ -647,6 +939,38 @@ plot_clusterGenes_markers <- function(sCVd,selClust,cellMarkersS,cellMarkersU) {
   }
 }
 
+
+#' scClustViz plot: Plot within-cluster gene expression highlighting DE genes
+#'
+#' This function makes a scatterplot of gene detection rate vs. mean detected
+#' gene abundance, highlighting differentially expressed genes.
+#'
+#' @param sCVd The sCVdata object.
+#' @param selClust A named character vector representing the cluster to be
+#'   displayed. If \code{\link{labelCellTypes}} has been run, pass the
+#'   appropriate element of \code{attr(Clusters(sCV),"ClusterNames")} to this
+#'   argument to show both cluster number and cell type label in the legend.
+#' @param DEgenes The output of \code{\link{dotplotDEgenes}}.
+#' @param DEnum Single integer representing the maximum number of DE genes per
+#'   cluster to include in the plot.
+#' @param DEtype One of: \code{"DEvsRest"} - see \code{\link{DEvsRest}};
+#'   \code{"DEneighb"} - see \code{\link{DEneighb}}; \code{"DEmarker"} - see
+#'   \code{\link{DEmarker}}.
+#'
+#' @examples
+#' \dontrun{
+#' pdf("filepath.pdf",width=12,height=7)
+#' plot_clusterGenes_DEgenes(sCVd=sCVdata,
+#'                           selClust="1",
+#'                           DEgenes=dotplotDEgenes(sCVdata,
+#'                                                  DEtype="DEneighb",
+#'                                                  FDRthresh=0.01),
+#'                           DEnum=5,
+#'                           DEtype="DEneighb")
+#' dev.off()
+#' }
+#'
+#' @export
 
 plot_clusterGenes_DEgenes <- function(sCVd,selClust,DEgenes,DEnum,DEtype) {
   par(mar=c(3,3,3,20),mgp=2:0)
@@ -675,35 +999,62 @@ plot_clusterGenes_DEgenes <- function(sCVd,selClust,DEgenes,DEnum,DEtype) {
       DEG <- DEG[!is.na(DEG)]
       points(x=CGS[DEG,"DR"],y=CGS[DEG,"MDGE"],
              pch=16,cex=1.2,col="firebrick2")
+      if (!"overCut" %in% names(CGS)) { CGS$overCut <- T }
       if (any(CGS[DEG,"overCut"])) {
-        tempLabels <- spreadLabels2(x=CGS[DEG,"DR"][CGS[DEG,"overCut"]],
-                                   y=CGS[DEG,"MDGE"][CGS[DEG,"overCut"]],
-                                   label=CGS[DEG,"genes"][CGS[DEG,"overCut"]],
-                                   str.cex=1.2,str.font=2)
+        labelDF <- CGS[DEG,]
+        labelDF <- labelDF[labelDF$overCut,]
+        if (!"genes" %in% names(labelDF)) { labelDF$genes <- rownames(labelDF) }
+        tempLabels <- spreadLabels2(x=labelDF$DR,y=labelDF$MDGE,
+                                    label=labelDF$genes,
+                                    str.cex=1.2,str.font=2)
         rect(xleft=tempLabels[,1] - 
-               strwidth(CGS[DEG,"genes"][CGS[DEG,"overCut"]],cex=1.2,font=2) * .5,
+               strwidth(labelDF$genes,cex=1.2,font=2) * .5,
              xright=tempLabels[,1] + 
-               strwidth(CGS[DEG,"genes"][CGS[DEG,"overCut"]],cex=1.2,font=2) * .5,
+               strwidth(labelDF$genes,cex=1.2,font=2) * .5,
              ybottom=tempLabels[,2] - 
-               strheight(CGS[DEG,"genes"][CGS[DEG,"overCut"]],cex=1.2,font=2) * .5,
+               strheight(labelDF$genes,cex=1.2,font=2) * .5,
              ytop=tempLabels[,2] +
-               strheight(CGS[DEG,"genes"][CGS[DEG,"overCut"]],cex=1.2,font=2) * .5,
+               strheight(labelDF$genes,cex=1.2,font=2) * .5,
              border=NA,col=alpha("white",0.5))
         text(tempLabels,cex=1.2,font=2,col="firebrick2",
-             labels=CGS[DEG,"genes"][CGS[DEG,"overCut"]])
+             labels=labelDF$genes)
       }
     }
     temp_n <- length(DEgenes[[selClust]])
     temp_lab <- switch(DEtype,
                        DEvsRest=" DE genes vs rest of cells in sample",
                        DEmarker=" marker genes",
-                       deNeighb=" DE genes vs nearest neighbouring cluster")
+                       DEneighb=" DE genes vs nearest neighbouring cluster")
     legend("top",bty="n",pch=16,col="firebrick2",
            legend=paste0(temp_n,temp_lab," (showing top ",
                          min(temp_n,DEnum),")"))
     
   }
 }
+
+
+#' scClustViz plot: Plot within-cluster gene expression highlighting selected genes
+#'
+#' This function makes a scatterplot of gene detection rate vs. mean detected
+#' gene abundance, highlighting specified genes.
+#'
+#' @param sCVd The sCVdata object.
+#' @param selClust A named character vector representing the cluster to be
+#'   displayed. If \code{\link{labelCellTypes}} has been run, pass the
+#'   appropriate element of \code{attr(Clusters(sCV),"ClusterNames")} to this
+#'   argument to show both cluster number and cell type label in the legend.
+#' @param GOI A character vector of gene names to highlight.
+#'
+#' @examples
+#' \dontrun{
+#' pdf("filepath.pdf",width=12,height=7)
+#' plot_clusterGenes_search(sCVd=sCVdata,
+#'                          selClust="1",
+#'                          GOI=c("Actb","Sox2"))
+#' dev.off()
+#' }
+#'
+#' @export
 
 plot_clusterGenes_search <- function(sCVd,selClust,GOI) {
   par(mar=c(3,3,3,20),mgp=2:0)
@@ -714,11 +1065,12 @@ plot_clusterGenes_search <- function(sCVd,selClust,GOI) {
                      "to see gene expression for that cluster.",sep="\n"))
   } else {
     CGS <- ClustGeneStats(sCVd)[[selClust]]
+    if (!"genes" %in% names(CGS)) { CGS$genes <- rownames(CGS) }
     temp_ylab <- switch(as.character(Param(sCVd,"exponent") == exp(1)),
                         "TRUE"="(natural log scale)",
                         "FALSE"=paste0("(log",Param(sCVd,"exponent")," scale)"))
     plot(MDGE~DR,
-         data=CGS[!rownames(CGS) %in% GOI,],
+         data=CGS[!CGS$genes %in% GOI,],
          col=alpha("black",0.2),pch=20,
          xlim=range(CGS$DR),ylim=range(CGS$MDGE),
          xlab="Proportion of cells in which gene was detected",
@@ -727,29 +1079,31 @@ plot_clusterGenes_search <- function(sCVd,selClust,GOI) {
     mtext(paste("Cells:",sum(Clusters(sCVd) == selClust),
                 "   Genes detected:",sum(CGS$DR > 0)),side=3,line=0,cex=0.9)
     box(col=rainbow2(length(levels(Clusters(sCVd))))[selClust],lwd=2)
+    GOI <- GOI[GOI %in% CGS$genes]
     if (length(GOI) > 0) {
       points(x=CGS[GOI,"DR"],y=CGS[GOI,"MDGE"],
              pch=16,cex=1.2,col="firebrick2")
-      if (any(CGS[GOI,"overCut"])) {
-        tempLabels <- spreadLabels2(x=CGS[GOI,"DR"][CGS[GOI,"overCut"]],
-                                   y=CGS[GOI,"MDGE"][CGS[GOI,"overCut"]],
-                                   label=CGS[GOI,"genes"][CGS[GOI,"overCut"]],
-                                   str.cex=1.2,str.font=2)
-        rect(xleft=tempLabels[,1] - 
-               strwidth(CGS[GOI,"genes"][CGS[GOI,"overCut"]],cex=1.2,font=2) * .5,
-             xright=tempLabels[,1] + 
-               strwidth(CGS[GOI,"genes"][CGS[GOI,"overCut"]],cex=1.2,font=2) * .5,
-             ybottom=tempLabels[,2] - 
-               strheight(CGS[GOI,"genes"][CGS[GOI,"overCut"]],cex=1.2,font=2) * .5,
-             ytop=tempLabels[,2] +
-               strheight(CGS[GOI,"genes"][CGS[GOI,"overCut"]],cex=1.2,font=2) * .5,
-             border=NA,col=alpha("white",0.5))
-        text(tempLabels,cex=1.2,font=2,col="firebrick2",
-             labels=CGS[GOI,"genes"][CGS[GOI,"overCut"]])
-      }
+      
+      labelDF <- CGS[GOI,]
+      if (!"genes" %in% names(labelDF)) { labelDF$genes <- rownames(labelDF) }
+      tempLabels <- spreadLabels2(x=labelDF$DR,y=labelDF$MDGE,
+                                  label=labelDF$genes,
+                                  str.cex=1.2,str.font=2)
+      rect(xleft=tempLabels[,1] - 
+             strwidth(labelDF$genes,cex=1.2,font=2) * .5,
+           xright=tempLabels[,1] + 
+             strwidth(labelDF$genes,cex=1.2,font=2) * .5,
+           ybottom=tempLabels[,2] - 
+             strheight(labelDF$genes,cex=1.2,font=2) * .5,
+           ytop=tempLabels[,2] +
+             strheight(labelDF$genes,cex=1.2,font=2) * .5,
+           border=NA,col=alpha("white",0.5))
+      text(tempLabels,cex=1.2,font=2,col="firebrick2",
+           labels=labelDF$genes)
     }
   }
 }
+
 
 # Gene search function -------
 geneSearch <- function(txt,st,CGS) {
@@ -761,14 +1115,15 @@ geneSearch <- function(txt,st,CGS) {
                    temp_in <- strsplit(txt,split="[\\s,]",perl=T)[[1]]
                    temp_out <- geneNames[toupper(temp_in)]
                    names(temp_out) <- CGS[temp_out,"genes"]
-                   return(temp_out)
+                   temp_out
                  },
                  regex={
                    temp_in <- grep(txt,names(geneNames),ignore.case=T)
                    temp_out <- geneNames[temp_in]
                    names(temp_out) <- CGS[temp_out,"genes"]
-                   return(temp_out)
+                   temp_out
                  })
+  temp <- temp[!is.na(temp)]
   if (length(temp) > 0) {
     return(temp)
   } else {
@@ -781,8 +1136,35 @@ geneSearch <- function(txt,st,CGS) {
   }
 }
 
+
 # Gene expression boxplots --------
-plot_GEboxplot <- function(nge,sCVd,gene,geneName,opts) {
+
+#' scClustViz plot: Compare gene expression across clusters
+#'
+#' This function generates boxplots comparing normalized gene abundance across
+#' all clusters.
+#'
+#' @param nge The gene expression matrix, see \code{\link{getExprs}}.
+#' @param sCVd The sCVdata object.
+#' @param gene The gene to display.
+#' @param geneName Optional. A named character vector of length one. The element
+#'   is the full gene name, and the name is the gene symbol.
+#' @param opts Default=\code{c("sct","dr")}. A character vector with plotting
+#'   options. If it includes \code{"sct"}, data points will be overlaid as a
+#'   jitter over the boxplot. If it includes \code{"dr"}, detection rate per
+#'   cluster will be plotted as a small black bar over each boxplot, with the
+#'   corresponding axis on the right.
+#'
+#' @examples
+#' \dontrun{
+#' plot_GEboxplot(getExpr(input_data_obj),
+#'                sCVd=sCVdata,
+#'                gene="Actb")
+#' }
+#'
+#' @export
+
+plot_GEboxplot <- function(nge,sCVd,gene,geneName,opts=c("sct","dr")) {
   if (gene == "") {
     plot(x=NA,y=NA,xlim=0:1,ylim=0:1,xaxt="n",yaxt="n",xlab=NA,ylab=NA)
     text(.5,.5,paste("Select a gene by either clicking on the plot above",
@@ -815,6 +1197,7 @@ plot_GEboxplot <- function(nge,sCVd,gene,geneName,opts) {
     ))
     mtext(levels(Clusters(sCVd))[temp_pos],side=1,line=0,at=seq_along(temp_pos))
     mtext("Clusters, ordered by heatmap dendrogram",side=1,line=1)
+    if (missing(geneName)) { geneName <- NULL }
     if (is.null(geneName)) { 
       mtext(paste(gene,collapse="\n"),side=1,line=2,font=2) 
     } else {
@@ -923,7 +1306,7 @@ plot_compareClusts_MAplot <- function(sCVd,clA,clB,dataType,labType,labNum,labGe
     if (length(labGenes) > 0) {
       points(y_mean~x_diff,data=CGS[labGenes,],pch=16,col=alpha("firebrick2",0.8))
       tempLabel <- spreadLabels2(x=CGS[labGenes,"x_diff"],y=CGS[labGenes,"y_mean"],
-                                label=labGenes,str.cex=1.2,str.font=2)
+                                 label=labGenes,str.cex=1.2,str.font=2)
       text(tempLabel,labels=labGenes,col="firebrick2",cex=1.2,font=2)
     }
   } else {
@@ -932,7 +1315,7 @@ plot_compareClusts_MAplot <- function(sCVd,clA,clB,dataType,labType,labNum,labGe
     points(y_mean~x_diff,data=CGS[gnB,],pch=16,
            col=rainbow2(length(levels(Clusters(sCVd))),.8)[which(levels(Clusters(sCVd)) == clB)])
     tempLabel <- spreadLabels2(x=CGS[c(gnA,gnB),"x_diff"],y=CGS[c(gnA,gnB),"y_mean"],
-                              label=c(gnA,gnB),str.cex=1.2,str.font=2)
+                               label=c(gnA,gnB),str.cex=1.2,str.font=2)
     rownames(tempLabel) <- c(gnA,gnB)
     text(tempLabel[gnA,],labels=gnA,cex=1.2,font=2,
          col=rainbow2(length(levels(Clusters(sCVd))))[which(levels(Clusters(sCVd)) == clA)])
@@ -959,6 +1342,7 @@ plot_compareClusts_DEscatter <- function(sCVd,clA,clB,dataType,labType,
                                          labTypeDiff,labNum,labGenes) {
   # ^ setup -----
   CGS <- compareClusts_DF(sCVd,clA,clB,dataType)
+  labGenes <- labGenes[labGenes %in% rownames(CGS)]
   temp_exp <- switch(as.character(Param(sCVd,"exponent") == exp(1)),
                      "TRUE"="(natural log scale)",
                      "FALSE"=paste0("(log",Param(sCVd,"exponent")," scale)"))
@@ -995,7 +1379,7 @@ plot_compareClusts_DEscatter <- function(sCVd,clA,clB,dataType,labType,
     if (length(labGenes) > 0) {
       points(logGER~dDR,data=CGS[labGenes,],pch=16,col=alpha("firebrick2",0.8))
       tempLabel <- spreadLabels2(CGS[labGenes,"dDR"],CGS[labGenes,"logGER"],
-                                label=labGenes,str.cex=1.2,str.font=2)
+                                 label=labGenes,str.cex=1.2,str.font=2)
       text(tempLabel,labels=labGenes,col="firebrick2",cex=1.2,font=2)
     }
   } else {
@@ -1004,7 +1388,7 @@ plot_compareClusts_DEscatter <- function(sCVd,clA,clB,dataType,labType,
     points(logGER~dDR,data=CGS[gnB,],pch=16,
            col=rainbow2(length(levels(Clusters(sCVd))),.8)[which(levels(Clusters(sCVd)) == clB)])
     tempLabel <- spreadLabels2(CGS[c(gnA,gnB),"dDR"],CGS[c(gnA,gnB),"logGER"],
-                              label=c(gnA,gnB),str.cex=1.2,str.font=2)
+                               label=c(gnA,gnB),str.cex=1.2,str.font=2)
     rownames(tempLabel) <- c(gnA,gnB)
     text(tempLabel[gnA,],labels=gnA,cex=1.2,font=2,
          col=rainbow2(length(levels(Clusters(sCVd))))[which(levels(Clusters(sCVd)) == clA)])
@@ -1022,6 +1406,7 @@ plot_compareClusts_volcano <- function(sCVd,clA,clB,dataType,labType,labNum,labG
   CGS <- compareClusts_DF(sCVd,clA,clB,dataType)
   CGS <- CGS[!is.na(CGS$FDR),]
   CGS$FDR <- -log10(CGS$FDR)
+  labGenes <- labGenes[labGenes %in% rownames(CGS)]
   temp_exp <- switch(as.character(Param(sCVd,"exponent") == exp(1)),
                      "TRUE"="(natural log scale)",
                      "FALSE"=paste0("(log",Param(sCVd,"exponent")," scale)"))
@@ -1052,7 +1437,7 @@ plot_compareClusts_volcano <- function(sCVd,clA,clB,dataType,labType,labNum,labG
       points(x=CGS[labGenes,dataType],y=CGS[labGenes,"FDR"],
              pch=16,col=alpha("firebrick2",0.8))
       tempLabel <- spreadLabels2(x=CGS[labGenes,dataType],y=CGS[labGenes,"FDR"],
-                                label=labGenes,str.cex=1.2,str.font=2)
+                                 label=labGenes,str.cex=1.2,str.font=2)
       text(tempLabel,labels=labGenes,col="firebrick2",cex=1.2,font=2)
     }
   } else {
@@ -1061,7 +1446,7 @@ plot_compareClusts_volcano <- function(sCVd,clA,clB,dataType,labType,labNum,labG
     points(CGS[gnB,dataType],y=CGS[gnB,"FDR"],pch=16,
            col=rainbow2(length(levels(Clusters(sCVd))),.8)[which(levels(Clusters(sCVd)) == clB)])
     tempLabel <- spreadLabels2(CGS[c(gnA,gnB),dataType],CGS[c(gnA,gnB),"FDR"],
-                              label=c(gnA,gnB),str.cex=1.2,str.font=2)
+                               label=c(gnA,gnB),str.cex=1.2,str.font=2)
     rownames(tempLabel) <- c(gnA,gnB)
     text(tempLabel[gnA,],labels=gnA,cex=1.2,font=2,
          col=rainbow2(length(levels(Clusters(sCVd))))[which(levels(Clusters(sCVd)) == clA)])
@@ -1075,7 +1460,48 @@ plot_compareClusts_volcano <- function(sCVd,clA,clB,dataType,labType,labNum,labG
 }
 
 
-plot_compareClusts <- function(sCVd,clA,clB,dataType,labType,labTypeDiff,labNum,labGenes) {
+#' scClustViz plot: Volcano and MA-style plots to compare clusters
+#'
+#' This function generates scatterplots inspired by volcano and MA plots for
+#' comparing gene expression between pairs of clusters.
+#'
+#' @param sCVd The sCVdata object.
+#' @param clA Cluster identifier for side A of the comparison.
+#' @param clB Cluster identifier for side B of the comparison.
+#' @param dataType For MA-style plots comparing difference and mean of gene
+#'   summary statistics, one of: \code{"DR"} (detection rate); \code{"MGE"}
+#'   (mean gene expression); \code{"MDGE"} (mean detected gene expression). For
+#'   volcano plots, the effect size measure can be one of: \code{"dDR"}
+#'   (difference in detection rate); \code{"logGER"} (log gene expression
+#'   ratio). To compare relationship between difference in detection rate and
+#'   log gene expression ratio, use \code{"GERvDDR"}.
+#' @param labType Default="de". A character vector indicating which genes to
+#'   highlight. One of \code{"de"} (most statistically significant genes),
+#'   \code{"diff"} (most different by dataType shown), or \code{"search"}
+#'   (specified genes).
+#' @param labGenes Only required if \code{labType="search"}. Gene names to
+#'   highlight.
+#' @param labNum Default=5. Number of genes to highlight per side.
+#' @param labTypeDiff Default="logGER". Only required if
+#'   \code{dataType="GERvDDR"} and \code{labType="diff"}. Which axis to use for
+#'   difference calculation. One of \code{"dDR"} (difference in detection rate)
+#'   or \code{"logGER"} (log gene expression ratio).
+#'
+#' @examples
+#' \dontrun{
+#' plot_compareClusts(sCVdata,
+#'                    clA="1",
+#'                    clB="2",
+#'                    dataType="GERvDDR",
+#'                    labType="search",
+#'                    labGenes="Actb")
+#' }
+#'
+#' @export
+
+plot_compareClusts <- function(sCVd,clA,clB,dataType,
+                               labType="de",labGenes,
+                               labNum=5,labTypeDiff="logGER") {
   if (clA %in% levels(Clusters(sCVd)) & 
       clB %in% levels(Clusters(sCVd))) {
     if (dataType %in% c("MGE","MDGE","DR")) {

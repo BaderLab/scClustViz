@@ -2,7 +2,7 @@
 % Please edit documentation in R/helperFx.R
 \name{labelCellTypes}
 \alias{labelCellTypes}
-\title{Add predicted cell type names to cluster labels}
+\title{scClustViz helper fx: Add predicted cell type names to cluster labels}
 \usage{
 labelCellTypes(sCV, cellMarkers, symbolMap)
 }
