@@ -250,7 +250,7 @@ plot_tsne <- function(cell_coord,md,md_title,md_log=F,label=NULL,
       id[is.na(id)] <- "Unselected"
       idcol <- c(idcol,"grey80")
     }
-    par(mar=c(3,3,2,1),mgp=2:0)
+    par(mar=c(3,3,3,1),mgp=2:0)
   } else if (is.factor(md) | is.character(md)) {
     id <- as.factor(md)
     if (length(levels(md)) <= 8) {
@@ -258,7 +258,7 @@ plot_tsne <- function(cell_coord,md,md_title,md_log=F,label=NULL,
     } else {
       idcol <- rainbow2(length(levels(id)))
     }
-    par(mar=c(3,3,ceiling(length(levels(id))/4)+.5,1),mgp=2:0)
+    par(mar=c(3,3,ceiling(length(levels(id))/4)+1,1),mgp=2:0)
   } else {
     if (md_log) {
       id <- cut(log10(md),100)
@@ -266,7 +266,7 @@ plot_tsne <- function(cell_coord,md,md_title,md_log=F,label=NULL,
       id <- cut(md,100)
     }
     idcol <- viridis::viridis(100,d=-1)
-    par(mar=c(3,3,2,1),mgp=2:0)
+    par(mar=c(3,3,3,1),mgp=2:0)
   }
   if (missing(sel_cells)) { sel_cells <- character() }
   

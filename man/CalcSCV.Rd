@@ -126,7 +126,7 @@ while(DE_bw_clust) {
                                           resolution=seurat_resolution)
 
   curr_sCVdata <- CalcSCV(inD=your_seurat_obj,
-                          clusterDF=Seurat::Idents(your_seurat_obj),
+                          cl=your_seurat_obj@ident,
                           assayType=NULL,
                           DRforClust="pca",
                           exponent=exp(1),
