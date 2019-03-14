@@ -1,6 +1,6 @@
 # scClustViz
 An interactive R Shiny tool for visualizing single-cell RNAseq clustering results from common analysis pipelines.  Its main goal is two-fold: **A:** to help select a biologically appropriate resolution or K from clustering results by assessing differential expression between the resulting clusters; and **B:** help annotate cell types and identify marker genes.  
-[Our preprint is on F1000Research!](https://f1000research.com/articles/7-1522/)  
+[Our preprint is on F1000Research!](https://f1000research.com/articles/7-1522/v2)  
 
 
 # Quick Start
@@ -14,82 +14,115 @@ devtools::install_github("BaderLab/scClustViz")
 ```
 (If you're on linux and getting errors running `devtools::install_github`, make sure RCurl is working - you might need to install libcurl4-openssl-dev).  
 
-```r
-# See example code in the following command for usage:
-?CalcAllSCV
-```
-
-
-
-
-# Everything below this needs updating for v1
-Load data from your Seurat analysis for differential expression testing and visualization in scClustViz:
+Following normalization, dimensionality reduction (include 2D cell embedding), and clustering, scClustViz can be used to do differential expression testing (using the Wilcoxon rank-sum test) to both assess different clustering solutions and explore your results.  First, run the DE testing as follows:
 ```r
 library(scClustViz)
 
-data_for_scClustViz <- readFromSeurat(your_seurat_object)
-rm(your_seurat_object)
-# All the data scClustViz needs is in 'data_for_scClustViz'.
+# if using Seurat, this regex can grab the metadata columns representing cluster results:
+your_cluster columns <- grepl("res[.0-9]+$",
+                              names(getMD(your_scRNAseq_data_object)))
+your_cluster_results <- getMD(your_scRNAseq_data_oubject[your_cluster_columns])
 
-DE_for_scClustViz <- clusterWiseDEtest(data_for_scClustViz,exponent=exp(1))
+sCVdata_list <- CalcAllSCV(inD=your_scRNAseq_data_object,
+                           clusterDF=your_cluster_results,
+                           assayData=NULL, #specify assay slot of data
+                           DRforClust="pca",#reduced dimensions for silhouette calc
+                           exponent=exp(1), #log base of normalized data
+                           pseudocount=1,
+                           DRthresh=0.1, #gene filter - minimum detection rate
+                           testAll=F, #stop testing clusterings when no DE between clusters
+                           FDRthresh=0.05,
+                           calcSil=T, #use cluster::silhouette to calc silhouette widths
+                           calcDEvsRest=T,
+                           calcDEcombn=T)
 
-save(data_for_scClustViz,DE_for_scClustViz,
+save(your_scRNAseq_data_object,sCVdata_list,file="for_scClustViz.RData")
+# This file can now be shared so anyone can view your results with the Shiny app!
+```
+Once the previous setup step has been performed once and the output saved, you can explore the data in the interactive Shiny interface by simply pointing it to the saved file:
+```r
+# Lets assume this is data from an embryonic mouse cerebral cortex:
+# (This is the function call wrapped by MouseCortex::viewMouseCortex("e13"))
+runShiny(filePath="for_scClustViz.RData",
+         
+         outPath="./",
+         # Save any further analysis performed in the app to the
+         # working directory rather than library directory.
+         
+         annotationDB="org.Mm.eg.db",
+         # This is an optional argument, but will add annotations.
+         
+         cellMarkers=list("Cortical precursors"=c("Mki67","Sox2","Pax6",
+                                                  "Pcna","Nes","Cux1","Cux2"),
+                          "Interneurons"=c("Gad1","Gad2","Npy","Sst","Lhx6",
+                                           "Tubb3","Rbfox3","Dcx"),
+                          "Cajal-Retzius neurons"="Reln",
+                          "Intermediate progenitors"="Eomes",
+                          "Projection neurons"=c("Tbr1","Satb2","Fezf2",
+                                                 "Bcl11b","Tle4","Nes",
+                                                 "Cux1","Cux2","Tubb3",
+                                                 "Rbfox3","Dcx")
+                          ),
+         # This is a list of canonical marker genes per expected cell type.
+         # The app uses this list to automatically annotate clusters.
+         
+         imageFileType="png"
+         #Set the file format of any saved figures from the app.
+         )
+
+```
+
+# Fancier Usage
+## Iterative Clustering With scClustViz
+Incorporating the scClustViz cluster assessment metric into your analysis 
+pipeline is simply a matter of running the differential expression testing after 
+every clustering run, instead of post-hoc. This allows you to systematically 
+increase the resolution or K parameter of the clustering algorithm until 
+statistically significant differential expression between nearest neighbour 
+clusters is lost. An example using the Seurat clustering method is shown here.
+```r
+DE_bw_clust <- TRUE
+seurat_resolution <- 0
+sCVdata_list <- list()
+
+while(DE_bw_clust) {
+  seurat_resolution <- seurat_resolution + 0.2
+  # ^ Iteratively incrementing resolution parameter
+
+  your_seurat_obj <- Seurat::FindClusters(your_seurat_obj,
+                                          resolution=seurat_resolution)
+  # ^ Calculate clusters using method of choice.
+
+  curr_sCVdata <- CalcSCV(inD=your_seurat_obj,
+                          cl=your_seurat_obj@ident, #factor containing cluster assignments
+                          assayData=NULL, #specify assay slot of data
+                          DRforClust="pca", #reduced dimensions for silhouette calc
+                          exponent=exp(1), #log base of normalized data
+                          pseudocount=1,
+                          DRthresh=0.1, #gene filter - minimum detection rate
+                          calcSil=T, #use cluster::silhouette to calc silhouette widths
+                          calcDEvsRest=T,
+                          calcDEcombn=T)
+
+  DE_bw_NN <- sapply(DEneighb(curr_sCVdata,0.05),length)
+  # ^ counts # of DE genes between neighbouring clusters at 5% FDR
+
+  if (min(DE_bw_NN) < 1) { DE_bw_clust <- FALSE }
+  # ^ If no DE genes between nearest neighbours, don't loop again.
+
+  sCVdata_list[[paste0("res.",seurat_resolution)]] <- curr_sCVdata
+  # Add sCVdata object to list with an appropriate name.
+}
+
+save(your_seurat_obj,sCVdata_list,
      file="for_scClustViz.RData")
-# Save these objects so you'll never have to run this slow function again!
 
 runShiny(filePath="for_scClustViz.RData")
+# ^ see ?runShiny for detailed argument list
 ```
 
-# scClustViz Usage Guide
-scClustViz takes the output object from your single-cell analysis pipeline of choice, and runs differential expression testing for all the clustering solutions generated during your analysis to generate a cluster assessment metric used in the visualization tool. The visualization tool itself is an R Shiny app that generates a variety of figures designed to help assess clustering results, and identify clusters and their marker genes.
-
-## Read in data
-scClustViz assumes you have tried a variety of parameterizations when clustering the cells from your scRNAseq data, and want to decide which clustering solution you should use (if you haven't yet clustered your data, or are interested in an example of integrating the differential expression metric used in this tool to systematically test different clustering resolutions, see the example [pipeline below](#scrnaseq-analysis-pipeline)).  
-To read in your data from a Seurat object (check the documentation to ensure your object meets requirements), you can run:
-```r
-data_for_scClustViz <- readFromSeurat(your_seurat_object)
-```
-If your data isn't in a Seurat object, or otherwise doesn't fit the requirements for `readFromSeurat` you can run `readFromManual`, which allows you to manually add all the required components of your analysis to the object scClustViz uses for the differential expression testing. See its man page (`?readFromManual`) for details, or use the example here using a hypothetical SingleCellExperiment class from Bioconductor as the input:
-```r
-# A logical vector separating the cluster assignments from the rest of the
-# cell metadata in the colData slot. This is an example that you will have
-# to change to reflect your cluster assignment column names.
-clusterAssignments <- grepl("^Clust",colnames(colData(mySCE)))
-
-data_for_scClustViz <- readFromManual(nge=logcounts(mySCE),
-                                      md=colData(mySCE)[,!clusterAssignments],
-                                      cl=colData(mySCE)[,clusterAssignments],
-                                      dr_clust=reducedDim(mySCE,"PCA"),
-                                      dr_viz=reductedDim(mySCE,"tSNE"))
-# All the data scClustViz needs is in 'data_for_scClustViz'.
-```
-## Differential expression testing
-*A more thorough explanation of the DE testing scheme and how to bypass it (structure of the output lists in case you want to replace it with your own DE method/results) will be here soon. For now, see `?clusterWiseDEtest`*
-```r
-DE_for_scClustViz <- clusterWiseDEtest(data_for_scClustViz,
-                                       # Stop once DE is lost between nearest neighbouring clusters
-                                       testAll=FALSE,
-                                       # Normalized data is in log2 space
-                                       exponent=2,
-                                       # Pseudocount of 1 was added to log-normalized data
-                                       pseudocount=1,
-                                       # False discovery rate threshold of 1%
-                                       FDRthresh=0.01,
-                                       # Use difference in detection rate to filter genes for testing
-                                       threshType="dDR",
-                                       # Genes with at least 15% detection rate difference will be tested
-                                       dDRthresh=0.15
-                                       )
-
-# Save the results of the preprocessing for use in the Shiny app!
-save(data_for_scClustViz,DE_for_scClustViz,file="for_scClustViz.RData")
-```
-
-## Run the Shiny app
-Finally, its time to run the app. Running this function will open the Shiny UI in a separate window.  Have fun exploring your data!
-```r
-runShiny(filePath="for_scClustViz.RData")
-```
+## Use Your Own Differential Expression Results
+scClustViz uses the wilcoxon rank-sum test for its differential expression testing.  You can provide your own DE results from a testing method of your choice instead, skipping sCV's testing steps. In both `CalcAllSCV` and `CalcSCV` there are arguments `calcDEvsRest` and `calcDEcombn`, which can be set to false to skip those differential expression calculations.  You can then use `DEvsRest(your_sCVdata_object) <- your_DE_dataframe_list` and `DEcombn(your_sCVdata_object) <- your_DE_dataframe_list` to pass your results into the sCVdata objects. DEvsRest represents differential expression tests between each cluster and the remaining cells, and should be a named list of data frames where each name refers to the tested cluster (see `?CalcDEvsRest` for details). DEcombn represents differential expression tests between all pairwise combinations of clusters, and should be a named list of data frames were each name refers to the cluster pair, with cluster names separated by "-" (see `?CalcDEcombn` for details). In both cases, data frames must contain variables `logGER` (an effect size measure: gene expression ratio in log space, often referred to as logFC) and `FDR` (significance measure: false discovery rate), as well as `dDR` (an effect size measure: difference in detection rate) for `DEcombn`.
 
 # Data Packages
 The following data packages can be used to explore the features of scClustViz. You can also follow the vignette below to build your own data package to easily share your analysed scRNAseq data with collaborators and the public.
@@ -140,7 +173,7 @@ library(HumanLiver)
 viewHumanLiver()
 ```
 
-## Share Your Data With scClustViz
+## Make Your Own Data Package!
 Building an R package is a relatively easy task thanks to RStudio and the roxygen2 and devtools packages. The following vignette will show you how to take your saved output from the scClustViz setup and share it as an R package on github as seen in the data packages above. It is entirely based on the invaluable book [R packages](http://r-pkgs.had.co.nz/) by Hadley Wickham.  
 First, you must have generated your input file for the `runShiny` command in scClustViz by following the steps in the [usage guide](#scclustviz-usage-guide) above.  
 Then, create a new project in RStudio, selecting "New directory" -> "R package" and making sure to check "Create a git repository". If you haven't already set up git/github in RStudio, check out [this blogpost](https://www.r-bloggers.com/rstudio-and-github/) for an explanation. If you only want to make a package to share with colleagues, you can skip github and simply send them the bundled package when you're done.  
@@ -177,7 +210,7 @@ Now all you need to do is write the wrapper function to call *runShiny*. Here is
 #'
 #' @export
 
-viewMyData <- function(outPath="./") {
+viewMyData <- function(outPath="./",imageFileType="pdf") {
   filePath <- system.file("packageData/MyDataTitle.RData",package="MyDataPackage")
   cellMarkers <- list()
   # If you have a list of cell-type marker genes for you data, add them here!
@@ -190,12 +223,14 @@ viewMyData <- function(outPath="./") {
     scClustViz::runShiny(filePath=filePath,
                          outPath=outPath,
                          cellMarkers=cellMarkers,
-                         annotationDB=annotationDB)
+                         annotationDB=annotationDB,
+                         imageFileType=imageFileType)
 
   } else {
     scClustViz::runShiny(filePath=filePath,
                          outPath=outPath,
-                         cellMarkers=cellMarkers)
+                         cellMarkers=cellMarkers,
+                         imageFileType=imageFileType)
   }
 }
 ```
@@ -227,68 +262,9 @@ devtools::install_github("YourGithubAccount/MyDataPackage")
 MyDataPackage::viewMyData()
 ```
 
-# scRNAseq analysis pipeline
-Incorporating the scClustViz cluster assessment metric into your analysis 
-pipeline is simply a matter of running the differential expression testing after 
-every clustering run, instead of post-hoc. This allows you to systematically 
-increase the resolution or K parameter of the clustering algorithm until 
-statistically significant differential expression between nearest neighbour 
-clusters is lost. An example using the Seurat clustering method is shown here.
-```r
-dataPath <- "~/my_data_dir/"
-dataName <- "MySingleCellExperiment"
-DE_for_scClustViz <- list(CGS=list(),deTissue=list(),deVS=list(),
-                          deMarker=list(),deDist=list(),deNeighb=list(),
-                          params=list(exponent=exp(1),
-                                      pseudocount=1,
-                                      FDRthresh=0.01,
-                                      threshType="dDR",
-                                      dDRthresh=0.15,
-                                      logGERthresh=1))
-resVal <- 0
-while (T) {
-  resVal <- resVal + 0.1
-  print("")
-  print("")
-  print(paste0("~~~~~~~~~~~~ Clustering at res.",resVal," ~~~~~~~~~~~~"))
-  if (!any(grepl("^res",colnames(your_seurat_object@meta.data)))) {
-    your_seurat_object <- FindClusters(your_seurat_object,resolution=resVal,save.SNN=T) 
-    # You should definitely add more arguments to this ^.
-    print(paste(length(levels(your_seurat_object@ident)),"clusters identified"))
-  } else {
-    your_seurat_object <- FindClusters(your_seurat_object,resolution=resVal,reuse.SNN=T)
-    print(paste(length(levels(your_seurat_object@ident)),"clusters identified"))
-    if (length(levels(your_seurat_object@ident)) < 2) { 
-      your_seurat_object@meta.data <- your_seurat_object@meta.data[-ncol(your_seurat_object@meta.data)]
-      next 
-    }
-    if (all(your_seurat_object@meta.data[,ncol(your_seurat_object@meta.data)-1] ==
-            your_seurat_object@meta.data[,ncol(your_seurat_object@meta.data)])) { 
-      your_seurat_object@meta.data <- your_seurat_object@meta.data[,-ncol(your_seurat_object@meta.data)]
-      next 
-    }
-  }
-  res <- colnames(your_seurat_object@meta.data)[length(colnames(your_seurat_object@meta.data))]
-  tempOut <- calcAllDE(nge=your_seurat_object@data,
-                       cl=your_seurat_object@ident,
-                       params=DE_for_scClustViz$params)
-  DE_for_scClustViz$CGS[[res]] <- tempOut$CGS
-  DE_for_scClustViz$deTissue[[res]] <- tempOut$deTissue
-  DE_for_scClustViz$deVS[[res]] <- tempOut$deVS
-  DE_for_scClustViz$deMarker[[res]] <- tempOut$deMarker
-  DE_for_scClustViz$deDist[[res]] <- tempOut$deDist
-  DE_for_scClustViz$deNeighb[[res]] <- tempOut$deNeighb
-  if (min(sapply(tempOut$deNeighb,nrow)) < 1) { break } 
-  #This stops the loop from iterating once there's no DE between nearest neighbour clusters.
-}
-save(your_seurat_object,file=paste0(dataPath,"your_seurat_object.RData"))
-data_for_scClustViz <- readFromSeurat(your_seurat_object)
-save(data_for_scClustViz,DE_for_scClustViz,file=paste0(dataPath,dataName,".RData"))
-runShiny(paste0(dataPath,dataName,".RData"))
-```
 
 # Citation
-Innes BT and Bader GD. scClustViz – Single-cell RNAseq cluster assessment and visualization [version 1; referees: 2 approved with reservations]. F1000Research 2018, 7:1522 (doi: 10.12688/f1000research.16198.1)
+Innes BT and Bader GD. scClustViz – Single-cell RNAseq cluster assessment and visualization [version 2; referees: 2 approved with reservations]. F1000Research 2018, 7:1522 (doi: [10.12688/f1000research.16198.1](https://doi.org/10.12688/f1000research.16198.2))
 
 
 # Contact
