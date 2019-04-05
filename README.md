@@ -3,8 +3,10 @@ An interactive R Shiny tool for visualizing single-cell RNAseq clustering result
 [Our preprint is on F1000Research!](https://f1000research.com/articles/7-1522/v2)  
 
 ### Contents:
-- [Quick Start](#quick-start)
-- [Fancier Usage](#fancier-usage)
+- [Example Output](#example-output)
+- [Usage](#usage)
+  - [Installation](#installation)
+  - [Basic Usage](#basic-usage)
   - [Iterative Clustering With scClustViz](#iterative-clustering-with-scclustviz)
   - [Use Your Own Differential Expression Results](#use-your-own-differential-expression-results)
 - [Data Packages](#data-packages)
@@ -14,8 +16,13 @@ An interactive R Shiny tool for visualizing single-cell RNAseq clustering result
 - [Citation](#citation)
 - [Contact](#contact)
 
+# Example Output
+Before installing a package it's always nice to *see* what it is, so here's a summary of our use case scenario from [the paper](https://f1000research.com/articles/7-1522/v2), using the mouse embryonic cerebral cortex data package [outlined below](#embryonic-mouse-cerebral-cortex).
+First, you can select ...
 
-# Quick Start
+
+# Usage
+## Installation
 Install scClustViz using devtools:
 ```r
 # install devtools
@@ -26,7 +33,8 @@ devtools::install_github("BaderLab/scClustViz")
 ```
 (If you're on linux and getting errors running `devtools::install_github`, make sure RCurl is working - you might need to install libcurl4-openssl-dev).  
 
-Following normalization, dimensionality reduction (include 2D cell embedding), and clustering, scClustViz can be used to do differential expression testing (using the Wilcoxon rank-sum test) to both assess different clustering solutions and explore your results.  First, run the DE testing as follows:
+## Basic Usage
+Following normalization, dimensionality reduction (include 2D cell embedding), and clustering using a workflow of your choice, scClustViz can be used to do differential expression testing (using the Wilcoxon rank-sum test) to both assess different clustering solutions and explore your results.  First, run the DE testing as follows:
 ```r
 library(scClustViz)
 
@@ -93,7 +101,6 @@ runShiny(
 
 ```
 
-# Fancier Usage
 ## Iterative Clustering With scClustViz
 Incorporating the scClustViz cluster assessment metric into your analysis 
 pipeline is simply a matter of running the differential expression testing after 
