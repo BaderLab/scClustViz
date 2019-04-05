@@ -18,7 +18,9 @@ An interactive R Shiny tool for visualizing single-cell RNAseq clustering result
 
 # Example Output
 Before installing a package it's always nice to *see* what it is, so here's a summary of our use case scenario from [the paper](https://f1000research.com/articles/7-1522/v2), using the mouse embryonic cerebral cortex data package [outlined below](#embryonic-mouse-cerebral-cortex).
-First, you can select ...
+First, you can use metrics such as silhouette width or the number of differentially expressed genes between nearest neighbouring clusters to select the optimal clustering resolution.
+![Differentially expressed genes between nearest neighbouring clusters for all clustering results](/inst/paperFigs/Fig2a.png) ![Silhouette plot of selected clustering result](/inst/paperFigs/Fig2b.png)
+...
 
 
 # Usage
