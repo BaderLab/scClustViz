@@ -299,7 +299,7 @@ MyDataPackage::viewMyData()
 
 
 # Citation
-Innes BT and Bader GD. scClustViz – Single-cell RNAseq cluster assessment and visualization [version 2; peer review: 1 approved, 1 approved with reservations]. F1000Research 2018, 7:1522 (doi: [10.12688/f1000research.16198.2](https://doi.org/10.12688/f1000research.16198.2))
+Innes BT and Bader GD. scClustViz – Single-cell RNAseq cluster assessment and visualization [version 2; referees: 2 approved with reservations]. F1000Research 2018, 7:1522 (doi: [10.12688/f1000research.16198.1](https://doi.org/10.12688/f1000research.16198.2))
 
 
 # Contact
