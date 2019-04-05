@@ -2,6 +2,18 @@
 An interactive R Shiny tool for visualizing single-cell RNAseq clustering results from common analysis pipelines.  Its main goal is two-fold: **A:** to help select a biologically appropriate resolution or K from clustering results by assessing differential expression between the resulting clusters; and **B:** help annotate cell types and identify marker genes.  
 [Our preprint is on F1000Research!](https://f1000research.com/articles/7-1522/v2)  
 
+### Contents:
+- [Quick Start](quick-start)
+- [Fancier Usage](fancier-usage)
+  - [Iterative Clustering With scClustViz](iterative-clustering-with-scclustviz)
+  - [Use Your Own Differential Expression Results](use-your-own-differential-expression-results)
+- [Data Packages](data-packages)
+  - [Embryonic Mouse Cerebral Cortex](embryonic-mouse-cerebral-cortex)
+  - [Human Liver Atlas](human-liver-atlas)
+  - [Make Your Own Data Package!](make-your-own-data-package)
+- [Citation](citation)
+- [Contact](contact)
+
 
 # Quick Start
 Install scClustViz using devtools:
@@ -18,57 +30,66 @@ Following normalization, dimensionality reduction (include 2D cell embedding), a
 ```r
 library(scClustViz)
 
-# if using Seurat, this regex can grab the metadata columns representing cluster results:
+# if using Seurat, this regex can grab 
+# the metadata columns representing cluster results:
 your_cluster columns <- grepl("res[.0-9]+$",
                               names(getMD(your_scRNAseq_data_object)))
-your_cluster_results <- getMD(your_scRNAseq_data_oubject[your_cluster_columns])
+your_cluster_results <- getMD(
+  your_scRNAseq_data_oubject[your_cluster_columns]
+)
 
-sCVdata_list <- CalcAllSCV(inD=your_scRNAseq_data_object,
-                           clusterDF=your_cluster_results,
-                           assayData=NULL, #specify assay slot of data
-                           DRforClust="pca",#reduced dimensions for silhouette calc
-                           exponent=exp(1), #log base of normalized data
-                           pseudocount=1,
-                           DRthresh=0.1, #gene filter - minimum detection rate
-                           testAll=F, #stop testing clusterings when no DE between clusters
-                           FDRthresh=0.05,
-                           calcSil=T, #use cluster::silhouette to calc silhouette widths
-                           calcDEvsRest=T,
-                           calcDEcombn=T)
 
-save(your_scRNAseq_data_object,sCVdata_list,file="for_scClustViz.RData")
-# This file can now be shared so anyone can view your results with the Shiny app!
+sCVdata_list <- CalcAllSCV(
+  inD=your_scRNAseq_data_object,
+  clusterDF=your_cluster_results,
+  assayData=NULL, #specify assay slot of data
+  DRforClust="pca",#reduced dimensions for silhouette calc
+  exponent=exp(1), #log base of normalized data
+  pseudocount=1,
+  DRthresh=0.1, #gene filter - minimum detection rate
+  testAll=F, #stop testing clusterings when no DE between clusters
+  FDRthresh=0.05,
+  calcSil=T, #use cluster::silhouette to calc silhouette widths
+  calcDEvsRest=T,
+  calcDEcombn=T
+)
+
+save(your_scRNAseq_data_object,sCVdata_list,
+     file="for_scClustViz.RData")
+# This file can now be shared so anyone 
+# can view your results with the Shiny app!
 ```
 Once the previous setup step has been performed once and the output saved, you can explore the data in the interactive Shiny interface by simply pointing it to the saved file:
 ```r
 # Lets assume this is data from an embryonic mouse cerebral cortex:
-# (This is the function call wrapped by MouseCortex::viewMouseCortex("e13"))
-runShiny(filePath="for_scClustViz.RData",
-         
-         outPath="./",
-         # Save any further analysis performed in the app to the
-         # working directory rather than library directory.
-         
-         annotationDB="org.Mm.eg.db",
-         # This is an optional argument, but will add annotations.
-         
-         cellMarkers=list("Cortical precursors"=c("Mki67","Sox2","Pax6",
-                                                  "Pcna","Nes","Cux1","Cux2"),
-                          "Interneurons"=c("Gad1","Gad2","Npy","Sst","Lhx6",
-                                           "Tubb3","Rbfox3","Dcx"),
-                          "Cajal-Retzius neurons"="Reln",
-                          "Intermediate progenitors"="Eomes",
-                          "Projection neurons"=c("Tbr1","Satb2","Fezf2",
-                                                 "Bcl11b","Tle4","Nes",
-                                                 "Cux1","Cux2","Tubb3",
-                                                 "Rbfox3","Dcx")
-                          ),
-         # This is a list of canonical marker genes per expected cell type.
-         # The app uses this list to automatically annotate clusters.
-         
-         imageFileType="png"
-         #Set the file format of any saved figures from the app.
-         )
+# (This is the call wrapped by MouseCortex::viewMouseCortex("e13"))
+runShiny(
+  filePath="for_scClustViz.RData",
+  
+  outPath="./",
+  # Save any further analysis performed in the app to the
+  # working directory rather than library directory.
+  
+  annotationDB="org.Mm.eg.db",
+  # This is an optional argument, but will add annotations.
+  
+  cellMarkers=list("Cortical precursors"=c("Mki67","Sox2","Pax6",
+                                           "Pcna","Nes","Cux1","Cux2"),
+                   "Interneurons"=c("Gad1","Gad2","Npy","Sst","Lhx6",
+                                    "Tubb3","Rbfox3","Dcx"),
+                   "Cajal-Retzius neurons"="Reln",
+                   "Intermediate progenitors"="Eomes",
+                   "Projection neurons"=c("Tbr1","Satb2","Fezf2",
+                                          "Bcl11b","Tle4","Nes",
+                                          "Cux1","Cux2","Tubb3",
+                                          "Rbfox3","Dcx")
+  ),
+  # This is a list of canonical marker genes per expected cell type.
+  # The app uses this list to automatically annotate clusters.
+  
+  imageFileType="png"
+  #Set the file format of any saved figures from the app.
+)
 
 ```
 
@@ -93,16 +114,18 @@ while(DE_bw_clust) {
                                           resolution=seurat_resolution)
   # ^ Calculate clusters using method of choice.
 
-  curr_sCVdata <- CalcSCV(inD=your_seurat_obj,
-                          cl=your_seurat_obj@ident, #factor containing cluster assignments
-                          assayData=NULL, #specify assay slot of data
-                          DRforClust="pca", #reduced dimensions for silhouette calc
-                          exponent=exp(1), #log base of normalized data
-                          pseudocount=1,
-                          DRthresh=0.1, #gene filter - minimum detection rate
-                          calcSil=T, #use cluster::silhouette to calc silhouette widths
-                          calcDEvsRest=T,
-                          calcDEcombn=T)
+  curr_sCVdata <- CalcSCV(
+    inD=your_seurat_obj,
+    cl=your_seurat_obj@ident, #factor containing cluster assignments
+    assayData=NULL, #specify assay slot of data
+    DRforClust="pca", #reduced dimensions for silhouette calc
+    exponent=exp(1), #log base of normalized data
+    pseudocount=1,
+    DRthresh=0.1, #gene filter - minimum detection rate
+    calcSil=T, #use cluster::silhouette to calc silhouette widths
+    calcDEvsRest=T,
+    calcDEcombn=T
+  )
 
   DE_bw_NN <- sapply(DEneighb(curr_sCVdata,0.05),length)
   # ^ counts # of DE genes between neighbouring clusters at 5% FDR
@@ -136,7 +159,8 @@ Install MouseCortex using devtools as follows:
 install.packages("devtools")
 
 # install MouseCortex (demo data from Yuzwa et al, Cell Reports 2017)
-devtools::install_github("BaderLab/MouseCortex") # this takes a minute or two
+devtools::install_github("BaderLab/MouseCortex") 
+# this takes a minute or two
 
 # install mouse gene annotations from bioconductor (optional)
 source("https://bioconductor.org/biocLite.R")
@@ -146,8 +170,7 @@ Then run the scClustViz Shiny app to view your dataset of choice!
 There's a wrapper function in the MouseCortex package that handles the call to scClustViz, so it's nice and simple. 
 If you're interested, `?runShiny` has example code showing the function call used by the wrapper function.
 ```r
-library(MouseCortex)
-viewMouseCortex("e13")
+MouseCortex::viewMouseCortex("e13")
 ```
 
 ## Human Liver Atlas
@@ -158,8 +181,10 @@ Install HumanLiver using devtools as follows:
 # install devtools
 install.packages("devtools")
 
-# install HumanLiver (R data package for MacParland et al., Nat Commun 2018)
-devtools::install_github("BaderLab/HumanLiver") # this takes a minute or two
+# install HumanLiver 
+# (R data package for MacParland et al., Nat Commun 2018)
+devtools::install_github("BaderLab/HumanLiver") 
+# this takes a minute or two
 
 # install human gene annotations from bioconductor (optional)
 source("https://bioconductor.org/biocLite.R")
@@ -169,8 +194,7 @@ Then run the scClustViz Shiny app to view your dataset of choice!
 There's a wrapper function in the MouseCortex package that handles the call to scClustViz, so it's nice and simple. 
 If you're interested, `?runShiny` has example code showing the function call used by the wrapper function.
 ```r
-library(HumanLiver)
-viewHumanLiver()
+HumanLiver::viewHumanLiver()
 ```
 
 ## Make Your Own Data Package!
@@ -181,7 +205,8 @@ Once you've opened your new package in RStudio, make sure to have both "Use devt
 You're now ready to build your package.  First, make a folder in the package directory called "inst", and put your input file for *runShiny* there. All files in "inst" become part of the root directory of the package after installation, so it's best to store your data in a folder within inst.
 ```r
 dir.create("inst/packageData/",recursive=T)
-save(data_for_scClustViz,DE_for_scClustViz,file="inst/packageData/MyDataTitle.RData")
+save(data_for_scClustViz,DE_for_scClustViz,
+     file="inst/packageData/MyDataTitle.RData")
 ```
 If you'd like a default resolution to load when the user views your data in scClustViz, now's the time to save that.
 ```r
@@ -195,9 +220,9 @@ Now all you need to do is write the wrapper function to call *runShiny*. Here is
 #' A wrapper function to view the \code{MyData} dataset in the
 #' \code{scClustViz} Shiny app.
 #'
-#' @param outPath Default = "./" (the working directory). Specify the directory
-#'   used to save/load any analysis files you generate while exploring the
-#'   \code{MyData} data.
+#' @param outPath Default = "./" (the working directory). Specify the 
+#'   directory used to save/load any analysis files you generate while 
+#'   exploring the \code{MyData} data.
 #'
 #' @return The function causes the scClustViz Shiny GUI app to open in a
 #'   seperate window.
@@ -211,13 +236,15 @@ Now all you need to do is write the wrapper function to call *runShiny*. Here is
 #' @export
 
 viewMyData <- function(outPath="./",imageFileType="pdf") {
-  filePath <- system.file("packageData/MyDataTitle.RData",package="MyDataPackage")
+  filePath <- system.file("packageData/MyDataTitle.RData",
+                          package="MyDataPackage")
   cellMarkers <- list()
-  # If you have a list of cell-type marker genes for you data, add them here!
+  # If you have a list of cell-type marker genes for you data,
+  # add them here!
   
-  # Change "org.Hs.eg.db" to the appropriate AnnotationDbi object for you data. 
-  # This way if your user has the library installed, it will be used, otherwise
-  # it will be skipped without causing any errors.
+  # Change "org.Hs.eg.db" to the appropriate AnnotationDbi object for your 
+  # data. This way if your user has the library installed, it will be used, 
+  # otherwise it will be skipped without causing any errors.
   if (require("org.Hs.eg.db",quietly=T)) {
     annotationDB <- org.Hs.eg.db
     scClustViz::runShiny(filePath=filePath,
@@ -253,7 +280,8 @@ git add .
 # Make your first commit
 git commit -m "MyData is now an R package!"
 
-#Push your first commit to github (could be slow, since you're uploading data files)
+# Push your first commit to github 
+# (could be slow, since you're uploading data files)
 git push -u origin master
 ```
 Now all you need to do is edit the README file to tell the world how to install and run your package:
