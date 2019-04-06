@@ -253,7 +253,7 @@ plot_tsne <- function(cell_coord,md,md_title,md_log=F,label=NULL,
     par(mar=c(3,3,2.5,1),mgp=2:0)
   } else if (is.factor(md) | is.character(md)) {
     id <- as.factor(md)
-    if (length(levels(md)) <= 8) {
+    if (length(levels(id)) <= 8) {
       idcol <- RColorBrewer::brewer.pal(length(levels(id)),"Dark2")[1:length(levels(id))]
     } else {
       idcol <- rainbow2(length(levels(id)))

@@ -82,7 +82,7 @@ spreadLabels2 <- function(x,y,label,padding=0,str.cex=par("cex"),str.font=par("f
   
   #randomly move away from locally densest area until not overlapping 
   tempITER <- 0
-  while (sum(is.overlap.point,is.overlap.edge) > 0 & tempITER < 500) {
+  while (sum(is.overlap.point,is.overlap.edge) > 0 & tempITER < 200) {
     tempITER <- tempITER + 1
     
     # Push away from overlap with other labels
