@@ -597,7 +597,7 @@ setGeneric("CalcCGS",function(sCVd,inD,UseBiocParallel) standardGeneric("CalcCGS
 #' @export
 
 setMethod("CalcCGS",signature("sCVdata"),
-          function(sCVd,inD,UseBiocParallel) {
+          function(sCVd,inD,UseBiocParallel=FALSE) {
             if (UseBiocParallel) {
               fx_calcCGS_BP(nge=getExpr(inD,Param(sCVd,"assayType")),
                             cl=Clusters(sCVd),
@@ -879,7 +879,7 @@ setGeneric("CalcDEvsRest",function(sCVd,inD,storeAllDE,UseBiocParallel)
 #' @export
 
 setMethod("CalcDEvsRest","sCVdata",
-          function(sCVd,inD,storeAllDE,UseBiocParallel) {
+          function(sCVd,inD,storeAllDE=TRUE,UseBiocParallel=FALSE) {
             if (!is(inD)[1] %in% findMethodSignatures(getExpr)) {
               stop(paste("The input data object must be one of:",
                          paste(findMethodSignatures(getExpr),collapse=", "),
@@ -1155,7 +1155,7 @@ setGeneric("CalcDEcombn",function(sCVd,inD,storeAllDE,UseBiocParallel)
 #' @export
 
 setMethod("CalcDEcombn","sCVdata",
-          function(sCVd,inD,storeAllDE,UseBiocParallel) {
+          function(sCVd,inD,storeAllDE=TRUE,UseBiocParallel=FALSE) {
             if (!is(inD)[1] %in% findMethodSignatures(getExpr)) {
               stop(paste("The input data object must be one of:",
                          paste(findMethodSignatures(getExpr),collapse=", "),

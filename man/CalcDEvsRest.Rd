@@ -8,7 +8,8 @@
 \usage{
 CalcDEvsRest(sCVd, inD, storeAllDE, UseBiocParallel)
 
-\S4method{CalcDEvsRest}{sCVdata}(sCVd, inD, storeAllDE, UseBiocParallel)
+\S4method{CalcDEvsRest}{sCVdata}(sCVd, inD, storeAllDE = TRUE,
+  UseBiocParallel = FALSE)
 }
 \arguments{
 \item{sCVd}{An sCVdata object.}

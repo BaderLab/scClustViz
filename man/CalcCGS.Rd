@@ -8,7 +8,7 @@
 \usage{
 CalcCGS(sCVd, inD, UseBiocParallel)
 
-\S4method{CalcCGS}{sCVdata}(sCVd, inD, UseBiocParallel)
+\S4method{CalcCGS}{sCVdata}(sCVd, inD, UseBiocParallel = FALSE)
 }
 \arguments{
 \item{sCVd}{An sCVdata object.}

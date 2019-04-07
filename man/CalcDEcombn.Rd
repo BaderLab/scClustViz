@@ -8,7 +8,8 @@
 \usage{
 CalcDEcombn(sCVd, inD, storeAllDE, UseBiocParallel)
 
-\S4method{CalcDEcombn}{sCVdata}(sCVd, inD, storeAllDE, UseBiocParallel)
+\S4method{CalcDEcombn}{sCVdata}(sCVd, inD, storeAllDE = TRUE,
+  UseBiocParallel = FALSE)
 }
 \arguments{
 \item{sCVd}{An sCVdata object.}

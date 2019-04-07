@@ -1197,7 +1197,7 @@ runShiny <- function(filePath,outPath,
     
     output$heatDEtype <- renderUI({
       if (length(res()) > 0) {
-        if (grepl("^Comp",res())) {
+        if (grepl("^Comp:",res())) {
           temp <- list("DE vs rest"="DEvsRest",
                        "Set A vs Set B"="DEmarker")
         } else {
@@ -1661,7 +1661,7 @@ runShiny <- function(filePath,outPath,
                                      attr(Clusters(d$SCV[[res()]]),"ClusterNames"),
                                      sep=": "))
         temp_sel <- selClust()
-        if (grepl("^Comp:",res())) { temp_sel <- "Set A" }
+        if (grepl("^Comp:",res())) { temp_sel <- grep("Set A",temp_cl,value=T) }
         selectInput("ssA",label="Cluster A (A-B comparison)",
                     choices=temp_cl,selected=temp_sel)
       }
@@ -1673,7 +1673,7 @@ runShiny <- function(filePath,outPath,
                                      attr(Clusters(d$SCV[[res()]]),"ClusterNames"),
                                      sep=": "))
         temp_sel <- DEdistNN(DEdist(d$SCV[[res()]]))[selClust()]
-        if (grepl("^Comp:",res())) { temp_sel <- "Set B" }
+        if (grepl("^Comp:",res())) { temp_sel <- grep("Set B",temp_cl,value=T) }
         selectInput("ssB",label="Cluster B (A-B comparison)",
                     choices=temp_cl,selected=temp_sel)
       }

@@ -304,7 +304,7 @@ plot_tsne <- function(cell_coord,md,md_title,md_log=F,label=NULL,
   } else if (is.factor(md) | is.character(md)) {
     legend(x=par("usr")[2],y=par("usr")[4],
            xjust=1,yjust=0.2,xpd=NA,bty="n",
-           ncol=switch(as.character(length(levels(md)) < 4),"TRUE"=length(levels(md)),"FALSE"=4),
+           ncol=switch(as.character(length(levels(id)) < 4),"TRUE"=length(levels(id)),"FALSE"=4),
            legend=levels(id),pch=21,col=idcol,pt.bg=alpha(idcol,0.5))
     mtext(md_title,side=3,adj=0,font=2,line=ceiling(length(levels(id))/4)-1,cex=1.2)
   } else {
