@@ -179,7 +179,8 @@ Then run the scClustViz Shiny app to view your dataset of choice!
 There's a wrapper function in the MouseCortex package that handles the call to scClustViz, so it's nice and simple. 
 If you're interested, `?runShiny` has example code showing the function call used by the wrapper function.
 ```r
-MouseCortex::viewMouseCortex("e13")
+library(MouseCortex)
+viewMouseCortex("e13")
 ```
 
 ## Human Liver Atlas
@@ -203,7 +204,8 @@ Then run the scClustViz Shiny app to view your dataset of choice!
 There's a wrapper function in the MouseCortex package that handles the call to scClustViz, so it's nice and simple. 
 If you're interested, `?runShiny` has example code showing the function call used by the wrapper function.
 ```r
-HumanLiver::viewHumanLiver()
+library(HumanLiver)
+viewHumanLiver()
 ```
 
 ## Make Your Own Data Package!
@@ -296,7 +298,8 @@ git push -u origin master
 Now all you need to do is edit the README file to tell the world how to install and run your package:
 ```r
 devtools::install_github("YourGithubAccount/MyDataPackage")
-MyDataPackage::viewMyData()
+library(MyDataPackage)
+viewMyData()
 ```
 
 
