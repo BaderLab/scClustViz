@@ -29,7 +29,7 @@ NULL
 #'   dataset. Variables (columns) are cluster solutions with different
 #'   parameters, and rows should correspond to cells of the input gene
 #'   expression matrix.
-#' @param assayType Default = NULL (for Seurat v1/2). A length-one character
+#' @param assayType Default = "" (for Seurat v1/2). A length-one character
 #'   vector representing the assay slot in which the expression data is stored
 #'   in the input object. This is not required for Seurat v1 or v2 objects. See
 #'   \code{\link{getExpr}} for details.
@@ -117,7 +117,6 @@ NULL
 #'
 #' sCVdata_list <- CalcAllSCV(inD=your_scRNAseq_data_object,
 #'                            clusterDF=your_cluster_results,
-#'                            assayData=NULL,
 #'                            DRforClust="pca",
 #'                            exponent=exp(1),
 #'                            pseudocount=1,
@@ -255,7 +254,7 @@ CalcAllSCV <- function(inD,
 #'   for other data objects here!}
 #' @param cl a factor where each value is the cluster assignment for a cell
 #'   (column) in the input gene expression matrix.
-#' @param assayType Default = NULL (for Seurat v1/2). A length-one character
+#' @param assayType Default = "" (for Seurat v1/2). A length-one character
 #'   vector representing the assay slot in which the expression data is stored
 #'   in the input object. This is not required for Seurat v1 or v2 objects. See
 #'   \code{\link{getExpr}} for details.
@@ -336,7 +335,6 @@ CalcAllSCV <- function(inD,
 #'
 #'   curr_sCVdata <- CalcSCV(inD=your_seurat_obj,
 #'                           cl=your_seurat_obj@ident,
-#'                           assayType=NULL,
 #'                           DRforClust="pca",
 #'                           exponent=exp(1),
 #'                           pseudocount=1,
