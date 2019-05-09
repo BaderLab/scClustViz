@@ -49,7 +49,7 @@ your_cluster_results <- getMD(
 sCVdata_list <- CalcAllSCV(
   inD=your_scRNAseq_data_object,
   clusterDF=your_cluster_results,
-  assayData=NULL, #specify assay slot of data
+  assayType=NULL, #specify assay slot of data
   DRforClust="pca",#reduced dimensions for silhouette calc
   exponent=exp(1), #log base of normalized data
   pseudocount=1,
@@ -123,7 +123,7 @@ while(DE_bw_clust) {
   curr_sCVdata <- CalcSCV(
     inD=your_seurat_obj,
     cl=your_seurat_obj@ident, #factor containing cluster assignments
-    assayData=NULL, #specify assay slot of data
+    assayType=NULL, #specify assay slot of data
     DRforClust="pca", #reduced dimensions for silhouette calc
     exponent=exp(1), #log base of normalized data
     pseudocount=1,
