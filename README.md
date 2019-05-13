@@ -133,7 +133,7 @@ while(DE_bw_clust) {
     calcDEcombn=T
   )
 
-  DE_bw_NN <- sapply(DEneighb(curr_sCVdata,0.05),length)
+  DE_bw_NN <- sapply(DEneighb(curr_sCVdata,0.05),nrow)
   # ^ counts # of DE genes between neighbouring clusters at 5% FDR
 
   if (min(DE_bw_NN) < 1) { DE_bw_clust <- FALSE }
