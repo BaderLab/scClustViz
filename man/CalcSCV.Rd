@@ -18,7 +18,7 @@ for other data objects here!}}
 \item{cl}{a factor where each value is the cluster assignment for a cell
 (column) in the input gene expression matrix.}
 
-\item{assayType}{Default = NULL (for Seurat v1/2). A length-one character
+\item{assayType}{Default = "" (for Seurat v1/2). A length-one character
 vector representing the assay slot in which the expression data is stored
 in the input object. This is not required for Seurat v1 or v2 objects. See
 \code{\link{getExpr}} for details.}
@@ -127,7 +127,6 @@ while(DE_bw_clust) {
 
   curr_sCVdata <- CalcSCV(inD=your_seurat_obj,
                           cl=your_seurat_obj@ident,
-                          assayType=NULL,
                           DRforClust="pca",
                           exponent=exp(1),
                           pseudocount=1,

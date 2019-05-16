@@ -21,7 +21,7 @@ dataset. Variables (columns) are cluster solutions with different
 parameters, and rows should correspond to cells of the input gene
 expression matrix.}
 
-\item{assayType}{Default = NULL (for Seurat v1/2). A length-one character
+\item{assayType}{Default = "" (for Seurat v1/2). A length-one character
 vector representing the assay slot in which the expression data is stored
 in the input object. This is not required for Seurat v1 or v2 objects. See
 \code{\link{getExpr}} for details.}
@@ -139,7 +139,6 @@ your_cluster_results <- getMD(your_scRNAseq_data_object)[your_cluster_columns]
 
 sCVdata_list <- CalcAllSCV(inD=your_scRNAseq_data_object,
                            clusterDF=your_cluster_results,
-                           assayData=NULL,
                            DRforClust="pca",
                            exponent=exp(1),
                            pseudocount=1,

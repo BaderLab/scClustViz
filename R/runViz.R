@@ -251,28 +251,6 @@ runShiny <- function(filePath,outPath,
   }
   
   # ^^ Cell type annotation from cellMarkers ----------
-  if (missing(cellMarkers)) { cellMarkers <- list() }
-  if (!is.list(cellMarkers)) {
-    stop("cellMarkers must be a list where each entry is named for a cell type",
-         "and is a character vector of gene names for cell type markers.")
-  }
-  if (length(cellMarkers) < 1) {
-    cellMarkersS <- cellMarkersU <- list()
-  } else {
-    cellMarkersS <- apply(combn(seq_along(cellMarkers),2),2,
-                          function(X) do.call(intersect,unname(cellMarkers[X])))
-    try(names(cellMarkersS) <- apply(combn(seq_along(cellMarkers),2),2,
-                                     function(X) paste(X,collapse="&")),silent=T)
-    cellMarkersS <- cellMarkersS[sapply(cellMarkersS,length) > 0]
-    cellMarkersU <- lapply(cellMarkers,function(X) X[!X %in% unlist(cellMarkersS)])
-  }
-  
-  sCVdL <- sapply(sCVdL,
-                  FUN=addCellMarkersToCGS,
-                  cellMarkersU=cellMarkersU,
-                  cellMarkersS=cellMarkersS,
-                  symbolMap=symbolMap,
-                  simplify=F)
   sCVdL <- sapply(sCVdL,
                   FUN=labelCellTypes,
                   cellMarkers=cellMarkers,

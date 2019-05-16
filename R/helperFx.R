@@ -201,15 +201,46 @@ addCellMarkersToCGS <- function(sCV,cellMarkersU,cellMarkersS,symbolMap) {
 #' @param sCV An object of class \code{sCVdata}.
 #' @param cellMarkers The \code{cellMarkers} argument from
 #'   \code{\link{runShiny}}. A list of marker genes for expected cell types.
-#' @param symbolMap The output of \code{\link{map2symbol}}.
+#' @param symbolMap Default=NULL. The output of \code{\link{map2symbol}}. If the
+#'   rownames (gene identifiers) of your input data object match the gene
+#'   identifiers used in your \code{cellMarkers} list, you can leave this as
+#'   \code{NULL}, since no gene identifier mapping needs to be performed.
 #'
 #' @return Returns the sCVdata object with an added attribute
 #'   '\code{ClusterNames}' to \code{Clusters(sCV)} containing the assigned cell
-#'   type names for each cluster.
-#' 
+#'   type names for each cluster. Also adds four new variables to
+#'   \code{ClustGeneStats(sCV)}: Official gene symbols are added as variable
+#'   \code{genes}. The remaining variables are used in
+#'   \code{\link{plot_clusterGenes_markers}} to plot cell type marker genes in
+#'   the Shiny app (see \code{\link{runShiny}}). Variables \code{cMu} and
+#'   \code{cMs} are logical vectors indicating genes that are unique to and
+#'   shared across cell type markers respectively. Variable \code{overCut}
+#'   indicates which genes should be labelled in the plot.
+#'
 #' @export
 
-labelCellTypes <- function(sCV,cellMarkers,symbolMap) {
+labelCellTypes <- function(sCV,cellMarkers,symbolMap=NULL) {
+  if (missing(cellMarkers)) { cellMarkers <- list() }
+  if (!is.list(cellMarkers)) {
+    stop("cellMarkers must be a list where each entry is named for a cell type",
+         "and is a character vector of gene names for cell type markers.")
+  }
+  if (length(cellMarkers) < 1) {
+    cellMarkersS <- cellMarkersU <- list()
+  } else {
+    cellMarkersS <- apply(combn(seq_along(cellMarkers),2),2,
+                          function(X) do.call(intersect,unname(cellMarkers[X])))
+    try(names(cellMarkersS) <- apply(combn(seq_along(cellMarkers),2),2,
+                                     function(X) paste(X,collapse="&")),silent=T)
+    cellMarkersS <- cellMarkersS[sapply(cellMarkersS,length) > 0]
+    cellMarkersU <- lapply(cellMarkers,function(X) X[!X %in% unlist(cellMarkersS)])
+  }
+  
+  sCV <- addCellMarkersToCGS(sCV=sCV,
+                             cellMarkersU=cellMarkersU,
+                             cellMarkersS=cellMarkersS,
+                             symbolMap=symbolMap)
+  
   if (length(cellMarkers) < 1) {
     attr(Clusters(sCV),"ClusterNames") <- vapply(ClustGeneStats(sCV),
                                                  FUN.VALUE=character(1),
