@@ -23,7 +23,8 @@ solution, saving custom set DE testing results) will be saved/loaded in
 cell types, list them here (see example code below). Note that the gene
 names must match rownames of your data (ie. use ensembl IDs if your gene
 expression matrix rownames are ensembl IDs). The Shiny app will attempt to
-label clusters in the tSNE projection by highest median gene expression.}
+label clusters in the tSNE projection by highest median gene expression.
+See \code{\link{labelCellTypes}} for more information.}
 
 \item{annotationDB}{Optional. An AnnotationDbi object for your data's species
 (ie. \code{\link[org.Mm.eg.db]{org.Mm.eg.db}} /

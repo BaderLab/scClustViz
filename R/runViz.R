@@ -16,6 +16,7 @@
 #'   names must match rownames of your data (ie. use ensembl IDs if your gene
 #'   expression matrix rownames are ensembl IDs). The Shiny app will attempt to
 #'   label clusters in the tSNE projection by highest median gene expression.
+#'   See \code{\link{labelCellTypes}} for more information.
 #' @param annotationDB Optional. An AnnotationDbi object for your data's species
 #'   (ie. \code{\link[org.Mm.eg.db]{org.Mm.eg.db}} /
 #'   \code{\link[org.Hs.eg.db]{org.Hs.eg.db}} for mouse / human respectively).
@@ -1341,8 +1342,7 @@ runShiny <- function(filePath,outPath,
         switch(input$cgLegend,
                markers=plot_clusterGenes_markers(sCVd=d$SCV[[res()]],
                                                  selClust=selClust(),
-                                                 cellMarkersS=cellMarkersS,
-                                                 cellMarkersU=cellMarkersU),
+                                                 cellMarkers=cellMarkers),
                heatmap=plot_clusterGenes_DEgenes(sCVd=d$SCV[[res()]],
                                                  selClust=selClust(),
                                                  DEgenes=DEgenes(),

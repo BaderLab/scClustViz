@@ -826,13 +826,8 @@ singleDot <- function(col1){
 #'   displayed. If \code{\link{labelCellTypes}} has been run, pass the
 #'   appropriate element of \code{attr(Clusters(sCV),"ClusterNames")} to this
 #'   argument to show both cluster number and cell type label in the legend.
-#' @param cellMarkersU Derived from the \code{cellMarkers} argument to
-#'   \code{\link{runShiny}}. A list of the unique gene symbols for each cell
-#'   type in \code{cellMarkers}.
-#' @param cellMarkersS Derived from the \code{cellMarkers} argument to
-#'   \code{\link{runShiny}}. A list of the gene symbols common to two or more
-#'   cell types in \code{cellMarkers}. Each entry is named for the indicies of
-#'   \code{cellMarkers} that share the gene.
+#' @param cellMarkers The \code{cellMarkers} argument from
+#'   \code{\link{runShiny}}. A list of marker genes for expected cell types.
 #'
 #' @examples
 #' \dontrun{
@@ -847,28 +842,31 @@ singleDot <- function(col1){
 #'                                                  "Cux1","Cux2","Tubb3",
 #'                                                  "Rbfox3","Dcx")
 #'                           )
-#' cellMarkersS <- apply(combn(seq_along(cellMarkers),2),2,
-#'                       function(X) do.call(intersect,unname(cellMarkers[X])))
-#' try(names(cellMarkersS) <- apply(combn(seq_along(cellMarkers),2),2,
-#'                                  function(X) paste(X,collapse="&")),silent=T)
-#' cellMarkersS <- cellMarkersS[sapply(cellMarkersS,length) > 0]
-#' cellMarkersU <- lapply(cellMarkers,function(X) X[!X %in% unlist(cellMarkersS)])
-#' sCVdata <- addCellMarkersToCGS(sCVdata,
-#'                                cellMarkersU=cellMarkersU,
-#'                                cellMarkersS=cellMarkersS,
-#'                                symbolMap=NULL)
+#' sCVdata <- labelCellTypes(sCVdata,
+#'                           cellMarkers=cellMarkers,
+#'                           symbolMap=NULL)
 #' 
 #' pdf("filepath.pdf",width=12,height=7)
 #' plot_clusterGenes_markers(sCVd=sCVdata,
 #'                           selClust="1",
-#'                           cellMarkersS=cellMarkersS
-#'                           cellMarkersU=cellMarkersU)
+#'                           cellMarkers=cellMarkers)
 #' dev.off()
 #' }
 #'
 #' @export
 
-plot_clusterGenes_markers <- function(sCVd,selClust,cellMarkersS,cellMarkersU) {
+plot_clusterGenes_markers <- function(sCVd,selClust,cellMarkers) {
+  if (length(cellMarkers) < 1) {
+    cellMarkersS <- cellMarkersU <- list()
+  } else {
+    cellMarkersS <- apply(combn(seq_along(cellMarkers),2),2,
+                          function(X) do.call(intersect,unname(cellMarkers[X])))
+    try(names(cellMarkersS) <- apply(combn(seq_along(cellMarkers),2),2,
+                                     function(X) paste(X,collapse="&")),silent=T)
+    cellMarkersS <- cellMarkersS[sapply(cellMarkersS,length) > 0]
+    cellMarkersU <- lapply(cellMarkers,function(X) X[!X %in% unlist(cellMarkersS)])
+  }
+  
   cellMarkCols <- rainbow2(length(cellMarkersU))
   par(mar=c(3,3,3,20),mgp=2:0)
   if (selClust == "") {

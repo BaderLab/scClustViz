@@ -20,7 +20,8 @@ identifiers used in your \code{cellMarkers} list, you can leave this as
 \value{
 Returns the sCVdata object with an added attribute
   '\code{ClusterNames}' to \code{Clusters(sCV)} containing the assigned cell
-  type names for each cluster. Also adds four new variables to
+  type names for each cluster. Stores the \code{cellMarkers} list as an
+  attribute in \code{Clusters(sCV)}. Also adds four new variables to
   \code{ClustGeneStats(sCV)}: Official gene symbols are added as variable
   \code{genes}. The remaining variables are used in
   \code{\link{plot_clusterGenes_markers}} to plot cell type marker genes in
