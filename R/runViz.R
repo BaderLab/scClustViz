@@ -102,7 +102,8 @@
 #' 
 
 runShiny <- function(filePath,outPath,
-                     cellMarkers,annotationDB,rownameKeytype,
+                     cellMarkers=list(),
+                     annotationDB,rownameKeytype,
                      imageFileType="pdf",...) {
   
   # ^ Load data from file ------------------------------------------------------------------

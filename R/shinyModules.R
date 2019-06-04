@@ -270,7 +270,7 @@ plot_tsne <- function(cell_coord,md,md_title,md_log=F,label=NULL,
   }
   if (missing(sel_cells)) { sel_cells <- character() }
   
-  plot(x=NULL,y=NULL,xlab="tSNE_1",ylab="tSNE_2",
+  plot(x=NULL,y=NULL,xlab=colnames(cell_coord)[1],ylab=colnames(cell_coord)[2],
        xlim=range(cell_coord[,1]),ylim=range(cell_coord[,2]))
   if (length(sel_cells) > 0) {
     points(cell_coord[!rownames(cell_coord) %in% sel_cells,],pch=21,
