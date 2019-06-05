@@ -13,8 +13,11 @@ columns are the x and y dimensions of the cell embedding.}
 
 \item{md}{The overlay information. Either a factor or numeric vector matching
 the rows (cells) of the \code{cell_coord} matrix. If this is a factor, the
-cells will be coloured by the factor levels. If a numeric vector, the cells
-will be coloured using the \code{\link[viridis]{viridis}} colourscale.}
+cells will be coloured by the factor levels. If a positive numeric vector,
+the cells will be coloured using the Viridis sequential colourscale
+implemented in \code{\link[colorspace]{sequential_hcl}}. Otherwise a
+diverging red-blue colourscale from \code{\link[colorspace]{diverging_hcl}}
+will be used.}
 
 \item{md_title}{NULL or a character vector of one. If NULL, \code{md} is
 assumed to be cluster assignments. Otherwise this should be the title of

@@ -139,7 +139,8 @@ plot_sil <- function(sCVd) {
   par(mar=c(4.5,.5,1.5,1.5),mgp=2:0)
   plot(Silhouette(sCVd),
        beside=T,border=NA,main=NA,
-       col=rainbow2(length(levels(Clusters(sCVd)))),
+       col=colorspace::qualitative_hcl(length(levels(Clusters(sCVd))),
+                                       palette="Dark 3"),
        do.n.k=T)
 }
 
@@ -195,8 +196,11 @@ tsne_labels <- function(sCVd,cell_coord,lab_type) {
 #'   columns are the x and y dimensions of the cell embedding.
 #' @param md The overlay information. Either a factor or numeric vector matching
 #'   the rows (cells) of the \code{cell_coord} matrix. If this is a factor, the
-#'   cells will be coloured by the factor levels. If a numeric vector, the cells
-#'   will be coloured using the \code{\link[viridis]{viridis}} colourscale.
+#'   cells will be coloured by the factor levels. If a positive numeric vector,
+#'   the cells will be coloured using the Viridis sequential colourscale
+#'   implemented in \code{\link[colorspace]{sequential_hcl}}. Otherwise a
+#'   diverging red-blue colourscale from \code{\link[colorspace]{diverging_hcl}}
+#'   will be used.
 #' @param md_title NULL or a character vector of one. If NULL, \code{md} is
 #'   assumed to be cluster assignments. Otherwise this should be the title of
 #'   the overlay represented by \code{md}.
@@ -212,7 +216,7 @@ tsne_labels <- function(sCVd,cell_coord,lab_type) {
 #'   when building manual cell set comparisons, in conjunction with
 #'   \code{sel_cells_B}.
 #' @param sel_cells_B Optional. See \code{sel_cells_A}.
-#' 
+#'
 #' @examples
 #' \dontrun{
 #' # Cluster overlay:
@@ -244,7 +248,8 @@ plot_tsne <- function(cell_coord,md,md_title,md_log=F,label=NULL,
                       sel_cells,sel_cells_A,sel_cells_B) {
   if (is.null(md_title)) {
     id <- as.factor(md)
-    idcol <- rainbow2(length(levels(id)))
+    idcol <- colorspace::qualitative_hcl(length(levels(id)),
+                                         palette="Dark 3")
     if (any(is.na(id))) {
       levels(id) <- c(levels(id),"Unselected")
       id[is.na(id)] <- "Unselected"
@@ -253,19 +258,26 @@ plot_tsne <- function(cell_coord,md,md_title,md_log=F,label=NULL,
     par(mar=c(3,3,2.5,1),mgp=2:0)
   } else if (is.factor(md) | is.character(md)) {
     id <- as.factor(md)
-    if (length(levels(id)) <= 8) {
-      idcol <- RColorBrewer::brewer.pal(length(levels(id)),"Dark2")[1:length(levels(id))]
-    } else {
-      idcol <- rainbow2(length(levels(id)))
-    }
+    idcol <- colorspace::qualitative_hcl(length(levels(id)),palette="Dark 3")
     par(mar=c(3,3,ceiling(length(levels(id))/4)+1,1),mgp=2:0)
-  } else {
+  } else if (any(md < 0)) {
+    if (md_log) {
+      warning("Can't log-scale md because it contains negative values.")
+    }
+    temp_down <- cut(c(0,md[md <= 0]),50,labels=F)[-1]
+    temp_up <- cut(c(0,md[md > 0]),50,labels=F)[-1]
+    id <- rep(NA,length(md))
+    id[md <= 0] <- temp_down
+    id[md > 0] <- temp_up + 50
+    idcol <- colorspace::diverge_hcl(100,palette="Blue-Red")
+    par(mar=c(3,3,2.5,1),mgp=2:0)
+  } else{
     if (md_log) {
       id <- cut(log10(md),100)
     } else {
       id <- cut(md,100)
     }
-    idcol <- viridis::viridis(100,d=-1)
+    idcol <- colorspace::sequential_hcl(100,palette="Viridis",rev=T)
     par(mar=c(3,3,2.5,1),mgp=2:0)
   }
   if (missing(sel_cells)) { sel_cells <- character() }
@@ -307,6 +319,33 @@ plot_tsne <- function(cell_coord,md,md_title,md_log=F,label=NULL,
            ncol=switch(as.character(length(levels(id)) < 4),"TRUE"=length(levels(id)),"FALSE"=4),
            legend=levels(id),pch=21,col=idcol,pt.bg=alpha(idcol,0.5))
     mtext(md_title,side=3,adj=0,font=2,line=ceiling(length(levels(id))/4)-1,cex=1.2)
+  } else if (any(md < 0)) {
+    temp_x <- c(
+      seq(from=par("usr")[1] + (par("usr")[2] - par("usr")[1]) * .15,
+          to=par("usr")[1] + (par("usr")[2] - par("usr")[1]) / 2 - strwidth("0"),
+          length.out=51),
+      seq(from=par("usr")[2] - (par("usr")[2] - par("usr")[1]) / 2 + strwidth("0"),
+          to=par("usr")[2] - (par("usr")[2] - par("usr")[1]) * .15,
+          length.out=51)
+    )
+    for (i in 1:50) {
+      rect(xleft=temp_x[i],xright=temp_x[i+1],
+           ybottom=par("usr")[4] + (par("usr")[4] - par("usr")[3]) * .001,
+           ytop=par("usr")[4] + strheight(md_title),
+           col=idcol[i],border=NA,xpd=NA)
+    }
+    for (i in 52:102) {
+      rect(xleft=temp_x[i],xright=temp_x[i+1],
+           ybottom=par("usr")[4] + (par("usr")[4] - par("usr")[3]) * .001,
+           ytop=par("usr")[4] + strheight(md_title),
+           col=idcol[i-1],border=NA,xpd=NA)
+    }
+    mtext(round(min(md),2),side=3,line=0,at=temp_x[1],adj=1.1)
+    mtext(round(max(md),2),side=3,line=0,at=temp_x[102],adj=-0.1)
+    mtext(0,side=3,line=0,adj=.5,
+          at=par("usr")[1] + (par("usr")[2] - par("usr")[1]) / 2)
+    mtext(md_title,side=3,line=1,adj=.5,font=2,cex=1.2,
+          at=par("usr")[1] + (par("usr")[2] - par("usr")[1]) / 2)
   } else {
     if (md_log) { md_title <- paste(md_title,"(log scale)") } 
     temp_x <- seq(from=par("usr")[1] + (par("usr")[2] - par("usr")[1]) * .15,
@@ -495,11 +534,7 @@ plot_mdBarplot <- function(MD,opt) {
   idylab <- switch(opt,
                    "relative"="Proportion of cells per cluster",
                    "absolute"="Number of cells per cluster")
-  if (length(levels(id0)) <= 8) {
-    idcol <- RColorBrewer::brewer.pal(length(levels(id0)),"Dark2")[1:length(levels(id0))]
-  } else {
-    idcol <- rainbow2(length(levels(id0)))
-  }
+  idcol <- colorspace::qualitative_hcl(length(levels(id0)),palette="Dark 3")
   par(mar=c(3,3,ceiling(length(levels(id0))/4)+.5,1),mgp=2:0,cex=1.1)
   barplot(id,col=idcol,ylab=idylab,xlab="Clusters",yaxt="n",mgp=c(2,0,0),
           legend.text=levels(id0),font=2,
@@ -507,8 +542,8 @@ plot_mdBarplot <- function(MD,opt) {
                            xjust=1,yjust=0.2,xpd=NA,ncol=4,bty="n"))
   axis(2)
   barplot(rep(par("usr")[3]*4.6,length(levels(MD$cl))),add=T,
-          col=alpha(rainbow2(length(levels(MD$cl))),0.5),
-          border=alpha(rainbow2(length(levels(MD$cl))),0.5))
+          col=colorspace::qualitative_hcl(length(levels(MD$cl)),palette="Dark 3",alpha=.5),
+          border=colorspace::qualitative_hcl(length(levels(MD$cl)),palette="Dark 3",alpha=.5))
   abline(h=0)
   mtext(names(MD)[1],side=3,adj=0,font=2,line=ceiling(length(levels(id0))/4)-.8,cex=1.2)
   par(temp_par)
@@ -519,8 +554,8 @@ plot_mdBoxplot <- function(MD,opt) {
   par(mar=c(3,3,2,1),mgp=2:0,cex=1.1)
   boxplot(tapply(MD[,1],MD$cl,c),log=opt,
           ylab=names(MD)[1],xlab="Clusters",
-          border=rainbow2(length(levels(MD$cl))),
-          col=alpha(rainbow2(length(levels(MD$cl))),0.3))
+          border=colorspace::qualitative_hcl(length(levels(MD$cl)),palette="Dark 3"),
+          col=colorspace::qualitative_hcl(length(levels(MD$cl)),palette="Dark 3",alpha=.3))
   par(temp_par)
 }
 
@@ -686,7 +721,7 @@ plot_deDotplot <- function(sCVd,DEgenes,DEnum) {
   # } else {
   #    hC <- hclust(dist(t(temp_DR)))
   #  }  
-  clustCols <- rainbow2(length(levels(Clusters(sCVd))))
+  clustCols <- colorspace::qualitative_hcl(length(levels(Clusters(sCVd))),palette="Dark 3")
   
   dC <- dendrapply(as.dendrogram(hC),function(X) {
     if (is.leaf(X)) {
@@ -744,8 +779,8 @@ plot_deDotplot <- function(sCVd,DEgenes,DEnum) {
     symbols(x=rep(1:nrow(DR),ncol(DR)),
             y=as.vector(sapply(1:ncol(DR),function(X) rep(X,nrow(DR)))),
             circles=as.vector(DR)/2,inches=F,add=T,xpd=NA,
-            fg=viridis::viridis(100,d=-1)[MDGE],
-            bg=viridis::viridis(100,d=-1)[MDGE])
+            fg=colorspace::sequential_hcl(100,palette="Viridis",rev=T)[MDGE],
+            bg=colorspace::sequential_hcl(100,palette="Viridis",rev=T)[MDGE])
     axis(side=1,at=1:nrow(DR),lwd=0,labels=tempLabCol[hG$order],las=2,cex.axis=1.2)
     
     # Legend:
@@ -755,7 +790,7 @@ plot_deDotplot <- function(sCVd,DEgenes,DEnum) {
     ty <- par("usr")[4] - par("usr")[3]
     segments(x0=tx0 - seq(.15,.03,length.out=1000) * tx,
              y0=ty0 - 0.02 * ty,y1=ty0 - 0.05 * ty,
-             col=viridis::viridis(1000,d=-1),xpd=NA)
+             col=colorspace::sequential_hcl(1000,palette="Viridis",rev=T),xpd=NA)
     text(x=tx0 - c(.15,.09,.03) * tx,
          y=ty0 - c(0.035,0.02,0.035) * ty,
          labels=c(round(min(temp_MDGE),2),
@@ -867,7 +902,7 @@ plot_clusterGenes_markers <- function(sCVd,selClust,cellMarkers) {
     cellMarkersU <- lapply(cellMarkers,function(X) X[!X %in% unlist(cellMarkersS)])
   }
   
-  cellMarkCols <- rainbow2(length(cellMarkersU))
+  cellMarkCols <- colorspace::qualitative_hcl(length(cellMarkersU),palette="Dark 3")
   par(mar=c(3,3,3,20),mgp=2:0)
   if (selClust == "") {
     plot(x=NA,y=NA,xlim=0:1,ylim=0:1,xaxt="n",yaxt="n",xlab=NA,ylab=NA)
@@ -888,7 +923,7 @@ plot_clusterGenes_markers <- function(sCVd,selClust,cellMarkers) {
     title(paste0("Cluster ", selClust,": ",attr(Clusters(sCVd),"ClusterNames")[selClust]),cex=1.2)
     mtext(paste("Cells:",sum(Clusters(sCVd) == selClust),
                 "   Genes detected:",sum(CGS$DR > 0)),side=3,line=0,cex=0.9)
-    box(col=rainbow2(length(levels(Clusters(sCVd))))[selClust],lwd=2)
+    box(col=colorspace::qualitative_hcl(length(levels(Clusters(sCVd))),palette="Dark 3")[selClust],lwd=2)
     for (x in which(CGS$cMu)) {
       TeachingDemos::my.symbols(x=CGS$DR[x],y=CGS$MDGE[x],
                                 symb=singleDot,inches=0.1,
@@ -991,7 +1026,7 @@ plot_clusterGenes_DEgenes <- function(sCVd,selClust,DEgenes,DEnum,DEtype) {
     title(paste0("Cluster ", selClust,": ",attr(Clusters(sCVd),"ClusterNames")[selClust]),cex=1.2)
     mtext(paste("Cells:",sum(Clusters(sCVd) == selClust),
                 "   Genes detected:",sum(CGS$DR > 0)),side=3,line=0,cex=0.9)
-    box(col=rainbow2(length(levels(Clusters(sCVd))))[selClust],lwd=2)
+    box(col=colorspace::qualitative_hcl(length(levels(Clusters(sCVd))),palette="Dark 3")[selClust],lwd=2)
     if (length(DEgenes[[selClust]]) > 0) {
       DEG <- names(DEgenes[[selClust]])[1:DEnum]
       DEG <- DEG[!is.na(DEG)]
@@ -1076,7 +1111,7 @@ plot_clusterGenes_search <- function(sCVd,selClust,GOI) {
     title(paste0("Cluster ", selClust,": ",attr(Clusters(sCVd),"ClusterNames")[selClust]),cex=1.2)
     mtext(paste("Cells:",sum(Clusters(sCVd) == selClust),
                 "   Genes detected:",sum(CGS$DR > 0)),side=3,line=0,cex=0.9)
-    box(col=rainbow2(length(levels(Clusters(sCVd))))[selClust],lwd=2)
+    box(col=colorspace::qualitative_hcl(length(levels(Clusters(sCVd))),palette="Dark 3")[selClust],lwd=2)
     GOI <- GOI[GOI %in% CGS$genes]
     if (length(GOI) > 0) {
       points(x=CGS[GOI,"DR"],y=CGS[GOI,"MDGE"],
@@ -1179,9 +1214,9 @@ plot_GEboxplot <- function(nge,sCVd,gene,geneName,opts=c("sct","dr")) {
     temp_pos <- switch(as.character(length(levels(Clusters(sCVd))) > 1),
                        "TRUE"=hC$order,"FALSE"=1)
     if ("sct" %in% opts) {
-      bxpCol <- rainbow2(length(levels(Clusters(sCVd))),.2)
+      bxpCol <- colorspace::qualitative_hcl(length(levels(Clusters(sCVd))),palette="Dark 3",alpha=.2)
     } else {
-      bxpCol <- rainbow2(length(levels(Clusters(sCVd))),.8)
+      bxpCol <- colorspace::qualitative_hcl(length(levels(Clusters(sCVd))),palette="Dark 3",alpha=.8)
     }
     
     # ^ plot boxplot -----
@@ -1210,7 +1245,9 @@ plot_GEboxplot <- function(nge,sCVd,gene,geneName,opts=c("sct","dr")) {
                           sum(Clusters(sCVd) %in% levels(Clusters(sCVd))[i])),
                       amount=.2),
                nge[gene,Clusters(sCVd) %in% levels(Clusters(sCVd))[i]],
-               pch=20,col=rainbow2(length(levels(Clusters(sCVd))),.4)[i])
+               pch=20,col=colorspace::qualitative_hcl(length(levels(Clusters(sCVd))),
+                                                      palette="Dark 3",
+                                                      alpha=.4)[i])
       }
     }
     if ("dr" %in% opts) {
@@ -1297,9 +1334,11 @@ plot_compareClusts_MAplot <- function(sCVd,clA,clB,dataType,labType,labNum,labGe
        pch=20,col=alpha("black",0.3))
   abline(v=0,col="gray50")
   lines(x=c(par("usr")[2],par("usr")[2]),y=c(par("usr")[3],par("usr")[4]),lwd=2,xpd=NA,
-        col=rainbow2(length(levels(Clusters(sCVd))))[which(levels(Clusters(sCVd)) == clA)])
+        col=colorspace::qualitative_hcl(length(levels(Clusters(sCVd))),
+                                        palette="Dark 3")[which(levels(Clusters(sCVd)) == clA)])
   lines(x=c(par("usr")[1],par("usr")[1]),y=c(par("usr")[3],par("usr")[4]),xpd=NA,lwd=2,
-        col=rainbow2(length(levels(Clusters(sCVd))))[which(levels(Clusters(sCVd)) == clB)])
+        col=colorspace::qualitative_hcl(length(levels(Clusters(sCVd))),
+                                        palette="Dark 3")[which(levels(Clusters(sCVd)) == clB)])
   if (labType == "search") {
     if (length(labGenes) > 0) {
       points(y_mean~x_diff,data=CGS[labGenes,],pch=16,col=alpha("firebrick2",0.8))
@@ -1309,21 +1348,29 @@ plot_compareClusts_MAplot <- function(sCVd,clA,clB,dataType,labType,labNum,labGe
     }
   } else {
     points(y_mean~x_diff,data=CGS[gnA,],pch=16,
-           col=rainbow2(length(levels(Clusters(sCVd))),.8)[which(levels(Clusters(sCVd)) == clA)])
+           col=colorspace::qualitative_hcl(length(levels(Clusters(sCVd))),
+                                           palette="Dark 3",
+                                           alpha=.8)[which(levels(Clusters(sCVd)) == clA)])
     points(y_mean~x_diff,data=CGS[gnB,],pch=16,
-           col=rainbow2(length(levels(Clusters(sCVd))),.8)[which(levels(Clusters(sCVd)) == clB)])
+           col=colorspace::qualitative_hcl(length(levels(Clusters(sCVd))),
+                                           palette="Dark 3",
+                                           alpha=.8)[which(levels(Clusters(sCVd)) == clB)])
     tempLabel <- spreadLabels2(x=CGS[c(gnA,gnB),"x_diff"],y=CGS[c(gnA,gnB),"y_mean"],
                                label=c(gnA,gnB),str.cex=1.2,str.font=2)
     rownames(tempLabel) <- c(gnA,gnB)
     text(tempLabel[gnA,],labels=gnA,cex=1.2,font=2,
-         col=rainbow2(length(levels(Clusters(sCVd))))[which(levels(Clusters(sCVd)) == clA)])
+         col=colorspace::qualitative_hcl(length(levels(Clusters(sCVd))),
+                                         palette="Dark 3")[which(levels(Clusters(sCVd)) == clA)])
     text(tempLabel[gnB,],labels=gnB,cex=1.2,font=2,
-         col=rainbow2(length(levels(Clusters(sCVd))))[which(levels(Clusters(sCVd)) == clB)])
+         col=colorspace::qualitative_hcl(length(levels(Clusters(sCVd))),
+                                         palette="Dark 3")[which(levels(Clusters(sCVd)) == clB)])
   }
   mtext(paste("Higher in",clA),side=1,line=-1.1,adj=.99,font=2,
-        col=rainbow2(length(levels(Clusters(sCVd))))[which(levels(Clusters(sCVd)) == clA)])
+        col=colorspace::qualitative_hcl(length(levels(Clusters(sCVd))),
+                                        palette="Dark 3")[which(levels(Clusters(sCVd)) == clA)])
   mtext(paste("Higher in",clB),side=1,line=-1.1,adj=0.01,font=2,
-        col=rainbow2(length(levels(Clusters(sCVd))))[which(levels(Clusters(sCVd)) == clB)])
+        col=colorspace::qualitative_hcl(length(levels(Clusters(sCVd))),
+                                        palette="Dark 3")[which(levels(Clusters(sCVd)) == clB)])
   mtext(paste(
     paste("Cosine similarity of comparison:",
           round(cosineSim(ClustGeneStats(sCVd)[[clA]][,dataType], 
@@ -1366,13 +1413,17 @@ plot_compareClusts_DEscatter <- function(sCVd,clA,clB,dataType,labType,
        pch=20,col=alpha("black",0.3)) # col=temp_col)
   abline(v=0,h=0,col="gray50")
   lines(x=c(par("usr")[2],par("usr")[2]),y=c(0,par("usr")[4]),lwd=2,xpd=NA,
-        col=rainbow2(length(levels(Clusters(sCVd))))[which(levels(Clusters(sCVd)) == clA)])
+        col=colorspace::qualitative_hcl(length(levels(Clusters(sCVd))),
+                                        palette="Dark 3")[which(levels(Clusters(sCVd)) == clA)])
   lines(x=c(0,par("usr")[2]),y=c(par("usr")[4],par("usr")[4]),lwd=2,xpd=NA,
-        col=rainbow2(length(levels(Clusters(sCVd))))[which(levels(Clusters(sCVd)) == clA)])
+        col=colorspace::qualitative_hcl(length(levels(Clusters(sCVd))),
+                                        palette="Dark 3")[which(levels(Clusters(sCVd)) == clA)])
   lines(x=c(par("usr")[1],par("usr")[1]),y=c(par("usr")[3],0),xpd=NA,lwd=2,
-        col=rainbow2(length(levels(Clusters(sCVd))))[which(levels(Clusters(sCVd)) == clB)])
+        col=colorspace::qualitative_hcl(length(levels(Clusters(sCVd))),
+                                        palette="Dark 3")[which(levels(Clusters(sCVd)) == clB)])
   lines(x=c(par("usr")[1],0),y=c(par("usr")[3],par("usr")[3]),xpd=NA,lwd=2,
-        col=rainbow2(length(levels(Clusters(sCVd))))[which(levels(Clusters(sCVd)) == clB)])
+        col=colorspace::qualitative_hcl(length(levels(Clusters(sCVd))),
+                                        palette="Dark 3")[which(levels(Clusters(sCVd)) == clB)])
   if (labType == "search") {
     if (length(labGenes) > 0) {
       points(logGER~dDR,data=CGS[labGenes,],pch=16,col=alpha("firebrick2",0.8))
@@ -1382,21 +1433,29 @@ plot_compareClusts_DEscatter <- function(sCVd,clA,clB,dataType,labType,
     }
   } else {
     points(logGER~dDR,data=CGS[gnA,],pch=16,
-           col=rainbow2(length(levels(Clusters(sCVd))),.8)[which(levels(Clusters(sCVd)) == clA)])
+           col=colorspace::qualitative_hcl(length(levels(Clusters(sCVd))),
+                                           palette="Dark 3",
+                                           alpha=.8)[which(levels(Clusters(sCVd)) == clA)])
     points(logGER~dDR,data=CGS[gnB,],pch=16,
-           col=rainbow2(length(levels(Clusters(sCVd))),.8)[which(levels(Clusters(sCVd)) == clB)])
+           col=colorspace::qualitative_hcl(length(levels(Clusters(sCVd))),
+                                           palette="Dark 3",
+                                           alpha=.8)[which(levels(Clusters(sCVd)) == clB)])
     tempLabel <- spreadLabels2(CGS[c(gnA,gnB),"dDR"],CGS[c(gnA,gnB),"logGER"],
                                label=c(gnA,gnB),str.cex=1.2,str.font=2)
     rownames(tempLabel) <- c(gnA,gnB)
     text(tempLabel[gnA,],labels=gnA,cex=1.2,font=2,
-         col=rainbow2(length(levels(Clusters(sCVd))))[which(levels(Clusters(sCVd)) == clA)])
+         col=colorspace::qualitative_hcl(length(levels(Clusters(sCVd))),
+                                         palette="Dark 3")[which(levels(Clusters(sCVd)) == clA)])
     text(tempLabel[gnB,],labels=gnB,cex=1.2,font=2,
-         col=rainbow2(length(levels(Clusters(sCVd))))[which(levels(Clusters(sCVd)) == clB)])
+         col=colorspace::qualitative_hcl(length(levels(Clusters(sCVd))),
+                                         palette="Dark 3")[which(levels(Clusters(sCVd)) == clB)])
   }
   mtext(paste("Higher in",clA),side=3,line=-1.1,adj=.99,font=2,
-        col=rainbow2(length(levels(Clusters(sCVd))))[which(levels(Clusters(sCVd)) == clA)])
+        col=colorspace::qualitative_hcl(length(levels(Clusters(sCVd))),
+                                        palette="Dark 3")[which(levels(Clusters(sCVd)) == clA)])
   mtext(paste("Higher in",clB),side=1,line=-1.1,adj=0.01,font=2,
-        col=rainbow2(length(levels(Clusters(sCVd))))[which(levels(Clusters(sCVd)) == clB)])
+        col=colorspace::qualitative_hcl(length(levels(Clusters(sCVd))),
+                                        palette="Dark 3")[which(levels(Clusters(sCVd)) == clB)])
 }
 
 plot_compareClusts_volcano <- function(sCVd,clA,clB,dataType,labType,labNum,labGenes) {
@@ -1427,9 +1486,11 @@ plot_compareClusts_volcano <- function(sCVd,clA,clB,dataType,labType,labNum,labG
        pch=20,col=alpha("black",0.3))
   abline(v=0,col="gray50")
   lines(x=c(par("usr")[2],par("usr")[2]),y=c(par("usr")[3],par("usr")[4]),lwd=2,xpd=NA,
-        col=rainbow2(length(levels(Clusters(sCVd))))[which(levels(Clusters(sCVd)) == clA)])
+        col=colorspace::qualitative_hcl(length(levels(Clusters(sCVd))),
+                                        palette="Dark 3")[which(levels(Clusters(sCVd)) == clA)])
   lines(x=c(par("usr")[1],par("usr")[1]),y=c(par("usr")[3],par("usr")[4]),xpd=NA,lwd=2,
-        col=rainbow2(length(levels(Clusters(sCVd))))[which(levels(Clusters(sCVd)) == clB)])
+        col=colorspace::qualitative_hcl(length(levels(Clusters(sCVd))),
+                                        palette="Dark 3")[which(levels(Clusters(sCVd)) == clB)])
   if (labType == "search") {
     if (length(labGenes) > 0) {
       points(x=CGS[labGenes,dataType],y=CGS[labGenes,"FDR"],
@@ -1440,21 +1501,29 @@ plot_compareClusts_volcano <- function(sCVd,clA,clB,dataType,labType,labNum,labG
     }
   } else {
     points(CGS[gnA,dataType],y=CGS[gnA,"FDR"],pch=16,
-           col=rainbow2(length(levels(Clusters(sCVd))),.8)[which(levels(Clusters(sCVd)) == clA)])
+           col=colorspace::qualitative_hcl(length(levels(Clusters(sCVd))),
+                                           palette="Dark 3",
+                                           alpha=.8)[which(levels(Clusters(sCVd)) == clA)])
     points(CGS[gnB,dataType],y=CGS[gnB,"FDR"],pch=16,
-           col=rainbow2(length(levels(Clusters(sCVd))),.8)[which(levels(Clusters(sCVd)) == clB)])
+           col=colorspace::qualitative_hcl(length(levels(Clusters(sCVd))),
+                                           palette="Dark 3",
+                                           alpha=.8)[which(levels(Clusters(sCVd)) == clB)])
     tempLabel <- spreadLabels2(CGS[c(gnA,gnB),dataType],CGS[c(gnA,gnB),"FDR"],
                                label=c(gnA,gnB),str.cex=1.2,str.font=2)
     rownames(tempLabel) <- c(gnA,gnB)
     text(tempLabel[gnA,],labels=gnA,cex=1.2,font=2,
-         col=rainbow2(length(levels(Clusters(sCVd))))[which(levels(Clusters(sCVd)) == clA)])
+         col=colorspace::qualitative_hcl(length(levels(Clusters(sCVd))),
+                                         palette="Dark 3")[which(levels(Clusters(sCVd)) == clA)])
     text(tempLabel[gnB,],labels=gnB,cex=1.2,font=2,
-         col=rainbow2(length(levels(Clusters(sCVd))))[which(levels(Clusters(sCVd)) == clB)])
+         col=colorspace::qualitative_hcl(length(levels(Clusters(sCVd))),
+                                         palette="Dark 3")[which(levels(Clusters(sCVd)) == clB)])
   }
   mtext(paste("Higher in",clA),side=1,line=-1.1,adj=.99,font=2,
-        col=rainbow2(length(levels(Clusters(sCVd))))[which(levels(Clusters(sCVd)) == clA)])
+        col=colorspace::qualitative_hcl(length(levels(Clusters(sCVd))),
+                                        palette="Dark 3")[which(levels(Clusters(sCVd)) == clA)])
   mtext(paste("Higher in",clB),side=1,line=-1.1,adj=0.01,font=2,
-        col=rainbow2(length(levels(Clusters(sCVd))))[which(levels(Clusters(sCVd)) == clB)])
+        col=colorspace::qualitative_hcl(length(levels(Clusters(sCVd))),
+                                        palette="Dark 3")[which(levels(Clusters(sCVd)) == clB)])
 }
 
 

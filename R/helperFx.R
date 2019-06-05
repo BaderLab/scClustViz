@@ -31,25 +31,6 @@ meanLogX <- function(data,ncell,ex=2,pc=1) {
 }
 
 
-#' Generates a rainbow colour-scale
-#' 
-#' Generates a slightly desaturated rainbow colour-scale that's a little easier on the
-#' eyes than the R default. Used in \code{\link{runShiny}} to label clusters.
-#' 
-#' @param n Number of colours to include.
-#' @param a Transparency value passed to \code{\link{scales::alpha}}.
-#' 
-#' @seealso \code{\link[grDevices]{rainbow}}
-#' 
-#' @export
-#' 
-
-rainbow2 <- function(n,a=1) {
-  hues = seq(15, 375, length = n + 1)
-  scales::alpha(hcl(h = hues, l = 60, c = 100)[1:n],a)
-}
-
-
 #' Computes the cosine similarity between two vectors
 #'
 #' Computes the cosine similarity between two vectors.
