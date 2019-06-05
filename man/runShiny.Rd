@@ -5,7 +5,7 @@
 \title{Run the scClustViz Shiny app}
 \usage{
 runShiny(filePath, outPath, cellMarkers = list(), annotationDB,
-  rownameKeytype, imageFileType = "pdf", ...)
+  rownameKeytype, imageFileType = "pdf", EmbType = "tsne", ...)
 }
 \arguments{
 \item{filePath}{A character vector giving the relative filepath to an RData
