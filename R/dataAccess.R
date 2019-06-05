@@ -90,6 +90,34 @@ setGeneric("getMD",function(x) standardGeneric("getMD"))
 setGeneric("getEmb",function(x,DRtype) standardGeneric("getEmb"))
 
 
+# ^ hasEmb ----
+
+#' List cell embedding types from input data object
+#'
+#' Show all available cell embedding coordinates from the dimensionality reduction
+#' results stored in the single-cell data object containing the input data for
+#' scClustViz visualization.
+#'
+#' This is a wrapper function to the relevant class's cell metadata slot
+#' accessor / assignment method. Currently supported input object classes:
+#' \itemize{
+#'   \item Class \code{\link[Seurat]{seurat}/\link[Seurat]{Seurat}} accessed by 
+#'     \code{x@DRtype.rot} or \code{x@dr$DRtype@cell.embeddings} or 
+#'     \code{x@reductions$DRtype@cell.embeddings}, 
+#'     depending on Seurat object version.
+#'   \item Class \code{\link[SingleCellExperiment]{SingleCellExperiment}}
+#'     accessed by \code{\link[SingleCellExperiment]{reducedDim}(x,DRtype)}.
+#' }
+#' \href{https://github.com/BaderLab/scClustViz/issues}{Please submit requests
+#' for other data objects here!}
+#'
+#' @param x The single-cell data object.
+#' @name hasEmb
+#' @export
+#' 
+setGeneric("hasEmb",function(x) standardGeneric("hasEmb"))
+
+
 # Methods ----
 
 # ^ seurat (v1/2) ----
@@ -98,6 +126,7 @@ suppressMessages(
     slot(x,"data")
   })
 )
+
 
 suppressMessages(
   setMethod("getMD","seurat",function(x) {
@@ -108,6 +137,7 @@ suppressMessages(
     }
   })
 )
+
 
 suppressMessages(
   setMethod("getEmb","seurat",function(x,DRtype) {
@@ -139,9 +169,20 @@ suppressMessages(
 )
 
 
+suppressMessages(
+  setMethod("hasEmb","seurat",function(x) {
+    if (.hasSlot(x,"dr")) {
+      return(names(slot(x,"dr")))
+    } else {
+      oldSrots <- c("pca","ica","tsne")
+      oldSrots <- oldSrots[sapply(oldSrots,function(X) .hasSlot(x,paste0(X,".rot")))]
+      return(oldSrots)
+    }
+  })
+)
+
 
 # ^ Seurat (v3) ----
-
 suppressMessages(
   setMethod("getExpr","Seurat",function(x,assayType) {
     if (missing(assayType)) {
@@ -159,11 +200,13 @@ suppressMessages(
   })
 )
 
+
 suppressMessages(
   setMethod("getMD","Seurat",function(x) {
     return(slot(x,"meta.data"))
   })
 )
+
 
 suppressMessages(
   setMethod("getEmb","Seurat",function(x,DRtype) {
@@ -179,6 +222,13 @@ suppressMessages(
                  "The following cell embeddings are available in this object:",
                  paste0(names(slot(x,"reductions")),collapse=", "),sep="\n  "))
     }
+  })
+)
+
+
+suppressMessages(
+  setMethod("hasEmb","Seurat",function(x) {
+    return(names(slot(x,"reductions")))
   })
 )
 
@@ -203,10 +253,12 @@ suppressMessages(
   })
 )
 
+
 suppressMessages(
   setMethod("getMD","SingleCellExperiment",
             function(x) SingleCellExperiment::colData(x))
 )
+
 
 suppressMessages(
   setMethod("getEmb","SingleCellExperiment",function(x,DRtype) { 
@@ -228,5 +280,12 @@ suppressMessages(
                  paste0(SingleCellExperiment::reducedDimNames(x),collapse=", "),
                  sep="\n  "))
     }
+  })
+)
+
+
+suppressMessages(
+  setMethod("hasEmb","SingleCellExperiment",function(x) { 
+    SingleCellExperiment::reducedDimNames(x)
   })
 )
