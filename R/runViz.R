@@ -104,8 +104,7 @@
 runShiny <- function(filePath,outPath,
                      cellMarkers=list(),
                      annotationDB,rownameKeytype,
-                     imageFileType="pdf",
-                     EmbType="tsne",...) {
+                     imageFileType="pdf",...) {
   
   # ^ Load data from file ------------------------------------------------------------------
   while(T) {
@@ -333,22 +332,31 @@ runShiny <- function(filePath,outPath,
       p(paste(
         "Here you can explore your dataset as a whole: cluster assignments for all",
         "cells; metadata overlays for cell projections; and figures for comparing",
-        "both numeric and categorical metadata. The top two figures show cells",
-        "projected into 2D space, where proximity indicates transcriptional similarity.",
-        "On the left you can see cluster assignments and the nearest neighbours used in",
-        "the differential expression calculations. If cell type marker genes were",
-        "provided in RunVizScript.R, it will also show predicted cell type annotations.",
-        "On the right you can add a metadata overlay to the cell projection. Below",
-        "you can view relationships in the metadata as a scatterplot or compare clusterwise",
-        "distributions of metadata as bar- or box-plots. If you select a cluster of interest",
-        "(by clicking on a cell in the top-left plot, or from the list two sections down)",
-        "it will be highlighted for comparison in these figures."
-      )),
-      strong(paste(
-        "You can select any cluster for further assessment by clicking on a cell",
-        "from that cluster in the top-left figure."
-      )),
+        "both numeric and categorical metadata.")),
       h1()
+    ),
+    fixedRow(
+      column(8,
+             p(HTML(paste(
+               "The top two figures show cells projected into 2D space using one of the",
+               "dimensionality reductions calculated in your data object. For example,",
+               "tSNE and UMAP place cells in space such that proximity indicates transcriptional",
+               "similarity. PCA is a common input for clustering and cell embedding, and it's",
+               "important to ensure components don't strongly correlate with technical features.",
+               "On the left you can see cluster assignments and the nearest neighbours used in",
+               "the differential expression calculations. If cell type marker genes were",
+               "provided in RunVizScript.R, it will also show predicted cell type annotations.",
+               "On the right you can add a metadata overlay to the cell projection.",
+               "<b>You can select any cluster for further assessment by clicking on a cell",
+               "from that cluster in the left figure.</b>"
+             )))
+      ),
+      column(4,uiOutput("MD_EmbType"),
+             fixedRow(
+               column(6,uiOutput("MD_EmbDimX")),
+               column(6,uiOutput("MD_EmbDimY"))
+             )
+      )
     ),
     fixedRow(
       column(6,
@@ -371,6 +379,14 @@ runShiny <- function(filePath,outPath,
     hr(),
     
     fixedRow(
+      p(paste(
+        "Below",
+        "you can view relationships in the metadata as a scatterplot or compare clusterwise",
+        "distributions of metadata as bar- or box-plots. If you select a cluster of interest",
+        "(by clicking on a cell in the top-left plot, or from the list two sections down)",
+        "it will be highlighted for comparison in these figures."
+      )),
+      h1(),
       column(2,uiOutput("mdScatterX")),
       column(2,uiOutput("mdScatterY")),
       column(2,uiOutput("scatterLog")),
@@ -502,14 +518,20 @@ runShiny <- function(filePath,outPath,
     
     # ^ Distribution of genes of interest --------------------------------------------------
     fixedRow(
-      titlePanel("Cell Distribution of Genes of Interest"),
-      p(paste("Here you can overlay gene expression values for individual genes of interest",
-              "on the cell projection. Search for your gene using the search box below,",
-              "then select your gene(s) of interest from the dropdown 'Select genes' menu.",
-              "You have the option to include the cluster labels from the first cell projection",
-              "figure in these plots, and to colour the clusters themselves. There are two",
-              "copies of this figure for ease of comparison between genes of interest.")),
-      h1()
+      titlePanel("Cell Distribution of Genes of Interest")
+    ),
+    fixedRow(
+      column(6,
+             p(paste("Here you can overlay gene expression values for individual genes of interest",
+                     "on the cell projection. Search for your gene using the search box below,",
+                     "then select your gene(s) of interest from the dropdown 'Select genes' menu.",
+                     "You have the option to include the cluster labels from the first cell projection",
+                     "figure in these plots, and to colour the clusters themselves. There are two",
+                     "copies of this figure for ease of comparison between genes of interest."))
+      ),
+      column(2,uiOutput("GOI_EmbType")),
+      column(2,uiOutput("GOI_EmbDimX")),
+      column(2,uiOutput("GOI_EmbDimY"))
     ),
     fixedRow(
       column(2,radioButtons("searchType1",label="Search by:",
@@ -657,11 +679,19 @@ runShiny <- function(filePath,outPath,
       column(8,plotOutput("tsneSelDE",brush="tsneSelDEbrush",hover="tsneSelDEhover",height="750px")),
       column(4,
              fixedRow(
+               column(4,uiOutput("SelDE_EmbType")),
+               column(4,uiOutput("SelDE_EmbDimX")),
+               column(4,uiOutput("SelDE_EmbDimY"))
+             ),
+             hr(),
+             fixedRow(
                column(8,uiOutput("tsneSelDEcol")),
                column(2,actionButton("plusFilt","Add",icon("plus"),
                                      style="color: #fff; background-color: #008000")),
-               column(2,actionButton("minusFilt","Remove",icon("minus"),
-                                     style="color: #008000; background-color: #fff; border-color: #008000"))
+               column(2,actionButton(
+                 "minusFilt","Remove",icon("minus"),
+                 style="color: #008000; background-color: #fff; border-color: #008000"
+               ))
              ),
              uiOutput("MDfilts"),
              uiOutput("MDfiltsRemoveAll"),
@@ -783,16 +813,24 @@ runShiny <- function(filePath,outPath,
       if (input$deType %in% c("DEneighb","DEmarker") & 
           !all(sapply(sCVdL,function(X) length(DEcombn(X)) > 0))) {
         plot(x=NA,y=NA,xlim=0:1,ylim=0:1,xaxt="n",yaxt="n",xlab=NA,ylab=NA)
-        text(.5,.5,switch(input$deType,
-                          # scoreDE=paste("Can't calculate distance between clusters by differential expression score",
-                          #               "Try running CalcDEvsCombn() for all sCVdata objects in cluster resolution list.",
-                          #               sep="\n"),
-                          DEneighb=paste("Can't calculate number of DE genes per cluster to nearest cluster",
-                                         "Try running CalcDEvsCombn() for all sCVdata objects in cluster resolution list.",
-                                         sep="\n"),
-                          DEmarker=paste("Can't calculate number of DE genes per cluster to all other clusters",
-                                         "Try running CalcDEvsCombn() for all sCVdata objects in cluster resolution list.",
-                                         sep="\n")))
+        text(.5,.5,switch(
+          input$deType,
+          # scoreDE=paste(
+          #   "Can't calculate distance between clusters by differential expression score",
+          #   "Try running CalcDEvsCombn() for all sCVdata objects in cluster resolution list.",
+          #   sep="\n"
+          # ),
+          DEneighb=paste(
+            "Can't calculate number of DE genes per cluster to nearest cluster",
+            "Try running CalcDEvsCombn() for all sCVdata objects in cluster resolution list.",
+            sep="\n"
+          ),
+          DEmarker=paste(
+            "Can't calculate number of DE genes per cluster to all other clusters",
+            "Try running CalcDEvsCombn() for all sCVdata objects in cluster resolution list.",
+            sep="\n"
+            )
+        ))
       } else {
         print(plot_clustSep(sCVdL=d$SCV[!grepl("^Comp:",names(d$SCV))],
                             DEtype=input$deType,
@@ -867,6 +905,28 @@ runShiny <- function(filePath,outPath,
     
     # ^ Dataset and Cluster Metadata Inspection --------------------------------------------
     
+    # ^^ MD embedding type selection ####
+    output$MD_EmbType <- renderUI({
+      temp_embs <- hasEmb(inD)
+      temp_embs <- temp_embs[
+        sapply(temp_embs,function(X) ncol(getEmb(inD,X))) >= 2 &
+          sapply(temp_embs,function(X) nrow(getEmb(inD,X))) == nrow(getMD(inD))
+        ]
+      selectInput("MD_EmbType",label="Select cell embedding:",
+                  choices=toupper(temp_embs),
+                  selected=toupper(temp_embs)[toupper(temp_embs) %in% c("TSNE","UMAP")][1])
+    })
+    output$MD_EmbDimX <- renderUI({
+      selectInput("MD_EmbDimX",label="x-axis:",
+                  choices=colnames(getEmb(inD,input$MD_EmbType)),
+                  selected=colnames(getEmb(inD,input$MD_EmbType))[1])
+    })
+    output$MD_EmbDimY <- renderUI({
+      selectInput("MD_EmbDimY",label="y-axis:",
+                  choices=colnames(getEmb(inD,input$MD_EmbType)),
+                  selected=colnames(getEmb(inD,input$MD_EmbType))[2])
+    })
+    
     # ^^ Cell-type tSNE ####
     output$tsneLabels <- renderUI({
       if (length(res()) > 0) {
@@ -885,18 +945,20 @@ runShiny <- function(filePath,outPath,
     
     output$tsne <- renderPlot({
       if (length(res()) > 0) {
-        plot_tsne(cell_coord=getEmb(inD,EmbType),
+        plot_tsne(cell_coord=getEmb(inD,input$MD_EmbType)[,c(input$MD_EmbDimX,input$MD_EmbDimY)],
                   md=Clusters(d$SCV[[res()]]),
                   md_title=NULL,
                   md_log=F,
-                  label=tsne_labels(sCVd=d$SCV[[res()]],
-                                    cell_coord=getEmb(inD,EmbType),
-                                    lab_type=input$tsneLabels),
+                  label=tsne_labels(
+                    sCVd=d$SCV[[res()]],
+                    cell_coord=getEmb(inD,input$MD_EmbType)[,c(input$MD_EmbDimX,input$MD_EmbDimY)],
+                    lab_type=input$tsneLabels
+                  ),
                   sel_cells=selCells())
         if (input$nnArrow) {
           temp_nn <- DEdistNN(DEdist(d$SCV[[res()]]))
-          temp_labels <- apply(getEmb(inD,EmbType),2,
-                               function(X) tapply(X,Clusters(d$SCV[[res()]]),mean))
+          temp_labels <- apply(getEmb(inD,input$MD_EmbType)[,c(input$MD_EmbDimX,input$MD_EmbDimY)],
+                               2,function(X) tapply(X,Clusters(d$SCV[[res()]]),mean))
           sapply(names(temp_nn),function(X)
             arrows(lwd=2,col=alpha("black",0.5),length=0.1,
                    x0=temp_labels[X,1],y0=temp_labels[X,2],
@@ -914,18 +976,20 @@ runShiny <- function(filePath,outPath,
                  "eps"=grDevices::cairo_ps(file,height=7,width=7,fallback_resolution=600),
                  "tiff"=grDevices::tiff(file,height=7,width=7,units="in",res=600),
                  "png"=grDevices::png(file,height=7,width=7,units="in",res=600))
-          plot_tsne(cell_coord=getEmb(inD,EmbType),
+          plot_tsne(cell_coord=getEmb(inD,input$MD_EmbType)[,c(input$MD_EmbDimX,input$MD_EmbDimY)],
                     md=Clusters(d$SCV[[res()]]),
                     md_title=NULL,
                     md_log=F,
-                    label=tsne_labels(sCVd=d$SCV[[res()]],
-                                      cell_coord=getEmb(inD,EmbType),
-                                      lab_type=input$tsneLabels),
+                    label=tsne_labels(
+                      sCVd=d$SCV[[res()]],
+                      cell_coord=getEmb(inD,input$MD_EmbType)[,c(input$MD_EmbDimX,input$MD_EmbDimY)],
+                      lab_type=input$tsneLabels
+                    ),
                     sel_cells=selCells())
           if (input$nnArrow) {
             temp_nn <- DEdistNN(DEdist(d$SCV[[res()]]))
-            temp_labels <- apply(getEmb(inD,EmbType),2,
-                                 function(X) tapply(X,Clusters(d$SCV[[res()]]),mean))
+            temp_labels <- apply(getEmb(inD,input$MD_EmbType)[,c(input$MD_EmbDimX,input$MD_EmbDimY)],
+                                 2,function(X) tapply(X,Clusters(d$SCV[[res()]]),mean))
             sapply(names(temp_nn),function(X)
               arrows(lwd=2,col=alpha("black",0.5),length=0.1,
                      x0=temp_labels[X,1],y0=temp_labels[X,2],
@@ -941,9 +1005,10 @@ runShiny <- function(filePath,outPath,
     observeEvent(input$tsneClick,{ clusterSelect$cl <- input$tsneClick })
     
     cSelected <- reactive({
-      t <- nearPoints(as.data.frame(getEmb(inD,EmbType)),
-                      coordinfo=clusterSelect$cl,
-                      xvar="tSNE_1",yvar="tSNE_2",threshold=5)
+      t <- nearPoints(
+        as.data.frame(getEmb(inD,input$MD_EmbType)[,c(input$MD_EmbDimX,input$MD_EmbDimY)]),
+        coordinfo=clusterSelect$cl,
+        xvar=input$MD_EmbDimX,yvar=input$MD_EmbDimY,threshold=5)
       t2 <- Clusters(d$SCV[[res()]])[rownames(t)[1]]
       if (is.na(t2)) {
         return("")
@@ -996,13 +1061,15 @@ runShiny <- function(filePath,outPath,
         if (length(input$tsneMDlog) > 0) { 
           if (input$tsneMDlog == "log") { temp_log <- T } 
         } else { temp_log <- F }
-        plot_tsne(cell_coord=getEmb(inD,EmbType),
+        plot_tsne(cell_coord=getEmb(inD,input$MD_EmbType)[,c(input$MD_EmbDimX,input$MD_EmbDimY)],
                   md=d$MD[[input$tsneMDcol]],
                   md_title=input$tsneMDcol,
                   md_log=temp_log,
-                  label=tsne_labels(sCVd=d$SCV[[res()]],
-                                    cell_coord=getEmb(inD,EmbType),
-                                    lab_type=input$tsneLabels),
+                  label=tsne_labels(
+                    sCVd=d$SCV[[res()]],
+                    cell_coord=getEmb(inD,input$MD_EmbType)[,c(input$MD_EmbDimX,input$MD_EmbDimY)],
+                    lab_type=input$tsneLabels
+                  ),
                   sel_cells=selCells())
       }
     })
@@ -1019,13 +1086,15 @@ runShiny <- function(filePath,outPath,
           if (length(input$tsneMDlog) > 0) { 
             if (input$tsneMDlog == "log") { temp_log <- T } 
           } else { temp_log <- F }
-          plot_tsne(cell_coord=getEmb(inD,EmbType),
+          plot_tsne(cell_coord=getEmb(inD,input$MD_EmbType)[,c(input$MD_EmbDimX,input$MD_EmbDimY)],
                     md=d$MD[[input$tsneMDcol]],
                     md_title=input$tsneMDcol,
                     md_log=temp_log,
-                    label=tsne_labels(sCVd=d$SCV[[res()]],
-                                      cell_coord=getEmb(inD,EmbType),
-                                      lab_type=input$tsneLabels),
+                    label=tsne_labels(
+                      sCVd=d$SCV[[res()]],
+                      cell_coord=getEmb(inD,input$MD_EmbType)[,c(input$MD_EmbDimX,input$MD_EmbDimY)],
+                      lab_type=input$tsneLabels
+                    ),
                     sel_cells=selCells())
           grDevices::dev.off()
         }
@@ -1444,6 +1513,30 @@ runShiny <- function(filePath,outPath,
     
     
     # ^ Distribution of genes of interest ------------------------------------------------
+    
+    # ^^ GOI embedding type selection ####
+    output$GOI_EmbType <- renderUI({
+      temp_embs <- hasEmb(inD)
+      temp_embs <- temp_embs[
+        sapply(temp_embs,function(X) ncol(getEmb(inD,X))) >= 2 &
+          sapply(temp_embs,function(X) nrow(getEmb(inD,X))) == nrow(getMD(inD))
+        ]
+      selectInput("GOI_EmbType",label="Select cell embedding:",
+                  choices=toupper(temp_embs),
+                  selected=toupper(temp_embs)[toupper(temp_embs) %in% c("TSNE","UMAP")][1])
+    })
+    output$GOI_EmbDimX <- renderUI({
+      selectInput("GOI_EmbDimX",label="x-axis:",
+                  choices=colnames(getEmb(inD,input$GOI_EmbType)),
+                  selected=colnames(getEmb(inD,input$GOI_EmbType))[1])
+    })
+    output$GOI_EmbDimY <- renderUI({
+      selectInput("GOI_EmbDimY",label="y-axis:",
+                  choices=colnames(getEmb(inD,input$GOI_EmbType)),
+                  selected=colnames(getEmb(inD,input$GOI_EmbType))[2])
+    })
+    
+    # ^^ GOI Search boxes ####
     output$geneSearchBox1 <- renderUI({
       if (input$searchType1 == "comma") {
         textInput("GOI1",value="Actb",width="100%",
@@ -1510,17 +1603,23 @@ runShiny <- function(filePath,outPath,
       }
     })
     
+    # ^^ GOI plots ####
     output$goiPlot1 <- renderPlot({
       if (input$plotClust1 == "clust" & length(res()) > 0) {
-        plot_tsne(cell_coord=getEmb(inD,EmbType),
-                  md=Clusters(d$SCV[[res()]]),
-                  md_title=NULL,
-                  md_log=F,
-                  label=switch(as.character(input$plotLabel1),
-                               "TRUE"=tsne_labels(sCVd=d$SCV[[res()]],
-                                                  cell_coord=getEmb(inD,EmbType),
-                                                  lab_type=input$tsneLabels),
-                               "FALSE"=NULL)
+        plot_tsne(
+          cell_coord=getEmb(inD,input$GOI_EmbType)[,c(input$GOI_EmbDimX,input$GOI_EmbDimY)],
+          md=Clusters(d$SCV[[res()]]),
+          md_title=NULL,
+          md_log=F,
+          label=switch(
+            as.character(input$plotLabel1),
+            "TRUE"=tsne_labels(
+              sCVd=d$SCV[[res()]],
+              cell_coord=getEmb(inD,input$GOI_EmbType)[,c(input$GOI_EmbDimX,input$GOI_EmbDimY)],
+              lab_type=input$tsneLabels
+            ),
+            "FALSE"=NULL
+          )
         )
       } else if (input$plotClust1 == "goi") {
         if (is.null(input$goi1)) {
@@ -1529,30 +1628,40 @@ runShiny <- function(filePath,outPath,
                            "type a list of genes or regex into the box above,",
                            "then select the gene from the drop-down list.",sep="\n"))
         } else {
-          plot_tsne(cell_coord=getEmb(inD,EmbType),
-                    md=getExpr(inD,Param(sCVdL[[1]],"assayType"))[input$goi1,],
-                    md_title=geneNameGOI1(),
-                    md_log=F,
-                    label=switch(as.character(input$plotLabel1),
-                                 "TRUE"=tsne_labels(sCVd=d$SCV[[res()]],
-                                                    cell_coord=getEmb(inD,EmbType),
-                                                    lab_type=input$tsneLabels),
-                                 "FALSE"=NULL)
+          plot_tsne(
+            cell_coord=getEmb(inD,input$GOI_EmbType)[,c(input$GOI_EmbDimX,input$GOI_EmbDimY)],
+            md=getExpr(inD,Param(sCVdL[[1]],"assayType"))[input$goi1,],
+            md_title=geneNameGOI1(),
+            md_log=F,
+            label=switch(
+              as.character(input$plotLabel1),
+              "TRUE"=tsne_labels(
+                sCVd=d$SCV[[res()]],
+                cell_coord=getEmb(inD,input$GOI_EmbType)[,c(input$GOI_EmbDimX,input$GOI_EmbDimY)],
+                lab_type=input$tsneLabels
+              ),
+              "FALSE"=NULL
+            )
           )
         }
       }
     })
     output$goiPlot2 <- renderPlot({
       if (input$plotClust2 == "clust" & length(res()) > 0) {
-        plot_tsne(cell_coord=getEmb(inD,EmbType),
-                  md=Clusters(d$SCV[[res()]]),
-                  md_title=NULL,
-                  md_log=F,
-                  label=switch(as.character(input$plotLabel2),
-                               "TRUE"=tsne_labels(sCVd=d$SCV[[res()]],
-                                                  cell_coord=getEmb(inD,EmbType),
-                                                  lab_type=input$tsneLabels),
-                               "FALSE"=NULL)
+        plot_tsne(
+          cell_coord=getEmb(inD,input$GOI_EmbType)[,c(input$GOI_EmbDimX,input$GOI_EmbDimY)],
+          md=Clusters(d$SCV[[res()]]),
+          md_title=NULL,
+          md_log=F,
+          label=switch(
+            as.character(input$plotLabel2),
+            "TRUE"=tsne_labels(
+              sCVd=d$SCV[[res()]],
+              cell_coord=getEmb(inD,input$GOI_EmbType)[,c(input$GOI_EmbDimX,input$GOI_EmbDimY)],
+              lab_type=input$tsneLabels
+            ),
+            "FALSE"=NULL
+          )
         )
       } else if (input$plotClust2 == "goi") {
         if (is.null(input$goi2)) {
@@ -1561,15 +1670,20 @@ runShiny <- function(filePath,outPath,
                            "type a list of genes or regex into the box above,",
                            "then select the gene from the drop-down list.",sep="\n"))
         } else {
-          plot_tsne(cell_coord=getEmb(inD,EmbType),
-                    md=getExpr(inD,Param(sCVdL[[1]],"assayType"))[input$goi2,],
-                    md_title=geneNameGOI2(),
-                    md_log=F,
-                    label=switch(as.character(input$plotLabel2),
-                                 "TRUE"=tsne_labels(sCVd=d$SCV[[res()]],
-                                                    cell_coord=getEmb(inD,EmbType),
-                                                    lab_type=input$tsneLabels),
-                                 "FALSE"=NULL)
+          plot_tsne(
+            cell_coord=getEmb(inD,input$GOI_EmbType)[,c(input$GOI_EmbDimX,input$GOI_EmbDimY)],
+            md=getExpr(inD,Param(sCVdL[[1]],"assayType"))[input$goi2,],
+            md_title=geneNameGOI2(),
+            md_log=F,
+            label=switch(
+              as.character(input$plotLabel2),
+              "TRUE"=tsne_labels(
+                sCVd=d$SCV[[res()]],
+                cell_coord=getEmb(inD,input$GOI_EmbType)[,c(input$GOI_EmbDimX,input$GOI_EmbDimY)],
+                lab_type=input$tsneLabels
+              ),
+              "FALSE"=NULL
+            )
           )
         }
       }
@@ -1584,15 +1698,20 @@ runShiny <- function(filePath,outPath,
                  "eps"=grDevices::cairo_ps(file,height=7,width=7,fallback_resolution=600),
                  "tiff"=grDevices::tiff(file,height=7,width=7,units="in",res=600),
                  "png"=grDevices::png(file,height=7,width=7,units="in",res=600))
-          plot_tsne(cell_coord=getEmb(inD,EmbType),
-                    md=getExpr(inD,Param(sCVdL[[1]],"assayType"))[input$goi1,],
-                    md_title=geneNameGOI1(),
-                    md_log=F,
-                    label=switch(as.character(input$plotLabel1),
-                                 "TRUE"=tsne_labels(sCVd=d$SCV[[res()]],
-                                                    cell_coord=getEmb(inD,EmbType),
-                                                    lab_type=input$tsneLabels),
-                                 "FALSE"=NULL)
+          plot_tsne(
+            cell_coord=getEmb(inD,input$GOI_EmbType)[,c(input$GOI_EmbDimX,input$GOI_EmbDimY)],
+            md=getExpr(inD,Param(sCVdL[[1]],"assayType"))[input$goi1,],
+            md_title=geneNameGOI1(),
+            md_log=F,
+            label=switch(
+              as.character(input$plotLabel1),
+              "TRUE"=tsne_labels(
+                sCVd=d$SCV[[res()]],
+                cell_coord=getEmb(inD,input$GOI_EmbType)[,c(input$GOI_EmbDimX,input$GOI_EmbDimY)],
+                lab_type=input$tsneLabels
+              ),
+              "FALSE"=NULL
+            )
           )
           grDevices::dev.off()
         }
@@ -1607,15 +1726,20 @@ runShiny <- function(filePath,outPath,
                  "eps"=grDevices::cairo_ps(file,height=7,width=7,fallback_resolution=600),
                  "tiff"=grDevices::tiff(file,height=7,width=7,units="in",res=600),
                  "png"=grDevices::png(file,height=7,width=7,units="in",res=600))
-          plot_tsne(cell_coord=getEmb(inD,EmbType),
-                    md=getExpr(inD,Param(sCVdL[[1]],"assayType"))[input$goi2,],
-                    md_title=geneNameGOI2(),
-                    md_log=F,
-                    label=switch(as.character(input$plotLabel2),
-                                 "TRUE"=tsne_labels(sCVd=d$SCV[[res()]],
-                                                    cell_coord=getEmb(inD,EmbType),
-                                                    lab_type=input$tsneLabels),
-                                 "FALSE"=NULL)
+          plot_tsne(
+            cell_coord=getEmb(inD,input$GOI_EmbType)[,c(input$GOI_EmbDimX,input$GOI_EmbDimY)],
+            md=getExpr(inD,Param(sCVdL[[1]],"assayType"))[input$goi2,],
+            md_title=geneNameGOI2(),
+            md_log=F,
+            label=switch(
+              as.character(input$plotLabel2),
+              "TRUE"=tsne_labels(
+                sCVd=d$SCV[[res()]],
+                cell_coord=getEmb(inD,input$GOI_EmbType)[,c(input$GOI_EmbDimX,input$GOI_EmbDimY)],
+                lab_type=input$tsneLabels
+              ),
+              "FALSE"=NULL
+            )
           )
           grDevices::dev.off()
         }
@@ -1800,6 +1924,28 @@ runShiny <- function(filePath,outPath,
       }
     })
     
+    # ^^ SelDE embedding type selection ####
+    output$SelDE_EmbType <- renderUI({
+      temp_embs <- hasEmb(inD)
+      temp_embs <- temp_embs[
+        sapply(temp_embs,function(X) ncol(getEmb(inD,X))) >= 2 &
+          sapply(temp_embs,function(X) nrow(getEmb(inD,X))) == nrow(getMD(inD))
+        ]
+      selectInput("SelDE_EmbType",label="Embedding:",
+                  choices=toupper(temp_embs),
+                  selected=toupper(temp_embs)[toupper(temp_embs) %in% c("TSNE","UMAP")][1])
+    })
+    output$SelDE_EmbDimX <- renderUI({
+      selectInput("SelDE_EmbDimX",label="x-axis:",
+                  choices=colnames(getEmb(inD,input$SelDE_EmbType)),
+                  selected=colnames(getEmb(inD,input$SelDE_EmbType))[1])
+    })
+    output$SelDE_EmbDimY <- renderUI({
+      selectInput("SelDE_EmbDimY",label="y-axis:",
+                  choices=colnames(getEmb(inD,input$SelDE_EmbType)),
+                  selected=colnames(getEmb(inD,input$SelDE_EmbType))[2])
+    })
+
     # ^^ Plot selDE tSNE -------------------------------------------------------
     output$tsneSelDE <- renderPlot({ 
       if (length(res()) == 0) {
@@ -1809,34 +1955,42 @@ runShiny <- function(filePath,outPath,
                          "before using this tool.",sep="\n"))
       } else {
         if (input$tsneSelDEcol == paste("Clusters:",res())) {
-          plot_tsne(cell_coord=getEmb(inD,EmbType),
-                    md=Clusters(d$SCV[[res()]]),
-                    md_title=NULL,
-                    md_log=F,
-                    label=tsne_labels(sCVd=d$SCV[[res()]],
-                                      cell_coord=getEmb(inD,EmbType),
-                                      lab_type="Clusters"),
-                    sel_cells=currSel(),
-                    sel_cells_A=selectedSets$a,
-                    sel_cells_B=selectedSets$b)
+          plot_tsne(
+            cell_coord=getEmb(inD,input$SelDE_EmbType)[,c(input$SelDE_EmbDimX,input$SelDE_EmbDimY)],
+            md=Clusters(d$SCV[[res()]]),
+            md_title=NULL,
+            md_log=F,
+            label=tsne_labels(
+              sCVd=d$SCV[[res()]],
+              cell_coord=getEmb(inD,input$SelDE_EmbType)[,c(input$SelDE_EmbDimX,input$SelDE_EmbDimY)],
+              lab_type="Clusters"
+            ),
+            sel_cells=currSel(),
+            sel_cells_A=selectedSets$a,
+            sel_cells_B=selectedSets$b
+          )
         } else {
-          plot_tsne(cell_coord=getEmb(inD,EmbType),
-                    md=d$MD[[input$tsneSelDEcol]],
-                    md_title=input$tsneSelDEcol,
-                    md_log=F,
-                    label=NULL,
-                    sel_cells=currSel(),
-                    sel_cells_A=selectedSets$a,
-                    sel_cells_B=selectedSets$b)
+          plot_tsne(
+            cell_coord=getEmb(inD,input$SelDE_EmbType)[,c(input$SelDE_EmbDimX,input$SelDE_EmbDimY)],
+            md=d$MD[[input$tsneSelDEcol]],
+            md_title=input$tsneSelDEcol,
+            md_log=F,
+            label=NULL,
+            sel_cells=currSel(),
+            sel_cells_A=selectedSets$a,
+            sel_cells_B=selectedSets$b
+          )
         }
       }
     })
     
     # ^^ Cell selection from filters and/or brush ------------------------------
     currSel <- reactive({
-      temp_points <- rownames(brushedPoints(as.data.frame(getEmb(inD,EmbType)),
-                                            input$tsneSelDEbrush,
-                                            xvar="tSNE_1",yvar="tSNE_2"))
+      temp_points <- rownames(brushedPoints(
+        as.data.frame(getEmb(inD,input$SelDE_EmbType)[,c(input$SelDE_EmbDimX,input$SelDE_EmbDimY)]),
+        input$tsneSelDEbrush,
+        xvar=input$SelDE_EmbDimX,yvar=input$SelDE_EmbDimY
+      ))
       temp_picker <- sapply(names(filtValues()),function(X) {
         if (length(filtValues()[[X]]) < 1) {
           rep(T,nrow(d$MD))
@@ -1863,9 +2017,9 @@ runShiny <- function(filePath,outPath,
     output$cellsHovered <- renderText(
       paste("Hovering over cell(s):",
             paste(rownames(nearPoints(
-              as.data.frame(getEmb(inD,EmbType)),
+              as.data.frame(getEmb(inD,input$SelDE_EmbType)[,c(input$SelDE_EmbDimX,input$SelDE_EmbDimY)]),
               input$tsneSelDEhover,
-              xvar="tSNE_1",yvar="tSNE_2"
+              xvar=input$SelDE_EmbDimX,yvar=input$SelDE_EmbDimY
             )),collapse=", "))
     )
     
