@@ -730,6 +730,10 @@ fx_calcESvsRest_BP <- function(nge,cl,CGS,exponent,pseudocount,DRthresh) {
 
 fx_calcDEvsRest <- function(nge,cl,deTes) {
   message("-- Testing differential expression cluster vs rest --")
+  deT_pVal <- presto::wilcoxauc(X=nge,y=cl)
+  
+  
+  
   deT_pVal <- pbapply::pbsapply(levels(cl),function(i)
     apply(nge[rownames(deTes[[i]])[deTes[[i]]$overThreshold],],1,function(X) 
       # ^ slice by rowname is a little slower, but safer
