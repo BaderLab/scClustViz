@@ -106,7 +106,7 @@ pipeline is simply a matter of running the differential expression testing after
 every clustering run, instead of post-hoc. This allows you to systematically 
 increase the resolution or K parameter of the clustering algorithm until 
 statistically significant differential expression between nearest neighbour 
-clusters is lost. An example using the Seurat clustering method is shown here.
+clusters is lost. An example using the Seurat(v2) clustering method is shown here.
 ```r
 DE_bw_clust <- TRUE
 seurat_resolution <- 0
@@ -119,6 +119,19 @@ while(DE_bw_clust) {
   your_seurat_obj <- Seurat::FindClusters(your_seurat_obj,
                                           resolution=seurat_resolution)
   # ^ Calculate clusters using method of choice.
+  
+  if (length(levels(your_seurat_obj@ident)) <= 1) { next } 
+  # ^ Only one cluster was found, need to bump up the resolution!
+  
+  if (length(sCVdata_list) >= 1) {
+    if (length(levels(Clusters(sCVdata_list[[length(sCVdata_list)]]))) == length(levels(seurat_resolution@ident))) { 
+      if (length(levels(interaction(Clusters(sCVdata_list[[length(sCVdata_list)]]),
+                                    seurat_resolution@ident,drop=T))) == length(levels(seurat_resolution@ident))) { 
+        next 
+      }
+    }
+  }
+  # ^ if clustering results are identical to previous, move on.
 
   curr_sCVdata <- CalcSCV(
     inD=your_seurat_obj,
