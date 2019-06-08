@@ -28,7 +28,7 @@ Imports:
     colorspace (>= 1.4-1),
     pbapply (>= 1.3.4),
     markdown (>= 0.8),
-    grDevices (>= 3.5.1)
+    grDevices (>= 3.5.1),
     presto (>= 1.0.0)
 Depends:
     shiny (>= 1.1.0),

@@ -119,5 +119,6 @@ DEcombn(your_sCV_obj) <- MAST_result_list
 \code{\link{CalcSCV}} for wrapper function to calculate all
   statistics for an sCVdata object, and \code{\link{fx_calcEScombn}} and
   \code{\link{fx_calcDEcombn}} for the internal functions performing the
-  calculations.
+  calculations. Wilcox test is now powered by \code{\link[presto]{wilcoxauc}}
+  for super speed.
 }

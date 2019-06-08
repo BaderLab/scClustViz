@@ -731,19 +731,11 @@ fx_calcESvsRest_BP <- function(nge,cl,CGS,exponent,pseudocount,DRthresh) {
 fx_calcDEvsRest <- function(nge,cl,deTes) {
   message("-- Testing differential expression cluster vs rest --")
   deT_pVal <- presto::wilcoxauc(X=nge,y=cl)
-  
-  
-  
-  deT_pVal <- pbapply::pbsapply(levels(cl),function(i)
-    apply(nge[rownames(deTes[[i]])[deTes[[i]]$overThreshold],],1,function(X) 
-      # ^ slice by rowname is a little slower, but safer
-      # suppressWarnings(wilcox.test(X[cl %in% i],X[!cl %in% i],alternative="greater")$p.value)
-      suppressWarnings(unlist(wilcox.test(X[cl %in% i],X[!cl %in% i])[c("statistic","p.value")]))
-    ),simplify=F)
   for (i in names(deTes)) {
-    deTes[[i]][colnames(deT_pVal[[i]]),"Wstat"] <- deT_pVal[[i]]["statistic.W",]
-    deTes[[i]][colnames(deT_pVal[[i]]),"pVal"] <- deT_pVal[[i]]["p.value",]
-    deTes[[i]][colnames(deT_pVal[[i]]),"FDR"] <- p.adjust(deT_pVal[[i]]["p.value",],"fdr")
+    tempRows <- deT_pVal$feature %in% rownames(deTes[[i]])[deTes[[i]]$overThreshold] & deT_pVal$group == i
+    deTes[[i]][deT_pVal[tempRows,"feature"],"Wstat"] <- deT_pVal[tempRows,"statistic"]
+    deTes[[i]][deT_pVal[tempRows,"feature"],"pVal"] <- deT_pVal[tempRows,"pval"]
+    deTes[[i]][deT_pVal[tempRows,"feature"],"FDR"] <- p.adjust(deT_pVal[tempRows,"pval"],"fdr")
   } 
   return(deTes)
 }
@@ -839,7 +831,8 @@ fx_calcDEvsRest_BP <- function(nge,cl,deTes) {
 #' @seealso \code{\link{CalcSCV}} for wrapper function to calculate all
 #'   statistics for an sCVdata object,  and \code{\link{fx_calcESvsRest}} and
 #'   \code{\link{fx_calcDEvsRest}} for the internal functions performing the
-#'   calculations.
+#'   calculations. Wilcox test is now powered by \code{\link[presto]{wilcoxauc}}
+#'   for super speed.
 #'
 #' @examples
 #' \dontrun{
@@ -985,16 +978,17 @@ fx_calcEScombn <- function(cl,CGS,DRthresh) {
 fx_calcDEcombn <- function(nge,cl,deMes) {
   combosL <- strsplit(names(deMes),"-")
   message("-- Testing differential expression between clusters --")
-  deM_pVal <- pbapply::pbsapply(seq_along(combosL),function(i)
-    apply(nge[rownames(deMes[[i]])[deMes[[i]]$overThreshold],],1,function(X) 
-      suppressWarnings(unlist(
-        wilcox.test(X[cl == combosL[[i]][1]],
-                    X[cl == combosL[[i]][2]])[c("statistic","p.value")]
-      ))),simplify=F)
-  for (i in seq_along(deMes)) {
-    deMes[[i]][colnames(deM_pVal[[i]]),"Wstat"] <- deM_pVal[[i]]["statistic.W",]
-    deMes[[i]][colnames(deM_pVal[[i]]),"pVal"] <- deM_pVal[[i]]["p.value",]
-    deMes[[i]][colnames(deM_pVal[[i]]),"FDR"] <- p.adjust(deM_pVal[[i]]["p.value",],"fdr")
+  deM_pVal <- pbapply::pbsapply(combosL,function(G) {
+    temp <- presto::wilcoxauc(X=nge,y=cl,groups_use=G)
+    temp <- temp[temp$group != G[1],]
+    return(temp)
+  },simplify=F)
+  names(deM_pVal) <- names(deMes)
+  for (i in names(deMes)) {
+    tempRows <- deM_pVal[[i]]$feature %in% rownames(deMes[[i]])[deMes[[i]]$overThreshold]
+    deMes[[i]][deM_pVal[[i]][tempRows,"feature"],"Wstat"] <- deM_pVal[[i]][tempRows,"statistic"]
+    deMes[[i]][deM_pVal[[i]][tempRows,"feature"],"pVal"] <- deM_pVal[[i]][tempRows,"pval"]
+    deMes[[i]][deM_pVal[[i]][tempRows,"feature"],"FDR"] <- p.adjust(deM_pVal[[i]][tempRows,"pval"],"fdr")
   } 
   return(deMes)
 }
@@ -1098,7 +1092,8 @@ fx_calcDEcombn_BP <- function(nge,cl,deMes) {
 #' @seealso \code{\link{CalcSCV}} for wrapper function to calculate all
 #'   statistics for an sCVdata object, and \code{\link{fx_calcEScombn}} and
 #'   \code{\link{fx_calcDEcombn}} for the internal functions performing the
-#'   calculations.
+#'   calculations. Wilcox test is now powered by \code{\link[presto]{wilcoxauc}}
+#'   for super speed.
 #'
 #' @examples
 #' \dontrun{
