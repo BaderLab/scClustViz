@@ -980,7 +980,7 @@ fx_calcDEcombn <- function(nge,cl,deMes) {
   message("-- Testing differential expression between clusters --")
   deM_pVal <- pbapply::pbsapply(combosL,function(G) {
     temp <- presto::wilcoxauc(X=nge,y=cl,groups_use=G)
-    temp <- temp[temp$group != G[1],]
+    temp <- temp[temp$group == G[1],]
     return(temp)
   },simplify=F)
   names(deM_pVal) <- names(deMes)
