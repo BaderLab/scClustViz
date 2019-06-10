@@ -880,6 +880,10 @@ setMethod("CalcDEvsRest","sCVdata",
                          paste(findMethodSignatures(getExpr),collapse=", "),
                          sep="\n  "))
             }
+            if (length(levels(Clusters(sCVd))) <= 1) {
+              stop("scClustViz can't calculate differential expression when there's only one cluster.")
+            }
+            
             if (UseBiocParallel) {
               deTes <- fx_calcESvsRest_BP(nge=getExpr(inD,Param(sCVd,"assayType")),
                                           cl=Clusters(sCVd),
@@ -1158,6 +1162,10 @@ setMethod("CalcDEcombn","sCVdata",
                          paste(findMethodSignatures(getExpr),collapse=", "),
                          sep="\n  "))
             }
+            if (length(levels(Clusters(sCVd))) <= 1) {
+              stop("scClustViz can't calculate differential expression when there's only one cluster.")
+            }
+            
             deMes <- fx_calcEScombn(cl=Clusters(sCVd),
                                     CGS=ClustGeneStats(sCVd),
                                     DRthresh=Param(sCVd,"DRthresh"))
@@ -1235,6 +1243,9 @@ setGeneric("CalcSilhouette",function(sCVd,inD) standardGeneric("CalcSilhouette")
 
 setMethod("CalcSilhouette",signature("sCVdata"),function(sCVd,inD) {
   if (require(cluster)) {
+    if (length(levels(Clusters(sCVd))) <= 1) {
+      stop("Silhouette cannot be calculated with a single cluster.")
+    }
     fx_calcSilhouette(pca=getEmb(inD,Param(sCVd,"DRforClust")),
                       cl=Clusters(sCVd))
   } else {
