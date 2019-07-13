@@ -17,7 +17,7 @@ An interactive R Shiny tool for visualizing single-cell RNAseq clustering result
 - [Contact](#contact)
 
 # Example Output
-Before installing a package it's always nice to *see* what it is. [See the demo app here!](https://innesbt.shinyapps.io/scclustvizdemoapp/)
+Before installing a package it's always nice to *see* what it is. [See how we share our published single-cell RNAseq datasets online using scClustViz here](http://shiny.baderlab.org/)
 
 
 # Usage
@@ -170,7 +170,7 @@ scClustViz uses the wilcoxon rank-sum test for its differential expression testi
 The following data packages can be used to explore the features of scClustViz. You can also follow the vignette below to build your own data package to easily share your analysed scRNAseq data with collaborators and the public.
 
 ## Embryonic Mouse Cerebral Cortex
-The data from the 2017 Cell Reports paper [Developmental Emergence of Adult Neural Stem Cells as Revealed by Single-Cell Transcriptional Profiling](https://doi.org/10.1016/j.celrep.2017.12.017) by Yuzwa *et al.* are available to explore by installing the R package [MouseCortex](https://github.com/BaderLab/MouseCortex). These are DropSeq data from timepoints spanning neurogenesis and filtered for cortically-derived cells, processed on an earlier version of the pipeline outlined below (using scran for normalization and Seurat for clustering) and imported into scClustViz using the steps outlined above.
+The data from the 2017 Cell Reports paper [Developmental Emergence of Adult Neural Stem Cells as Revealed by Single-Cell Transcriptional Profiling](https://doi.org/10.1016/j.celrep.2017.12.017) by Yuzwa *et al.* are available to explore [at our website](http://shiny.baderlab.org/#mouse-cerebral-cortex) or by installing the R package [MouseCortex](https://github.com/BaderLab/MouseCortex). These are DropSeq data from timepoints spanning neurogenesis and filtered for cortically-derived cells, processed on an earlier version of the pipeline outlined below (using scran for normalization and Seurat for clustering) and imported into scClustViz using the steps outlined above.
 
 Install MouseCortex using devtools as follows:
 ```r
@@ -194,7 +194,7 @@ viewMouseCortex("e13")
 ```
 
 ## Human Liver Atlas
-The data from the 2018 Nature Communications paper [Single cell RNA sequencing of human liver reveals distinct intrahepatic macrophage populations](https://doi.org/10.1038/s41467-018-06318-7) by MacParland *et al.* are available to explore by installing the R package [HumanLiver](https://github.com/BaderLab/HumanLiver). These are 10X Chromium data from the livers of 5 human donors, processed on the pipeline outlined below (using scran for normalization and Seurat for clustering) and imported into scClustViz using the steps outlined above.
+The data from the 2018 Nature Communications paper [Single cell RNA sequencing of human liver reveals distinct intrahepatic macrophage populations](https://doi.org/10.1038/s41467-018-06318-7) by MacParland *et al.* are available to explore [at our website](http://shiny.baderlab.org/#human-liver-atlas) or by installing the R package [HumanLiver](https://github.com/BaderLab/HumanLiver). These are 10X Chromium data from the livers of 5 human donors, processed on the pipeline outlined below (using scran for normalization and Seurat for clustering) and imported into scClustViz using the steps outlined above.
 
 Install HumanLiver using devtools as follows:
 ```r
@@ -233,7 +233,7 @@ If you'd like a default resolution to load when the user views your data in scCl
 ```r
 runShiny("inst/packageData/MyDataTitle.RData")
 ```
-Save your selected cluster resolution as default in the app. It will be saved as "inst/packageData/MyDataTitle_savedRes.RData". You will also see a file called "inst/packageData/MyDataTitle_intro.md". This is a markdown file that stores the text displayed at the top of the scClustViz GUI. You can edit it to say what you want (perhaps a link to the paper the data is from, and maybe the abstract?).  
+Save your selected cluster resolution as default in the app. It will be saved as `inst/packageData/MyDataTitle_savedRes.RData`. You will also see a file called `inst/packageData/MyDataTitle_intro.md`. This is a markdown file that stores the text displayed at the top of the scClustViz GUI. You can edit it to say what you want (perhaps a link to the paper the data is from, and maybe the abstract?).  
 Now all you need to do is write the wrapper function to call *runShiny*. Here is an example R script (overwrite R/HelloWorld.R) to save in the "R" directory of the package.
 ```r
 #' View MyData data in the scClustViz Shiny app

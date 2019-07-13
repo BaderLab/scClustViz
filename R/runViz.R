@@ -164,7 +164,7 @@ runShiny <- function(filePath,outPath,
   # ^^ Load saved comparisons (if any) ---------------------------------------------------
   if (!missing(outPath)) { #Load from both dataPath and outPath if outPath exists.
     for (selDEfile in grep(paste0("^",dataTitle,".+selDE.+RData$"),list.files(outPath),value=T)) {
-      temp <- load(paste0(dataPath,selDEfile))
+      temp <- load(paste0(outPath,selDEfile))
       if (is.list(get(temp))) {
         if (all(sapply(get(temp),function(X) "sCVdata" %in% is(X)))) {
           sCVdL <- append(sCVdL,get(temp))
