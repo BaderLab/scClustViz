@@ -202,7 +202,13 @@ addCellMarkersToCGS <- function(sCV,cellMarkersU,cellMarkersS,symbolMap) {
 #' @export
 
 labelCellTypes <- function(sCV,cellMarkers,symbolMap=NULL) {
-  if (missing(cellMarkers)) { cellMarkers <- list() }
+  if (missing(cellMarkers)) {
+    if (!is.null(attr(Clusters(sCV),"ClusterNames"))) {
+      return()
+    } else {
+      cellMarkers <- list() 
+    }
+  }
   if (!is.list(cellMarkers)) {
     stop("cellMarkers must be a list where each entry is named for a cell type",
          "and is a character vector of gene names for cell type markers.")

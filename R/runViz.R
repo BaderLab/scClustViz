@@ -242,6 +242,8 @@ runShiny <- function(filePath,outPath,
     if (!is.na(outPath)) {
       dataPath <- outPath 
     }
+  } else {
+    outPath <- dataPath
   }
   
   

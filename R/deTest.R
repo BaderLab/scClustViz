@@ -176,6 +176,7 @@ CalcAllSCV <- function(inD,
     }
   } else if (length(clusterDF) == ncol(getExpr(inD,assayType))) {
     clusterDF <- as.data.frame(clusterDF)
+    colnames(clusterDF) <- "Clust"
   } else {
     stop(paste("clusterDF must be a data frame where each variable (column) is the cluster",
                "assignments for all cells (rows) from each cluster solution tested.",sep="\n  "))
