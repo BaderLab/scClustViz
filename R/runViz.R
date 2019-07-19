@@ -493,16 +493,7 @@ runShiny <- function(filePath,outPath,
     ),
     fixedRow(
       column(3,uiOutput("genePlotClustSelect")),
-      column(9,if (length(cellMarkers) > 0) {
-        radioButtons("cgLegend",inline=T,label="Highlighted genes:",
-                     choices=c("Cell-type markers"="markers",
-                               "Top DE genes (from heatmap)"="heatmap",
-                               "Gene symbols from search box below"="search"))
-      } else {
-        radioButtons("cgLegend",inline=T,label="Highlighted genes:",
-                     choices=c("Top DE genes (from heatmap)"="heatmap",
-                               "Gene symbols from search box below"="search"))
-      })
+      column(9,uiOutput("cgLegend"))
     ),
     fixedRow(align="right",
              plotOutput("clusterGenes",height="600px",click="cgClick"),
@@ -952,7 +943,7 @@ runShiny <- function(filePath,outPath,
         temp_choices <- list("Cluster annotations"="ClusterNames",
                              "Cluster annotations (label all)"="ClusterNamesAll",
                              "Cluster numbers"="Clusters")
-        if (length(cellMarkers) == 0) {
+        if (length(attr(Clusters(d$SCV[[res()]]),"ClusterNames")) == 0) {
           temp_choices <- temp_choices[3]
         } else if (grepl("^Comp:",res())) {
           temp_choices <- temp_choices[-1]
@@ -1396,6 +1387,18 @@ runShiny <- function(filePath,outPath,
                     choices=temp_cl,selected=cSelected())
       }
     })
+    output$cgLegend <- renderUI({
+      if (length(attr(Clusters(d$SCV[[res()]]),"cellMarkers")) > 0) {
+        radioButtons("cgLegend",inline=T,label="Highlighted genes:",
+                     choices=c("Cell-type markers"="markers",
+                               "Top DE genes (from heatmap)"="heatmap",
+                               "Gene symbols from search box below"="search"))
+      } else {
+        radioButtons("cgLegend",inline=T,label="Highlighted genes:",
+                     choices=c("Top DE genes (from heatmap)"="heatmap",
+                               "Gene symbols from search box below"="search"))
+      }
+    })
     
     
     clickGenes <- reactiveVal() 
@@ -1430,17 +1433,23 @@ runShiny <- function(filePath,outPath,
     output$clusterGenes <- renderPlot({
       if (length(res()) > 0) {
         switch(input$cgLegend,
-               markers=plot_clusterGenes_markers(sCVd=d$SCV[[res()]],
-                                                 selClust=selClust(),
-                                                 cellMarkers=cellMarkers),
-               heatmap=plot_clusterGenes_DEgenes(sCVd=d$SCV[[res()]],
-                                                 selClust=selClust(),
-                                                 DEgenes=DEgenes(),
-                                                 DEnum=input$DEgeneCount,
-                                                 DEtype=input$dotplotDEtype),
-               search=plot_clusterGenes_search(sCVd=d$SCV[[res()]],
-                                               selClust=selClust(),
-                                               GOI=GOI()),
+               markers=plot_clusterGenes_markers(
+                 sCVd=d$SCV[[res()]],
+                 selClust=selClust(),
+                 cellMarkers=attr(Clusters(d$SCV[[res()]]),"cellMarkers")
+               ),
+               heatmap=plot_clusterGenes_DEgenes(
+                 sCVd=d$SCV[[res()]],
+                 selClust=selClust(),
+                 DEgenes=DEgenes(),
+                 DEnum=input$DEgeneCount,
+                 DEtype=input$dotplotDEtype
+               ),
+               search=plot_clusterGenes_search(
+                 sCVd=d$SCV[[res()]],
+                 selClust=selClust(),
+                 GOI=GOI()
+               ),
                {    
                  plot(x=NA,y=NA,xlim=0:1,ylim=0:1,xaxt="n",yaxt="n",xlab=NA,ylab=NA)
                  text(.5,.5,"Whooops. input$cgLegend is making up words.")
@@ -1458,17 +1467,23 @@ runShiny <- function(filePath,outPath,
                  "tiff"=grDevices::tiff(file,height=7,width=12,units="in",res=600),
                  "png"=grDevices::png(file,height=7,width=12,units="in",res=600))
           switch(input$cgLegend,
-                 markers=plot_clusterGenes_markers(sCVd=d$SCV[[res()]],
-                                                   selClust=selClust(),
-                                                   cellMarkers=cellMarkers),
-                 heatmap=plot_clusterGenes_DEgenes(sCVd=d$SCV[[res()]],
-                                                   selClust=selClust(),
-                                                   DEgenes=DEgenes(),
-                                                   DEnum=input$DEgeneCount,
-                                                   DEtype=input$dotplotDEtype),
-                 search=plot_clusterGenes_search(sCVd=d$SCV[[res()]],
-                                                 selClust=selClust(),
-                                                 GOI=GOI()),
+                 markers=plot_clusterGenes_markers(
+                   sCVd=d$SCV[[res()]],
+                   selClust=selClust(),
+                   cellMarkers=attr(Clusters(d$SCV[[res()]]),"cellMarkers")
+                 ),
+                 heatmap=plot_clusterGenes_DEgenes(
+                   sCVd=d$SCV[[res()]],
+                   selClust=selClust(),
+                   DEgenes=DEgenes(),
+                   DEnum=input$DEgeneCount,
+                   DEtype=input$dotplotDEtype
+                 ),
+                 search=plot_clusterGenes_search(
+                   sCVd=d$SCV[[res()]],
+                   selClust=selClust(),
+                   GOI=GOI()
+                 ),
                  {    
                    plot(x=NA,y=NA,xlim=0:1,ylim=0:1,xaxt="n",yaxt="n",xlab=NA,ylab=NA)
                    text(.5,.5,"Whooops. input$cgLegend is making up words.")

@@ -281,18 +281,25 @@ plot_tsne <- function(cell_coord,md,md_title,md_log=F,label=NULL,
     par(mar=c(3,3,2.5,1),mgp=2:0)
   }
   if (missing(sel_cells)) { sel_cells <- character() }
+  if (nrow(cell_coord) > 1e4) {
+    temp_pch <- "."
+    temp_cex <- 2
+  } else {
+    temp_pch <- 21
+    temp_cex <- 1
+  }
   
   plot(x=NULL,y=NULL,xlab=colnames(cell_coord)[1],ylab=colnames(cell_coord)[2],
        xlim=range(cell_coord[,1]),ylim=range(cell_coord[,2]))
   if (length(sel_cells) > 0) {
-    points(cell_coord[!rownames(cell_coord) %in% sel_cells,],pch=21,
+    points(cell_coord[!rownames(cell_coord) %in% sel_cells,],pch=temp_pch,cex=temp_cex,
            col=alpha(idcol,.6)[id[!rownames(cell_coord) %in% sel_cells]],
            bg=alpha(idcol,0.3)[id[!rownames(cell_coord) %in% sel_cells]])
-    points(cell_coord[sel_cells,],pch=21,cex=1.3,
+    points(cell_coord[sel_cells,],pch=temp_pch,cex=temp_cex + .5,
            col=alpha(idcol,1)[id[rownames(cell_coord) %in% sel_cells]],
            bg=alpha(idcol,0.6)[id[rownames(cell_coord) %in% sel_cells]])
   } else {
-    points(cell_coord,pch=21,col=alpha(idcol,.8)[id],bg=alpha(idcol,0.4)[id])
+    points(cell_coord,pch=temp_pch,cex=temp_cex,col=alpha(idcol,.8)[id],bg=alpha(idcol,0.4)[id])
   }
   
   if (!missing(sel_cells_A) & !missing(sel_cells_B)) {
@@ -317,7 +324,7 @@ plot_tsne <- function(cell_coord,md,md_title,md_log=F,label=NULL,
     legend(x=par("usr")[2],y=par("usr")[4],
            xjust=1,yjust=0.2,xpd=NA,bty="n",
            ncol=switch(as.character(length(levels(id)) < 4),"TRUE"=length(levels(id)),"FALSE"=4),
-           legend=levels(id),pch=21,col=idcol,pt.bg=alpha(idcol,0.5))
+           legend=levels(id),pch=temp_pch,cex=temp_cex,col=idcol,pt.bg=alpha(idcol,0.5))
     mtext(md_title,side=3,adj=0,font=2,line=ceiling(length(levels(id))/4)-1,cex=1.2)
   } else if (any(md < 0)) {
     temp_x <- c(
@@ -367,13 +374,20 @@ plot_tsne <- function(cell_coord,md,md_title,md_log=F,label=NULL,
 # Metadata plots ----------
 # ^ mdCompare -----------
 plot_mdScatter <- function(MD,sel_clust,md_log) {
+  if (nrow(MD) > 1e4) {
+    temp_pch <- "."
+    temp_cex <- 2
+  } else {
+    temp_pch <- 21
+    temp_cex <- 1
+  }
   temp_par <- par(no.readonly=T)
   layout(matrix(c(2,1,0,3),2),c(5,1),c(1,5))
   par(mar=c(3,3,0,0),mgp=2:0,cex=1.1)
   plot(MD[!MD$sel_cells,1:2],log=md_log,xlim=range(MD[,1]),ylim=range(MD[,2]),
-       pch=21,col=alpha("black",0.2),bg=alpha("black",0.1))
-  points(MD[MD$sel_cells,1:2],
-         pch=21,col=alpha("red",0.4),bg=alpha("red",0.2))
+       pch=temp_pch,cex=temp_cex,col=alpha("black",0.2),bg=alpha("black",0.1))
+  points(MD[MD$sel_cells,1:2],pch=temp_pch,cex=temp_cex + .5,
+         col=alpha("red",0.4),bg=alpha("red",0.2))
   par(mar=c(0,3,1,0))
   boxplot(tapply(MD[,1],MD$sel_cells,c),log=sub("y","",md_log),
           horizontal=T,xaxt="n",yaxt="n",border=c("black","red"))
@@ -911,13 +925,20 @@ plot_clusterGenes_markers <- function(sCVd,selClust,cellMarkers) {
                      "to see gene expression for that cluster.",sep="\n"))
   } else {
     CGS <- ClustGeneStats(sCVd)[[selClust]]
+    # if (nrow(CGS) > 1e4) {
+      temp_pch <- "."
+      temp_cex <- 3
+    # } else {
+    #   temp_pch <- 20
+    #   temp_cex <- 1
+    # }
     temp_ylab <- switch(as.character(Param(sCVd,"exponent") == exp(1)),
                         "TRUE"="(natural log scale)",
                         "FALSE"=paste0("(log",Param(sCVd,"exponent")," scale)"))
     plot(MDGE~DR,
          data=CGS[!((CGS$cMu | CGS$cMs) & CGS$overCut),],
          xlim=range(CGS$DR),ylim=range(CGS$MDGE),
-         col=alpha("black",0.2),pch=20,
+         col=alpha("black",0.2),pch=temp_pch,cex=temp_cex,
          xlab="Proportion of cells in which gene was detected",
          ylab=paste("Mean normalized gene expression where detected",temp_ylab))
     title(paste0("Cluster ", selClust,": ",attr(Clusters(sCVd),"ClusterNames")[selClust]),cex=1.2)
@@ -1014,13 +1035,20 @@ plot_clusterGenes_DEgenes <- function(sCVd,selClust,DEgenes,DEnum,DEtype) {
                      "to see gene expression for that cluster.",sep="\n"))
   } else {
     CGS <- ClustGeneStats(sCVd)[[selClust]]
+    # if (nrow(CGS) > 1e4) {
+    temp_pch <- "."
+    temp_cex <- 3
+    # } else {
+    #   temp_pch <- 20
+    #   temp_cex <- 1
+    # }
     temp_ylab <- switch(as.character(Param(sCVd,"exponent") == exp(1)),
                         "TRUE"="(natural log scale)",
                         "FALSE"=paste0("(log",Param(sCVd,"exponent")," scale)"))
     plot(MDGE~DR,
          data=CGS[!rownames(CGS) %in% names(DEgenes[[selClust]])[1:DEnum],],
          xlim=range(CGS$DR),ylim=range(CGS$MDGE),
-         col=alpha("black",0.2),pch=20,
+         col=alpha("black",0.2),pch=temp_pch,cex=temp_cex,
          xlab="Proportion of cells in which gene was detected",
          ylab=paste("Mean normalized gene expression where detected",temp_ylab))
     title(paste0("Cluster ", selClust,": ",attr(Clusters(sCVd),"ClusterNames")[selClust]),cex=1.2)
@@ -1098,13 +1126,20 @@ plot_clusterGenes_search <- function(sCVd,selClust,GOI) {
                      "to see gene expression for that cluster.",sep="\n"))
   } else {
     CGS <- ClustGeneStats(sCVd)[[selClust]]
+    # if (nrow(CGS) > 1e4) {
+    temp_pch <- "."
+    temp_cex <- 3
+    # } else {
+    #   temp_pch <- 20
+    #   temp_cex <- 1
+    # }
     if (!"genes" %in% names(CGS)) { CGS$genes <- rownames(CGS) }
     temp_ylab <- switch(as.character(Param(sCVd,"exponent") == exp(1)),
                         "TRUE"="(natural log scale)",
                         "FALSE"=paste0("(log",Param(sCVd,"exponent")," scale)"))
     plot(MDGE~DR,
          data=CGS[!CGS$genes %in% GOI,],
-         col=alpha("black",0.2),pch=20,
+         col=alpha("black",0.2),pch=temp_pch,cex=temp_cex,
          xlim=range(CGS$DR),ylim=range(CGS$MDGE),
          xlab="Proportion of cells in which gene was detected",
          ylab=paste("Mean normalized gene expression where detected",temp_ylab))
@@ -1238,17 +1273,18 @@ plot_GEboxplot <- function(nge,sCVd,gene,geneName,opts=c("sct","dr")) {
             side=1,line=2,font=2) 
     }
     for (i in temp_pos) {
-      boxplot(nge[gene,Clusters(sCVd) %in% levels(Clusters(sCVd))[i]],add=T,
-              at=which(temp_pos == i),col=bxpCol[i],outline=F)
       if ("sct" %in% opts) {
         points(jitter(rep(which(temp_pos == i),
                           sum(Clusters(sCVd) %in% levels(Clusters(sCVd))[i])),
                       amount=.2),
                nge[gene,Clusters(sCVd) %in% levels(Clusters(sCVd))[i]],
-               pch=20,col=colorspace::qualitative_hcl(length(levels(Clusters(sCVd))),
-                                                      palette="Dark 3",
-                                                      alpha=.4)[i])
+               pch=".",cex=3,
+               col=colorspace::qualitative_hcl(length(levels(Clusters(sCVd))),
+                                               palette="Dark 3",
+                                               alpha=.4)[i])
       }
+      boxplot(nge[gene,Clusters(sCVd) %in% levels(Clusters(sCVd))[i]],add=T,
+              at=which(temp_pos == i),col=bxpCol[i],outline=F)
     }
     if ("dr" %in% opts) {
       points(x=seq_along(ClustGeneStats(sCVd)),
@@ -1275,8 +1311,12 @@ compareClusts_DF <- function(sCVd,clA,clB,dataType) {
     loc <- loc1[loc1 %in% names(DEcombn(sCVd))]
     loc1 <- which(loc1 %in% names(DEcombn(sCVd)))
     if (loc1 == 2) { loc1 <- -1 }
-    tempW <- DEcombn(sCVd)[[loc]]$Wstat - 
-      DEcombn(sCVd)[[loc]]$Wstat[which.max(DEcombn(sCVd)[[loc]]$pVal)]
+    if ("Wstat" %in% colnames(DEcombn(sCVd)[[loc]])) {
+      tempW <- DEcombn(sCVd)[[loc]]$Wstat - 
+        DEcombn(sCVd)[[loc]]$Wstat[which.max(DEcombn(sCVd)[[loc]]$pVal)]
+    } else {
+      tempW <- DEcombn(sCVd)[[loc]]$logGER
+    }
     temp <- data.frame(x_diff=ClustGeneStats(sCVd)[[clA]][,dataType] - 
                          ClustGeneStats(sCVd)[[clB]][,dataType],
                        y_mean=rowMeans(cbind(ClustGeneStats(sCVd)[[clA]][,dataType],
@@ -1294,8 +1334,12 @@ compareClusts_DF <- function(sCVd,clA,clB,dataType) {
     temp <- DEcombn(sCVd)[[loc]][,c("logGER","dDR","FDR")]
     temp <- as.data.frame(mapply("*",temp,c(loc1,loc1,1))) 
     rownames(temp) <- rownames(DEcombn(sCVd)[[loc]])
-    tempW <- DEcombn(sCVd)[[loc]]$Wstat - 
-      DEcombn(sCVd)[[loc]]$Wstat[which.max(DEcombn(sCVd)[[loc]]$pVal)]
+    if ("Wstat" %in% colnames(DEcombn(sCVd)[[loc]])) {
+      tempW <- DEcombn(sCVd)[[loc]]$Wstat - 
+        DEcombn(sCVd)[[loc]]$Wstat[which.max(DEcombn(sCVd)[[loc]]$pVal)]
+    } else {
+      tempW <- DEcombn(sCVd)[[loc]]$logGER
+    }
     temp$dir <- c(clB,clA)[(tempW * loc1 > 0) + 1]
     return(temp)
   } 

@@ -845,22 +845,29 @@ fx_calcDEvsRest_BP <- function(nge,cl,deTes) {
 #'
 #'
 #' ## Example using MAST results from Seurat to replace CalcDEvsRest ##
-#' MAST_result <- Seurat::FindAllMarkers(your_seurat_obj,
-#'                                       test.use="MAST",
-#'                                       latent.vars="nUMI")
-#'
-#' names(MAST_result)[names(MAST_result) == "avg_logFC"] <- "logGER"
+#' MAST_oneVSall <- FindAllMarkers(your_seurat_obj,
+#'                                 logfc.threshold=0,
+#'                                 min.pct=0.1,
+#'                                 test.use="MAST",
+#'                                 latent.vars="nUMI")
+#' # ^ FindAllMarkers and CalcDEvsRest do equivalent comparisons 
+#' 
+#' names(MAST_oneVSall)[names(MAST_oneVSall) == "avg_logFC"] <- "logGER"
 #' # ^ Effect size variable must be named 'logGER'
-#' names(MAST_result)[names(MAST_result) == "p_val_adj"] <- "FDR"
+#' names(MAST_oneVSall)[names(MAST_oneVSall) == "p_val_adj"] <- "FDR"
 #' # ^ Significance variable must be named 'FDR'
-#'
-#' MAST_result_list <- sapply(levels(MAST_result$cluster),
-#'                            function(X)
-#'                              MAST_result[MAST_result$cluster == X,],
-#'                            simplify=F)
-#' # ^ Must be named list with entries for every cluster.
-#'
-#' DEvsRest(your_sCV_obj) <- MAST_result_list
+#' 
+#' MAST_oneVSall_list <- sapply(levels(MAST_oneVSall$cluster),
+#'                              function(X) {
+#'                                temp <- MAST_oneVSall[MAST_oneVSall$cluster == X,]
+#'                                rownames(temp) <- temp$gene
+#'                                # ^ Rownames must be gene names.
+#'                                return(temp)
+#'                              },simplify=F)
+#' # ^ Dataframe converted to list of dataframes per cluster
+#' 
+#' DEvsRest(your_sCV_obj) <- MAST_oneVSall_list
+#' # ^ Slot MAST results into sCVdata object
 #'
 #' }
 #'
@@ -1111,38 +1118,34 @@ fx_calcDEcombn_BP <- function(nge,cl,deMes) {
 #'
 #' ## Example using MAST results from Seurat to replace CalcDEcombn ##
 #'
-#' MAST_result_list <- apply(
-#'   X=combn(levels(your_seurat_obj@ident),2),
-#'   MARGIN=2,
-#'   FUN=function(X)
-#'     FindMarkers(your_seurat_obj,
-#'                 ident.1=X[1],
-#'                 ident.2=X[2],
-#'                 test.use="MAST",
-#'                 latent.vars="nUMI")
-#' )
-#' # ^ Pairwise testing of all combinations of clusters.
-#'
-#' names(MAST_result_list) <- apply(
-#'   X=combn(levels(your_seurat_obj@ident),2),
-#'   MARGIN=2,
-#'   FUN=function(X) paste(X,collapse="-")
-#' )
-#' # ^ list entries must be named 'A-B' where clusters are A and B.
-#'
-#' for (i in names(MAST_result_list)) {
-#'   MAST_result_list[[i]]$dDR <-
-#'     MAST_result_list[[i]]$pct.1 - MAST_result_list[[i]]$pct.2
-#'   # ^ dDR variable must be included
-#'
-#'   names(MAST_result_list)[names(MAST_result_list) == "avg_logFC"] <- "logGER"
-#'   # ^ logFC effect size variable must be named 'logGER'
-#'
-#'   names(MAST_result_list)[names(MAST_result_list) == "p_val_adj"] <- "FDR"
+#' MAST_pw <- apply(combn(levels(your_seurat_obj@ident),2),
+#'                  MARGIN=2,
+#'                  function(X) {
+#'                    FindMarkers(your_seurat_obj,
+#'                                ident.1=X[1],
+#'                                ident.2=X[2],
+#'                                logfc.threshold=0,
+#'                                min.pct=0.1,
+#'                                test.use="MAST",
+#'                                latent.vars="nUMI")
+#'                  })
+# ^ Test DE between every pairwise combination of clusters
+#' names(MAST_pw) <- apply(combn(levels(your_seurat_obj@ident),2),2,
+#'                         function(X) paste(X,collapse="-"))
+#' # ^ Names must be in "X-Y" format
+#' 
+#' for (i in names(MAST_pw)) {
+#'   MAST_pw[[i]]$dDR <- MAST_pw[[i]]$pct.1 - MAST_pw[[i]]$pct.2
+#'   # ^ Diff in detect rate (dDR) must be a variable in each dataframe
+#'   names(MAST_pw[[i]])[names(MAST_pw[[i]]) == "avg_logFC"] <- "logGER"
+#'   # ^ Effect size variable must be named 'logGER'
+#'   names(MAST_pw[[i]])[names(MAST_pw[[i]]) == "p_val_adj"] <- "FDR"
 #'   # ^ Significance variable must be named 'FDR'
+#'   # Note: rownames of each dataframe must be gene names, 
+#'   # but FindMarkers should already do this.
 #' }
-#'
-#' DEcombn(your_sCV_obj) <- MAST_result_list
+#' DEcombn(your_sCV_obj) <- MAST_pw
+#' # ^ Slot MAST results into sCVdata object
 #'
 #' }
 #'
@@ -1531,7 +1534,7 @@ fx_calcNeighb <- function(deVS,NN,FDRthresh) {
   deN <- sapply(seq_along(nb),function(i) {
     temp <- which(deVS[[nb[i]]]$FDR <= FDRthresh &
                     deVS[[nb[i]]]$logGER * nbd[i] > 0)
-    out <- deVS[[nb[i]]][temp,-which(names(deVS[[nb[i]]]) == "overThreshold")]
+    out <- deVS[[nb[i]]][temp,names(deVS[[nb[i]]]) != "overThreshold"]
     names(out) <- paste(names(out),paste(names(NN),NN,sep="-")[i],sep="_")
     return(out)
   },simplify=F)
@@ -1604,15 +1607,22 @@ fx_calcMarker <- function(deVS,FDRthresh) {
   if (missing(FDRthresh)) { FDRthresh <- 1 }
   mNames <- sapply(combosL,function(comp) {
     cn <- as.integer(names(comp))
-    Reduce(intersect,sapply(seq_along(comp),function(i) {
-      tempW <- deVS[[cn[i]]]$Wstat - deVS[[cn[i]]]$Wstat[which.max(deVS[[cn[i]]]$pVal)]
-      rownames(deVS[[cn[i]]])[which(deVS[[cn[i]]]$FDR <= FDRthresh & tempW * comp[i] > 0)]
-    },simplify=F))
+    if ("Wstat" %in% colnames(deVS[[1]])) {
+      return(Reduce(intersect,sapply(seq_along(comp),function(i) {
+        tempW <- deVS[[cn[i]]]$Wstat - deVS[[cn[i]]]$Wstat[which.max(deVS[[cn[i]]]$pVal)]
+        rownames(deVS[[cn[i]]])[which(deVS[[cn[i]]]$FDR <= FDRthresh & tempW * comp[i] > 0)]
+      },simplify=F)))
+    } else {
+      return(Reduce(intersect,sapply(seq_along(comp),function(i) {
+        rownames(deVS[[cn[i]]])[which(deVS[[cn[i]]]$FDR <= FDRthresh & 
+                                             deVS[[cn[i]]]$logGER * comp[i] > 0)]
+      },simplify=F)))
+    }
   },simplify=F)
   deM <- sapply(seq_along(mNames),function(i) {
     do.call(cbind,lapply(names(combosL[[i]]),function(l) {
       L <- as.integer(l)
-      temp <- deVS[[L]][mNames[[i]],-which(names(deVS[[L]]) == "overThreshold")]
+      temp <- deVS[[L]][mNames[[i]],names(deVS[[L]]) != "overThreshold"]
       if (combosL[[i]][l] == -1) {
         temp$logGER <- temp$logGER * combosL[[i]][l]
         temp$dDR <- temp$dDR * combosL[[i]][l]

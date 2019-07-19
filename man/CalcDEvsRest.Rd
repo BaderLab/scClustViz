@@ -75,22 +75,29 @@ DEvsRest(your_sCV_obj) <- CalcDEvsRest(sCVd=your_sCV_obj,
 
 
 ## Example using MAST results from Seurat to replace CalcDEvsRest ##
-MAST_result <- Seurat::FindAllMarkers(your_seurat_obj,
-                                      test.use="MAST",
-                                      latent.vars="nUMI")
+MAST_oneVSall <- FindAllMarkers(your_seurat_obj,
+                                logfc.threshold=0,
+                                min.pct=0.1,
+                                test.use="MAST",
+                                latent.vars="nUMI")
+# ^ FindAllMarkers and CalcDEvsRest do equivalent comparisons 
 
-names(MAST_result)[names(MAST_result) == "avg_logFC"] <- "logGER"
+names(MAST_oneVSall)[names(MAST_oneVSall) == "avg_logFC"] <- "logGER"
 # ^ Effect size variable must be named 'logGER'
-names(MAST_result)[names(MAST_result) == "p_val_adj"] <- "FDR"
+names(MAST_oneVSall)[names(MAST_oneVSall) == "p_val_adj"] <- "FDR"
 # ^ Significance variable must be named 'FDR'
 
-MAST_result_list <- sapply(levels(MAST_result$cluster),
-                           function(X)
-                             MAST_result[MAST_result$cluster == X,],
-                           simplify=F)
-# ^ Must be named list with entries for every cluster.
+MAST_oneVSall_list <- sapply(levels(MAST_oneVSall$cluster),
+                             function(X) {
+                               temp <- MAST_oneVSall[MAST_oneVSall$cluster == X,]
+                               rownames(temp) <- temp$gene
+                               # ^ Rownames must be gene names.
+                               return(temp)
+                             },simplify=F)
+# ^ Dataframe converted to list of dataframes per cluster
 
-DEvsRest(your_sCV_obj) <- MAST_result_list
+DEvsRest(your_sCV_obj) <- MAST_oneVSall_list
+# ^ Slot MAST results into sCVdata object
 
 }
 

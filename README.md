@@ -123,15 +123,20 @@ while(DE_bw_clust) {
   if (length(levels(your_seurat_obj@ident)) <= 1) { next } 
   # ^ Only one cluster was found, need to bump up the resolution!
   
-  if (length(sCVdata_list) >= 1) {
-    if (length(levels(Clusters(sCVdata_list[[length(sCVdata_list)]]))) == length(levels(seurat_resolution@ident))) { 
-      if (length(levels(interaction(Clusters(sCVdata_list[[length(sCVdata_list)]]),
-                                    seurat_resolution@ident,drop=T))) == length(levels(seurat_resolution@ident))) { 
-        next 
-      }
+if (length(sCVdata_list) >= 1) {
+  temp_cl <- length(levels(Clusters(sCVdata_list[[length(sCVdata_list)]])))
+  if (temp_cl == length(levels(seurat_resolution@ident))) { 
+    temp_cli <- length(levels(interaction(
+      Clusters(sCVdata_list[[length(sCVdata_list)]]),
+      seurat_resolution@ident,
+      drop=T
+    )))
+    if (temp_cli == length(levels(seurat_resolution@ident))) { 
+      next 
     }
   }
-  # ^ if clustering results are identical to previous, move on.
+}
+# ^ if clustering results are identical to previous, move on.
 
   curr_sCVdata <- CalcSCV(
     inD=your_seurat_obj,
@@ -164,7 +169,83 @@ runShiny(filePath="for_scClustViz.RData")
 ```
 
 ## Use Your Own Differential Expression Results
-scClustViz uses the wilcoxon rank-sum test for its differential expression testing.  You can provide your own DE results from a testing method of your choice instead, skipping sCV's testing steps. In both `CalcAllSCV` and `CalcSCV` there are arguments `calcDEvsRest` and `calcDEcombn`, which can be set to false to skip those differential expression calculations.  You can then use `DEvsRest(your_sCVdata_object) <- your_DE_dataframe_list` and `DEcombn(your_sCVdata_object) <- your_DE_dataframe_list` to pass your results into the sCVdata objects. DEvsRest represents differential expression tests between each cluster and the remaining cells, and should be a named list of data frames where each name refers to the tested cluster (see `?CalcDEvsRest` for details). DEcombn represents differential expression tests between all pairwise combinations of clusters, and should be a named list of data frames were each name refers to the cluster pair, with cluster names separated by "-" (see `?CalcDEcombn` for details). In both cases, data frames must contain variables `logGER` (an effect size measure: gene expression ratio in log space, often referred to as logFC) and `FDR` (significance measure: false discovery rate), as well as `dDR` (an effect size measure: difference in detection rate) for `DEcombn`.
+scClustViz uses the wilcoxon rank-sum test for its differential expression testing.  You can provide your own DE results from a testing method of your choice instead, skipping sCV's testing steps. In both `CalcAllSCV` and `CalcSCV` there are arguments `calcDEvsRest` and `calcDEcombn`, which can be set to false to skip those differential expression calculations.  You can then use `DEvsRest(your_sCVdata_object) <- your_DE_dataframe_list` and `DEcombn(your_sCVdata_object) <- your_DE_dataframe_list` to pass your results into the sCVdata objects. DEvsRest represents differential expression tests between each cluster and the remaining cells, and should be a named list of data frames where each name refers to the tested cluster (see `?CalcDEvsRest` for details). DEcombn represents differential expression tests between all pairwise combinations of clusters, and should be a named list of data frames were each name refers to the cluster pair, with cluster names separated by "-" (see `?CalcDEcombn` for details). In both cases, data frames must contain variables `logGER` (an effect size measure: gene expression ratio in log space, often referred to as logFC) and `FDR` (significance measure: false discovery rate), as well as `dDR` (an effect size measure: difference in detection rate) for `DEcombn`. An example using Seurat(v2) is shown here:
+```r
+# One vs all testing ----
+MAST_oneVSall <- FindAllMarkers(your_seurat_obj,
+                                logfc.threshold=0,
+                                min.pct=0.1,
+                                test.use="MAST",
+                                latent.vars="nUMI")
+# ^ FindAllMarkers and CalcDEvsRest do equivalent comparisons 
+
+names(MAST_oneVSall)[names(MAST_oneVSall) == "avg_logFC"] <- "logGER"
+# ^ Effect size variable must be named 'logGER'
+names(MAST_oneVSall)[names(MAST_oneVSall) == "p_val_adj"] <- "FDR"
+# ^ Significance variable must be named 'FDR'
+
+MAST_oneVSall_list <- sapply(levels(MAST_oneVSall$cluster),
+                             function(X) {
+                               temp <- MAST_oneVSall[MAST_oneVSall$cluster == X,]
+                               rownames(temp) <- temp$gene
+                               # ^ Rownames must be gene names.
+                               return(temp)
+                             },simplify=F)
+# ^ Dataframe converted to list of dataframes per cluster
+
+DEvsRest(your_sCV_obj) <- MAST_oneVSall_list
+# ^ Slot MAST results into sCVdata object
+
+
+# Pairwise testing ----
+MAST_pw <- apply(combn(levels(your_seurat_obj@ident),2),2,
+                 function(X) {
+                   FindMarkers(your_seurat_obj,
+                               ident.1=X[1],
+                               ident.2=X[2],
+                               logfc.threshold=0,
+                               min.pct=0.1,
+                               test.use="MAST",
+                               latent.vars="nUMI")
+                 })
+# ^ Test DE between every pairwise combination of clusters
+# equivalent to testing performed by CalcDEcombn
+names(MAST_pw) <- apply(combn(levels(your_seurat_obj@ident),2),2,
+                        function(X) paste(X,collapse="-"))
+# ^ Names must be in "X-Y" format
+
+for (i in names(MAST_pw)) {
+  MAST_pw[[i]]$dDR <- MAST_pw[[i]]$pct.1 - MAST_pw[[i]]$pct.2
+  # ^ Diff in detect rate (dDR) must be a variable in each dataframe
+  names(MAST_pw[[i]])[names(MAST_pw[[i]]) == "avg_logFC"] <- "logGER"
+  # ^ Effect size variable must be named 'logGER'
+  names(MAST_pw[[i]])[names(MAST_pw[[i]]) == "p_val_adj"] <- "FDR"
+  # ^ Significance variable must be named 'FDR'
+  # Note: rownames of each dataframe must be gene names, 
+  # but FindMarkers should already do this.
+}
+DEcombn(your_sCV_obj) <- MAST_pw
+# ^ Slot MAST results into sCVdata object
+```
+
+## Use Your Own Cluster Names
+scClustViz has a very basic cluster annotation method built into `runShiny` implemented by the `labelCellTypes` function. It uses a user-defined list of marker genes per expected cell type to assign labels to each cluster.  The median gene expression for each set of marker genes is calculated for each cluster, and clusters are assigned the label of the highest-ranking marker gene set.  This is provided as a convenience function, as there are many more sophisticated cluster annotation methods in the literature, and expert curation is probably still the gold standard.  With that in mind, assigning your own labels to clusters is as simple as assigning a named character vector to the attribute `ClusterNames` of `Clusters(your_sCV_obj)`, like so:
+```r
+temp_clusters <- levels(Clusters(your_sCV_obj))
+# ^ A vector of existing cluster labels. For example
+# (from Seurat) something like c(0,1,2,3,4)...
+
+your_cluster_names <- c("Cell type zero",
+                        "Cell type one",
+                        "Third cell type",
+                        "Cell type 3 (thanks Seurat)",
+                        "Last cell type (4,5,who knows?)")
+names(your_cluster_names) <- temp_clusters
+# ^ Needs to be a named vector where names are existing cluster labels
+
+attr(Clusters(your_sCV_obj),"ClusterNames") <- your_cluster_names
+# ^ The "ClusterNames" attribute is where cell type annotations are stored.
+```
 
 # Data Packages
 The following data packages can be used to explore the features of scClustViz. You can also follow the vignette below to build your own data package to easily share your analysed scRNAseq data with collaborators and the public.

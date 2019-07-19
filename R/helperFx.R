@@ -203,11 +203,7 @@ addCellMarkersToCGS <- function(sCV,cellMarkersU,cellMarkersS,symbolMap) {
 
 labelCellTypes <- function(sCV,cellMarkers,symbolMap=NULL) {
   if (missing(cellMarkers)) {
-    if (!is.null(attr(Clusters(sCV),"ClusterNames"))) {
-      return()
-    } else {
-      cellMarkers <- list() 
-    }
+    cellMarkers <- list() 
   }
   if (!is.list(cellMarkers)) {
     stop("cellMarkers must be a list where each entry is named for a cell type",
@@ -228,6 +224,9 @@ labelCellTypes <- function(sCV,cellMarkers,symbolMap=NULL) {
                              cellMarkersU=cellMarkersU,
                              cellMarkersS=cellMarkersS,
                              symbolMap=symbolMap)
+  if (!is.null(attr(Clusters(sCV),"ClusterNames"))) {
+    return(sCV)
+  } 
   
   if (length(cellMarkers) < 1) {
     attr(Clusters(sCV),"ClusterNames") <- vapply(ClustGeneStats(sCV),

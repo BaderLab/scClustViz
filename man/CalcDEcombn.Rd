@@ -79,38 +79,33 @@ DEcombn(your_sCV_obj) <- CalcDEcombn(sCVd=your_sCV_obj,
 
 ## Example using MAST results from Seurat to replace CalcDEcombn ##
 
-MAST_result_list <- apply(
-  X=combn(levels(your_seurat_obj@ident),2),
-  MARGIN=2,
-  FUN=function(X)
-    FindMarkers(your_seurat_obj,
-                ident.1=X[1],
-                ident.2=X[2],
-                test.use="MAST",
-                latent.vars="nUMI")
-)
-# ^ Pairwise testing of all combinations of clusters.
+MAST_pw <- apply(combn(levels(your_seurat_obj@ident),2),
+                 MARGIN=2,
+                 function(X) {
+                   FindMarkers(your_seurat_obj,
+                               ident.1=X[1],
+                               ident.2=X[2],
+                               logfc.threshold=0,
+                               min.pct=0.1,
+                               test.use="MAST",
+                               latent.vars="nUMI")
+                 })
+names(MAST_pw) <- apply(combn(levels(your_seurat_obj@ident),2),2,
+                        function(X) paste(X,collapse="-"))
+# ^ Names must be in "X-Y" format
 
-names(MAST_result_list) <- apply(
-  X=combn(levels(your_seurat_obj@ident),2),
-  MARGIN=2,
-  FUN=function(X) paste(X,collapse="-")
-)
-# ^ list entries must be named 'A-B' where clusters are A and B.
-
-for (i in names(MAST_result_list)) {
-  MAST_result_list[[i]]$dDR <-
-    MAST_result_list[[i]]$pct.1 - MAST_result_list[[i]]$pct.2
-  # ^ dDR variable must be included
-
-  names(MAST_result_list)[names(MAST_result_list) == "avg_logFC"] <- "logGER"
-  # ^ logFC effect size variable must be named 'logGER'
-
-  names(MAST_result_list)[names(MAST_result_list) == "p_val_adj"] <- "FDR"
+for (i in names(MAST_pw)) {
+  MAST_pw[[i]]$dDR <- MAST_pw[[i]]$pct.1 - MAST_pw[[i]]$pct.2
+  # ^ Diff in detect rate (dDR) must be a variable in each dataframe
+  names(MAST_pw[[i]])[names(MAST_pw[[i]]) == "avg_logFC"] <- "logGER"
+  # ^ Effect size variable must be named 'logGER'
+  names(MAST_pw[[i]])[names(MAST_pw[[i]]) == "p_val_adj"] <- "FDR"
   # ^ Significance variable must be named 'FDR'
+  # Note: rownames of each dataframe must be gene names, 
+  # but FindMarkers should already do this.
 }
-
-DEcombn(your_sCV_obj) <- MAST_result_list
+DEcombn(your_sCV_obj) <- MAST_pw
+# ^ Slot MAST results into sCVdata object
 
 }
 
