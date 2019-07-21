@@ -943,7 +943,7 @@ runShiny <- function(filePath,outPath,
         temp_choices <- list("Cluster annotations"="ClusterNames",
                              "Cluster annotations (label all)"="ClusterNamesAll",
                              "Cluster numbers"="Clusters")
-        if (length(attr(Clusters(d$SCV[[res()]]),"ClusterNames")) == 0) {
+        if (all(unique(attr(Clusters(d$SCV[[res()]]),"ClusterNames")) == "")) {
           temp_choices <- temp_choices[3]
         } else if (grepl("^Comp:",res())) {
           temp_choices <- temp_choices[-1]

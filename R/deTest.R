@@ -822,7 +822,7 @@ fx_calcDEvsRest_BP <- function(nge,cl,deTes) {
 #'   BiocParallel for calculations. Not recommended.
 #'
 #' @return A named list of data frames, one entry for each level in
-#'   \code{Clusters(sCVd)} (with corresponding name).Each entry is data frame
+#'   \code{Clusters(sCVd)} (with corresponding name). Each entry is data frame
 #'   containing gene differential expression stats when comparing the cells of
 #'   that cluster to all other cells in the input data. Rows represent genes,
 #'   and variables include \code{logGER} (an effect size measure: gene
