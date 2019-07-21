@@ -9,6 +9,7 @@ An interactive R Shiny tool for visualizing single-cell RNAseq clustering result
   - [Basic Usage](#basic-usage)
   - [Iterative Clustering With scClustViz](#iterative-clustering-with-scclustviz)
   - [Use Your Own Differential Expression Results](#use-your-own-differential-expression-results)
+  - [Use Your Own Cluster Names](#use-your-own-cluster-names)
 - [Data Packages](#data-packages)
   - [Embryonic Mouse Cerebral Cortex](#embryonic-mouse-cerebral-cortex)
   - [Human Liver Atlas](#human-liver-atlas)
