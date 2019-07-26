@@ -6,7 +6,7 @@
 \usage{
 CalcAllSCV(inD, clusterDF, assayType = "", DRforClust = "pca",
   exponent = 2, pseudocount = 1, DRthresh = 0.1, testAll = TRUE,
-  FDRthresh = 0.05, storeAllDE = T, calcSil = T, calcDEvsRest = T,
+  FDRthresh = 0.05, storeAllDE = F, calcSil = T, calcDEvsRest = T,
   calcDEcombn = T, UseBiocParallel = F)
 }
 \arguments{
@@ -61,10 +61,10 @@ cluster solutions will appear in the scClustViz shiny app.}}
 \item{FDRthresh}{Default = 0.05. A length-one numeric vector representing the
 targeted false discovery rate used to determine the number of
 differentially expressed genes between nearest neighbouring clusters,
-assuming \code{testAll} is set FALSE If \code{testAll} is TRUE, this
+assuming \code{testAll} is set FALSE. If \code{testAll} is TRUE, this
 argument is unused.}
 
-\item{storeAllDE}{Default = TRUE. A logical vector of length 1 indicating
+\item{storeAllDE}{Default = FALSE. A logical vector of length 1 indicating
 whether to calculate and store effect size information for all genes in the
 comparison (TRUE), or just those passing the detection rate threshold for
 the Wilcoxon rank-sum test (FALSE). Setting this to FALSE will reduce the

@@ -5,7 +5,7 @@
 \title{Create sCVdata object with calculation results for a cluster}
 \usage{
 CalcSCV(inD, cl, assayType = "", DRforClust = "pca", exponent = 2,
-  pseudocount = 1, DRthresh = 0.1, storeAllDE = T, calcSil = T,
+  pseudocount = 1, DRthresh = 0.1, storeAllDE = F, calcSil = T,
   calcDEvsRest = T, calcDEcombn = T, UseBiocParallel = F)
 }
 \arguments{
@@ -47,7 +47,7 @@ differential expression testing. A gene will be included if it is detected
 in at least this proportion of cells in at least one of the clusters being
 compared.}
 
-\item{storeAllDE}{Default = TRUE. A logical vector of length 1 indicating
+\item{storeAllDE}{Default = FALSE. A logical vector of length 1 indicating
 whether to calculate and store effect size information for all genes in the
 comparison (TRUE), or just those passing the detection rate threshold for
 the Wilcoxon rank-sum test (FALSE). Setting this to FALSE will reduce the

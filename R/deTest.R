@@ -63,9 +63,9 @@ NULL
 #' @param FDRthresh Default = 0.05. A length-one numeric vector representing the
 #'   targeted false discovery rate used to determine the number of
 #'   differentially expressed genes between nearest neighbouring clusters,
-#'   assuming \code{testAll} is set FALSE If \code{testAll} is TRUE, this
+#'   assuming \code{testAll} is set FALSE. If \code{testAll} is TRUE, this
 #'   argument is unused.
-#' @param storeAllDE Default = TRUE. A logical vector of length 1 indicating
+#' @param storeAllDE Default = FALSE. A logical vector of length 1 indicating
 #'   whether to calculate and store effect size information for all genes in the
 #'   comparison (TRUE), or just those passing the detection rate threshold for
 #'   the Wilcoxon rank-sum test (FALSE). Setting this to FALSE will reduce the
@@ -150,7 +150,7 @@ CalcAllSCV <- function(inD,
                        DRthresh=0.1,
                        testAll=TRUE,
                        FDRthresh=0.05,
-                       storeAllDE=T,
+                       storeAllDE=F,
                        calcSil=T,
                        calcDEvsRest=T,
                        calcDEcombn=T,
@@ -281,7 +281,7 @@ CalcAllSCV <- function(inD,
 #'   differential expression testing. A gene will be included if it is detected
 #'   in at least this proportion of cells in at least one of the clusters being
 #'   compared.
-#' @param storeAllDE Default = TRUE. A logical vector of length 1 indicating
+#' @param storeAllDE Default = FALSE. A logical vector of length 1 indicating
 #'   whether to calculate and store effect size information for all genes in the
 #'   comparison (TRUE), or just those passing the detection rate threshold for
 #'   the Wilcoxon rank-sum test (FALSE). Setting this to FALSE will reduce the
@@ -376,7 +376,7 @@ CalcSCV <- function(inD,
                     exponent=2,
                     pseudocount=1,
                     DRthresh=0.1,
-                    storeAllDE=T,
+                    storeAllDE=F,
                     calcSil=T,
                     calcDEvsRest=T,
                     calcDEcombn=T,
@@ -884,7 +884,7 @@ setGeneric("CalcDEvsRest",function(sCVd,inD,storeAllDE,UseBiocParallel)
 #' @export
 
 setMethod("CalcDEvsRest","sCVdata",
-          function(sCVd,inD,storeAllDE=TRUE,UseBiocParallel=FALSE) {
+          function(sCVd,inD,storeAllDE=FALSE,UseBiocParallel=FALSE) {
             if (!is(inD)[1] %in% findMethodSignatures(getExpr)) {
               stop(paste("The input data object must be one of:",
                          paste(findMethodSignatures(getExpr),collapse=", "),
@@ -910,7 +910,10 @@ setMethod("CalcDEvsRest","sCVdata",
                                        DRthresh=Param(sCVd,"DRthresh"))
             }
             if (!storeAllDE) { 
-              deTes <- sapply(deTes,function(X) X[X$overThreshold,],simplify=F) 
+              deTes <- sapply(deTes,
+                              function(X) 
+                                X[X$overThreshold,colnames(X) != "overThreshold"],
+                              simplify=F)
             }
             if (UseBiocParallel) {
               deTes <- fx_calcDEvsRest_BP(nge=getExpr(inD,Param(sCVd,"assayType")),
@@ -1162,7 +1165,7 @@ setGeneric("CalcDEcombn",function(sCVd,inD,storeAllDE,UseBiocParallel)
 #' @export
 
 setMethod("CalcDEcombn","sCVdata",
-          function(sCVd,inD,storeAllDE=TRUE,UseBiocParallel=FALSE) {
+          function(sCVd,inD,storeAllDE=FALSE,UseBiocParallel=FALSE) {
             if (!is(inD)[1] %in% findMethodSignatures(getExpr)) {
               stop(paste("The input data object must be one of:",
                          paste(findMethodSignatures(getExpr),collapse=", "),
@@ -1176,7 +1179,10 @@ setMethod("CalcDEcombn","sCVdata",
                                     CGS=ClustGeneStats(sCVd),
                                     DRthresh=Param(sCVd,"DRthresh"))
             if (!storeAllDE) { 
-              deMes <- sapply(deMes,function(X) X[X$overThreshold,],simplify=F) 
+              deMes <- sapply(deMes,
+                              function(X) 
+                                X[X$overThreshold,colnames(X) != "overThreshold"],
+                              simplify=F) 
             }
             if (UseBiocParallel) {
               deMes <- fx_calcDEcombn_BP(nge=getExpr(inD,Param(sCVd,"assayType")),
