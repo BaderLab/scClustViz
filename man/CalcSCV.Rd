@@ -5,8 +5,8 @@
 \title{Create sCVdata object with calculation results for a cluster}
 \usage{
 CalcSCV(inD, cl, assayType = "", DRforClust = "pca", exponent = 2,
-  pseudocount = 1, DRthresh = 0.1, storeAllDE = F, calcSil = T,
-  calcDEvsRest = T, calcDEcombn = T, UseBiocParallel = F)
+  pseudocount = 1, DRthresh = 0.1, calcSil = T, calcDEvsRest = T,
+  calcDEcombn = T)
 }
 \arguments{
 \item{inD}{The input dataset. An object of class \code{\link[Seurat]{seurat}}
@@ -47,12 +47,6 @@ differential expression testing. A gene will be included if it is detected
 in at least this proportion of cells in at least one of the clusters being
 compared.}
 
-\item{storeAllDE}{Default = FALSE. A logical vector of length 1 indicating
-whether to calculate and store effect size information for all genes in the
-comparison (TRUE), or just those passing the detection rate threshold for
-the Wilcoxon rank-sum test (FALSE). Setting this to FALSE will reduce the
-size of the output sCVdata object.}
-
 \item{calcSil}{Default = TRUE. A logical vector of length 1. If TRUE,
 silhouette widths (a cluster cohesion/separation metric) will be calculated
 for all cells. This calculation is performed using the function
@@ -81,9 +75,6 @@ perform DE testing on the same set of comparisons using a statistical
 method of your choice. This can be passed into your \code{sCVdata} objects
 in the list returned by \code{CalcAllSCV} using the function
 \code{\link{calcDEcombn}}. See function documentation for details.}
-
-\item{UseBiocParallel}{Default = FALSE. Very experimental implementation of
-BiocParallel for calculations. Not recommended.}
 }
 \value{
 The function returns an \code{\link{sCVdata}} object with all slots

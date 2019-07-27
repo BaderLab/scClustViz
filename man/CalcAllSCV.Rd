@@ -6,8 +6,7 @@
 \usage{
 CalcAllSCV(inD, clusterDF, assayType = "", DRforClust = "pca",
   exponent = 2, pseudocount = 1, DRthresh = 0.1, testAll = TRUE,
-  FDRthresh = 0.05, storeAllDE = F, calcSil = T, calcDEvsRest = T,
-  calcDEcombn = T, UseBiocParallel = F)
+  FDRthresh = 0.05, calcSil = T, calcDEvsRest = T, calcDEcombn = T)
 }
 \arguments{
 \item{inD}{The input dataset. An object of class \code{\link[Seurat]{seurat}}
@@ -64,12 +63,6 @@ differentially expressed genes between nearest neighbouring clusters,
 assuming \code{testAll} is set FALSE. If \code{testAll} is TRUE, this
 argument is unused.}
 
-\item{storeAllDE}{Default = FALSE. A logical vector of length 1 indicating
-whether to calculate and store effect size information for all genes in the
-comparison (TRUE), or just those passing the detection rate threshold for
-the Wilcoxon rank-sum test (FALSE). Setting this to FALSE will reduce the
-size of the output sCVdata object.}
-
 \item{calcSil}{Default = TRUE. A logical vector of length 1. If TRUE,
 silhouette widths (a cluster cohesion/separation metric) will be calculated
 for all cells. This calculation is performed using the function
@@ -98,9 +91,6 @@ perform DE testing on the same set of comparisons using a statistical
 method of your choice. This can be passed into your \code{sCVdata} objects
 in the list returned by \code{CalcAllSCV} using the function
 \code{\link{calcDEcombn}}. See function documentation for details.}
-
-\item{UseBiocParallel}{Default = FALSE. Very experimental implementation of
-BiocParallel for calculations. Not recommended.}
 }
 \value{
 The function returns a list containing \code{\link{sCVdata}} objects

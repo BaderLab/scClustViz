@@ -65,11 +65,6 @@ NULL
 #'   differentially expressed genes between nearest neighbouring clusters,
 #'   assuming \code{testAll} is set FALSE. If \code{testAll} is TRUE, this
 #'   argument is unused.
-#' @param storeAllDE Default = FALSE. A logical vector of length 1 indicating
-#'   whether to calculate and store effect size information for all genes in the
-#'   comparison (TRUE), or just those passing the detection rate threshold for
-#'   the Wilcoxon rank-sum test (FALSE). Setting this to FALSE will reduce the
-#'   size of the output sCVdata object.
 #' @param calcSil Default = TRUE. A logical vector of length 1. If TRUE,
 #'   silhouette widths (a cluster cohesion/separation metric) will be calculated
 #'   for all cells. This calculation is performed using the function
@@ -96,8 +91,6 @@ NULL
 #'   method of your choice. This can be passed into your \code{sCVdata} objects
 #'   in the list returned by \code{CalcAllSCV} using the function
 #'   \code{\link{calcDEcombn}}. See function documentation for details.
-#' @param UseBiocParallel Default = FALSE. Very experimental implementation of
-#'   BiocParallel for calculations. Not recommended.
 #'
 #' @return The function returns a list containing \code{\link{sCVdata}} objects
 #'   for each cluster resolution (sample) in the \code{clusterDF} data frame.
@@ -150,11 +143,9 @@ CalcAllSCV <- function(inD,
                        DRthresh=0.1,
                        testAll=TRUE,
                        FDRthresh=0.05,
-                       storeAllDE=F,
                        calcSil=T,
                        calcDEvsRest=T,
-                       calcDEcombn=T,
-                       UseBiocParallel=F) {
+                       calcDEcombn=T) {
   if (!is(inD)[1] %in% findMethodSignatures(getExpr)) {
     stop(paste(
       paste0("Input data object must be one of: ",
@@ -218,11 +209,9 @@ CalcAllSCV <- function(inD,
                             exponent=exponent,
                             pseudocount=pseudocount,
                             DRthresh=DRthresh,
-                            storeAllDE=storeAllDE,
                             calcSil=calcSil,
                             calcDEvsRest=calcDEvsRest,
-                            calcDEcombn=calcDEcombn,
-                            UseBiocParallel=UseBiocParallel)
+                            calcDEcombn=calcDEcombn)
     if (!testAll) {
       if (min(sapply(DEneighb(outList[[X]],FDRthresh),nrow)) < 1) { break }
     }
@@ -281,11 +270,6 @@ CalcAllSCV <- function(inD,
 #'   differential expression testing. A gene will be included if it is detected
 #'   in at least this proportion of cells in at least one of the clusters being
 #'   compared.
-#' @param storeAllDE Default = FALSE. A logical vector of length 1 indicating
-#'   whether to calculate and store effect size information for all genes in the
-#'   comparison (TRUE), or just those passing the detection rate threshold for
-#'   the Wilcoxon rank-sum test (FALSE). Setting this to FALSE will reduce the
-#'   size of the output sCVdata object.
 #' @param calcSil Default = TRUE. A logical vector of length 1. If TRUE,
 #'   silhouette widths (a cluster cohesion/separation metric) will be calculated
 #'   for all cells. This calculation is performed using the function
@@ -312,8 +296,6 @@ CalcAllSCV <- function(inD,
 #'   method of your choice. This can be passed into your \code{sCVdata} objects
 #'   in the list returned by \code{CalcAllSCV} using the function
 #'   \code{\link{calcDEcombn}}. See function documentation for details.
-#' @param UseBiocParallel Default = FALSE. Very experimental implementation of
-#'   BiocParallel for calculations. Not recommended.
 #'
 #' @return The function returns an \code{\link{sCVdata}} object with all slots
 #'   populated by default, and at least the \code{Clusters},
@@ -376,11 +358,9 @@ CalcSCV <- function(inD,
                     exponent=2,
                     pseudocount=1,
                     DRthresh=0.1,
-                    storeAllDE=F,
                     calcSil=T,
                     calcDEvsRest=T,
-                    calcDEcombn=T,
-                    UseBiocParallel=F) {
+                    calcDEcombn=T) {
   if (!is(inD)[1] %in% findMethodSignatures(getExpr)) {
     stop(paste(
       paste0("Input data object must be one of: ",
@@ -427,14 +407,14 @@ CalcSCV <- function(inD,
   }
   
   #this is not optional, since everything depends on it.
-  ClustGeneStats(out) <- CalcCGS(out,inD,UseBiocParallel) 
+  ClustGeneStats(out) <- CalcCGS(out,inD) 
   
   if (calcDEvsRest) {
-    DEvsRest(out) <- CalcDEvsRest(out,inD,storeAllDE,UseBiocParallel)
+    DEvsRest(out) <- CalcDEvsRest(out,inD)
   }
   
   if (calcDEcombn) {
-    DEcombn(out) <- CalcDEcombn(out,inD,storeAllDE,UseBiocParallel)
+    DEcombn(out) <- CalcDEcombn(out,inD)
   }
   return(out)
 }
@@ -563,8 +543,6 @@ fx_calcCGS_BP <- function(nge,cl,exponent,pseudocount) {
 #'   classes are not currently supported.
 #'   \href{https://github.com/BaderLab/scClustViz/issues}{Please submit requests
 #'   for other data objects here!}
-#' @param UseBiocParallel Default = FALSE. Very experimental implementation of
-#'   BiocParallel for calculations. Not recommended.
 #'
 #' @return The function returns a list of dataframes. Each list element contains
 #'   a named list of clusters at that resolution. Each of those list elements
@@ -591,25 +569,25 @@ fx_calcCGS_BP <- function(nge,cl,exponent,pseudocount) {
 #' @export
 #' 
 
-setGeneric("CalcCGS",function(sCVd,inD,UseBiocParallel) standardGeneric("CalcCGS"))
+setGeneric("CalcCGS",function(sCVd,inD) standardGeneric("CalcCGS"))
 
 
 #' @describeIn CalcCGS Calculate cluster-wise gene stats for sCVdata
 #' @export
 
 setMethod("CalcCGS",signature("sCVdata"),
-          function(sCVd,inD,UseBiocParallel=FALSE) {
-            if (UseBiocParallel) {
-              fx_calcCGS_BP(nge=getExpr(inD,Param(sCVd,"assayType")),
-                            cl=Clusters(sCVd),
-                            exponent=Param(sCVd,"exponent"),
-                            pseudocount=Param(sCVd,"pseudocount"))
-            } else {
-              fx_calcCGS(nge=getExpr(inD,Param(sCVd,"assayType")),
-                         cl=Clusters(sCVd),
-                         exponent=Param(sCVd,"exponent"),
-                         pseudocount=Param(sCVd,"pseudocount"))
-            }
+          function(sCVd,inD) {
+            # if (UseBiocParallel) {
+            #   fx_calcCGS_BP(nge=getExpr(inD,Param(sCVd,"assayType")),
+            #                 cl=Clusters(sCVd),
+            #                 exponent=Param(sCVd,"exponent"),
+            #                 pseudocount=Param(sCVd,"pseudocount"))
+            # } else {
+            fx_calcCGS(nge=getExpr(inD,Param(sCVd,"assayType")),
+                       cl=Clusters(sCVd),
+                       exponent=Param(sCVd,"exponent"),
+                       pseudocount=Param(sCVd,"pseudocount"))
+            # }
           })
 
 
@@ -646,16 +624,20 @@ setMethod("CalcCGS",signature("sCVdata"),
 fx_calcESvsRest <- function(nge,cl,CGS,exponent,pseudocount,DRthresh) {
   message("-- Calculating differential expression cluster vs rest effect size --")
   return(pbapply::pbsapply(levels(cl),function(i) {
-    temp <- data.frame(overThreshold = CGS[[i]]$DR >= DRthresh,
-                       logGER=NA,
-                       Wstat=NA,
-                       pVal=NA,
-                       FDR=NA)
-    rownames(temp) <- rownames(CGS[[i]])
-    temp[temp$overThreshold,"logGER"] <- CGS[[i]][temp$overThreshold,"MGE"] - 
-      apply(nge[temp$overThreshold,(!cl %in% i | is.na(cl))],1,function(Y) 
-        meanLogX(Y,ncell=ncol(nge),ex=exponent,pc=pseudocount))
-    return(temp)
+    data.frame(
+      logGER=CGS[[i]][CGS[[i]]$DR >= DRthresh,"MGE"] - 
+        apply(nge[CGS[[i]]$DR >= DRthresh,(!cl %in% i | is.na(cl))],
+              MARGIN=1,
+              FUN=meanLogX,
+              ncell=ncol(nge),
+              ex=exponent,
+              pc=pseudocount
+        ),
+      Wstat=NA,
+      pVal=NA,
+      FDR=NA,
+      row.names=rownames(CGS[[i]])[CGS[[i]]$DR >= DRthresh]
+    )
   },simplify=F))
 }
 
@@ -735,7 +717,7 @@ fx_calcDEvsRest <- function(nge,cl,deTes) {
   message("-- Testing differential expression cluster vs rest --")
   deT_pVal <- presto::wilcoxauc(X=nge,y=cl)
   for (i in names(deTes)) {
-    tempRows <- deT_pVal$feature %in% rownames(deTes[[i]])[deTes[[i]]$overThreshold] & deT_pVal$group == i
+    tempRows <- deT_pVal$feature %in% rownames(deTes[[i]]) & deT_pVal$group == i
     deTes[[i]][deT_pVal[tempRows,"feature"],"Wstat"] <- deT_pVal[tempRows,"statistic"]
     deTes[[i]][deT_pVal[tempRows,"feature"],"pVal"] <- deT_pVal[tempRows,"pval"]
     deTes[[i]][deT_pVal[tempRows,"feature"],"FDR"] <- p.adjust(deT_pVal[tempRows,"pval"],"fdr")
@@ -813,13 +795,6 @@ fx_calcDEvsRest_BP <- function(nge,cl,deTes) {
 #'   classes are not currently supported.
 #'   \href{https://github.com/BaderLab/scClustViz/issues}{Please submit requests
 #'   for other data objects here!}
-#' @param storeAllDE A logical vector of length 1 indicating whether to
-#'   calculate and store effect size information for all genes in the comparison
-#'   (TRUE), or just those passing the detection rate threshold for the Wilcoxon
-#'   rank-sum test (FALSE). Setting this to FALSE will reduce the size of the
-#'   output sCVdata object.
-#' @param UseBiocParallel Default = FALSE. Very experimental implementation of
-#'   BiocParallel for calculations. Not recommended.
 #'
 #' @return A named list of data frames, one entry for each level in
 #'   \code{Clusters(sCVd)} (with corresponding name). Each entry is data frame
@@ -876,7 +851,7 @@ fx_calcDEvsRest_BP <- function(nge,cl,deTes) {
 #' @export
 #' 
 
-setGeneric("CalcDEvsRest",function(sCVd,inD,storeAllDE,UseBiocParallel) 
+setGeneric("CalcDEvsRest",function(sCVd,inD) 
   standardGeneric("CalcDEvsRest"))
 
 
@@ -884,7 +859,7 @@ setGeneric("CalcDEvsRest",function(sCVd,inD,storeAllDE,UseBiocParallel)
 #' @export
 
 setMethod("CalcDEvsRest","sCVdata",
-          function(sCVd,inD,storeAllDE=FALSE,UseBiocParallel=FALSE) {
+          function(sCVd,inD) {
             if (!is(inD)[1] %in% findMethodSignatures(getExpr)) {
               stop(paste("The input data object must be one of:",
                          paste(findMethodSignatures(getExpr),collapse=", "),
@@ -894,36 +869,30 @@ setMethod("CalcDEvsRest","sCVdata",
               stop("scClustViz can't calculate differential expression when there's only one cluster.")
             }
             
-            if (UseBiocParallel) {
-              deTes <- fx_calcESvsRest_BP(nge=getExpr(inD,Param(sCVd,"assayType")),
-                                          cl=Clusters(sCVd),
-                                          CGS=ClustGeneStats(sCVd),
-                                          exponent=Param(sCVd,"exponent"),
-                                          pseudocount=Param(sCVd,"pseudocount"),
-                                          DRthresh=Param(sCVd,"DRthresh"))
-            } else {
-              deTes <- fx_calcESvsRest(nge=getExpr(inD,Param(sCVd,"assayType")),
-                                       cl=Clusters(sCVd),
-                                       CGS=ClustGeneStats(sCVd),
-                                       exponent=Param(sCVd,"exponent"),
-                                       pseudocount=Param(sCVd,"pseudocount"),
-                                       DRthresh=Param(sCVd,"DRthresh"))
-            }
-            if (!storeAllDE) { 
-              deTes <- sapply(deTes,
-                              function(X) 
-                                X[X$overThreshold,colnames(X) != "overThreshold"],
-                              simplify=F)
-            }
-            if (UseBiocParallel) {
-              deTes <- fx_calcDEvsRest_BP(nge=getExpr(inD,Param(sCVd,"assayType")),
-                                          cl=Clusters(sCVd),
-                                          deTes=deTes)
-            } else {
-              deTes <- fx_calcDEvsRest(nge=getExpr(inD,Param(sCVd,"assayType")),
-                                       cl=Clusters(sCVd),
-                                       deTes=deTes)
-            }
+            # if (UseBiocParallel) {
+            #   deTes <- fx_calcESvsRest_BP(nge=getExpr(inD,Param(sCVd,"assayType")),
+            #                               cl=Clusters(sCVd),
+            #                               CGS=ClustGeneStats(sCVd),
+            #                               exponent=Param(sCVd,"exponent"),
+            #                               pseudocount=Param(sCVd,"pseudocount"),
+            #                               DRthresh=Param(sCVd,"DRthresh"))
+            # } else {
+            deTes <- fx_calcESvsRest(nge=getExpr(inD,Param(sCVd,"assayType")),
+                                     cl=Clusters(sCVd),
+                                     CGS=ClustGeneStats(sCVd),
+                                     exponent=Param(sCVd,"exponent"),
+                                     pseudocount=Param(sCVd,"pseudocount"),
+                                     DRthresh=Param(sCVd,"DRthresh"))
+            # }
+            # if (UseBiocParallel) {
+            #   deTes <- fx_calcDEvsRest_BP(nge=getExpr(inD,Param(sCVd,"assayType")),
+            #                               cl=Clusters(sCVd),
+            #                               deTes=deTes)
+            # } else {
+            deTes <- fx_calcDEvsRest(nge=getExpr(inD,Param(sCVd,"assayType")),
+                                     cl=Clusters(sCVd),
+                                     deTes=deTes)
+            # }
             return(deTes)
           })
 
@@ -957,11 +926,12 @@ fx_calcEScombn <- function(cl,CGS,DRthresh) {
   combos <- combn(levels(cl),2)
   colnames(combos) <- apply(combos,2,function(X) paste(X,collapse="-"))
   return(apply(combos,2,function(i) {
-    temp <- data.frame(overThreshold=(CGS[[i[1]]]$DR >= DRthresh | CGS[[i[2]]]$DR >= DRthresh),
-                       logGER=CGS[[i[1]]]$MGE - CGS[[i[2]]]$MGE,
-                       dDR=CGS[[i[1]]]$DR - CGS[[i[2]]]$DR)
-    rownames(temp) <- rownames(CGS[[i[1]]])
-    return(temp)
+    l <- CGS[[i[1]]]$DR >= DRthresh | CGS[[i[2]]]$DR >= DRthresh
+    data.frame(
+      logGER=CGS[[i[1]]]$MGE[l] - CGS[[i[2]]]$MGE[l],
+      dDR=CGS[[i[1]]]$DR[l] - CGS[[i[2]]]$DR[l],
+      row.names=rownames(CGS[[i[1]]])[l]
+    )
   }))
 }
 
@@ -1002,7 +972,7 @@ fx_calcDEcombn <- function(nge,cl,deMes) {
   },simplify=F)
   names(deM_pVal) <- names(deMes)
   for (i in names(deMes)) {
-    tempRows <- deM_pVal[[i]]$feature %in% rownames(deMes[[i]])[deMes[[i]]$overThreshold]
+    tempRows <- deM_pVal[[i]]$feature %in% rownames(deMes[[i]])
     deMes[[i]][deM_pVal[[i]][tempRows,"feature"],"Wstat"] <- deM_pVal[[i]][tempRows,"statistic"]
     deMes[[i]][deM_pVal[[i]][tempRows,"feature"],"pVal"] <- deM_pVal[[i]][tempRows,"pval"]
     deMes[[i]][deM_pVal[[i]][tempRows,"feature"],"FDR"] <- p.adjust(deM_pVal[[i]][tempRows,"pval"],"fdr")
@@ -1087,13 +1057,6 @@ fx_calcDEcombn_BP <- function(nge,cl,deMes) {
 #'   classes are not currently supported.
 #'   \href{https://github.com/BaderLab/scClustViz/issues}{Please submit requests
 #'   for other data objects here!}
-#' @param storeAllDE A logical vector of length 1 indicating whether to
-#'   calculate and store effect size information for all genes in the comparison
-#'   (TRUE), or just those passing the detection rate threshold for the Wilcoxon
-#'   rank-sum test (FALSE). Setting this to FALSE will reduce the size of the
-#'   output sCVdata object.
-#' @param UseBiocParallel Default = FALSE. Very experimental implementation of
-#'   BiocParallel for calculations. Not recommended.
 #'
 #' @return A named list of data frames, one entry for each pairwise combination
 #'   of levels in \code{Clusters(sCVd)} (with corresponding name where levels
@@ -1157,7 +1120,7 @@ fx_calcDEcombn_BP <- function(nge,cl,deMes) {
 #' @export
 #' 
 
-setGeneric("CalcDEcombn",function(sCVd,inD,storeAllDE,UseBiocParallel)
+setGeneric("CalcDEcombn",function(sCVd,inD)
   standardGeneric("CalcDEcombn"))
 
 
@@ -1165,7 +1128,7 @@ setGeneric("CalcDEcombn",function(sCVd,inD,storeAllDE,UseBiocParallel)
 #' @export
 
 setMethod("CalcDEcombn","sCVdata",
-          function(sCVd,inD,storeAllDE=FALSE,UseBiocParallel=FALSE) {
+          function(sCVd,inD) {
             if (!is(inD)[1] %in% findMethodSignatures(getExpr)) {
               stop(paste("The input data object must be one of:",
                          paste(findMethodSignatures(getExpr),collapse=", "),
@@ -1178,21 +1141,15 @@ setMethod("CalcDEcombn","sCVdata",
             deMes <- fx_calcEScombn(cl=Clusters(sCVd),
                                     CGS=ClustGeneStats(sCVd),
                                     DRthresh=Param(sCVd,"DRthresh"))
-            if (!storeAllDE) { 
-              deMes <- sapply(deMes,
-                              function(X) 
-                                X[X$overThreshold,colnames(X) != "overThreshold"],
-                              simplify=F) 
-            }
-            if (UseBiocParallel) {
-              deMes <- fx_calcDEcombn_BP(nge=getExpr(inD,Param(sCVd,"assayType")),
-                                         cl=Clusters(sCVd),
-                                         deMes=deMes)
-            } else {
-              deMes <- fx_calcDEcombn(nge=getExpr(inD,Param(sCVd,"assayType")),
-                                      cl=Clusters(sCVd),
-                                      deMes=deMes)
-            }
+            # if (UseBiocParallel) {
+            #   deMes <- fx_calcDEcombn_BP(nge=getExpr(inD,Param(sCVd,"assayType")),
+            #                              cl=Clusters(sCVd),
+            #                              deMes=deMes)
+            # } else {
+            deMes <- fx_calcDEcombn(nge=getExpr(inD,Param(sCVd,"assayType")),
+                                    cl=Clusters(sCVd),
+                                    deMes=deMes)
+            # }
             return(deMes)
           })
 
@@ -1540,7 +1497,7 @@ fx_calcNeighb <- function(deVS,NN,FDRthresh) {
   deN <- sapply(seq_along(nb),function(i) {
     temp <- which(deVS[[nb[i]]]$FDR <= FDRthresh &
                     deVS[[nb[i]]]$logGER * nbd[i] > 0)
-    out <- deVS[[nb[i]]][temp,names(deVS[[nb[i]]]) != "overThreshold"]
+    out <- deVS[[nb[i]]][temp,names(deVS[[nb[i]]]) != "overThreshold"] # backwards compatibility
     names(out) <- paste(names(out),paste(names(NN),NN,sep="-")[i],sep="_")
     return(out)
   },simplify=F)
@@ -1628,7 +1585,7 @@ fx_calcMarker <- function(deVS,FDRthresh) {
   deM <- sapply(seq_along(mNames),function(i) {
     do.call(cbind,lapply(names(combosL[[i]]),function(l) {
       L <- as.integer(l)
-      temp <- deVS[[L]][mNames[[i]],names(deVS[[L]]) != "overThreshold"]
+      temp <- deVS[[L]][mNames[[i]],names(deVS[[L]]) != "overThreshold"] # backwards compatibility
       if (combosL[[i]][l] == -1) {
         temp$logGER <- temp$logGER * combosL[[i]][l]
         temp$dDR <- temp$dDR * combosL[[i]][l]
