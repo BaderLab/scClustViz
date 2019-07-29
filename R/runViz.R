@@ -577,8 +577,8 @@ runShiny <- function(filePath,outPath,
       column(6,plotOutput("goiPlot2",height="580px"))
     ),
     fixedRow(
-      column(6,align="left",downloadButton("goiPlot1Save",paste("Save as",toupper(imageFileType)))),
-      column(6,align="right",downloadButton("goiPlot2Save",paste("Save as",toupper(imageFileType))))
+      column(6,align="left",uiOutput("goiPlot1SaveButton")),
+      column(6,align="right",uiOutput("goiPlot2SaveButton"))
     ),
     hr(),
     
@@ -852,7 +852,7 @@ runShiny <- function(filePath,outPath,
     })
     
     output$clustSepSave <- downloadHandler(
-      filename=paste0("clustSep.",imageFileType),
+      filename=paste0(dataTitle,"_ClusterResolutionBoxplots.",imageFileType),
       content=function(file) {
         switch(imageFileType,
                "pdf"=grDevices::cairo_pdf(file,height=6,width=7,fallback_resolution=600),
@@ -898,7 +898,7 @@ runShiny <- function(filePath,outPath,
     })
     
     output$silSave <- downloadHandler(
-      filename=paste0("sil.",imageFileType),
+      filename=paste0(dataTitle,"_",gsub("^X|[_.]","",make.names(res())),"_Silhouette.",imageFileType),
       content=function(file) {
         if (!is.null(Silhouette(d$SCV[[input$res]]))) {
           switch(imageFileType,
@@ -978,7 +978,7 @@ runShiny <- function(filePath,outPath,
     })
     
     output$tsneSave <- downloadHandler(
-      filename=paste0("tsne.",imageFileType),
+      filename=paste0(dataTitle,"_",gsub("^X|[_.]","",make.names(res())),"_CellEmbedding.",imageFileType),
       content=function(file) {
         if (length(res()) > 0) {
           switch(imageFileType,
@@ -1085,7 +1085,10 @@ runShiny <- function(filePath,outPath,
     })
     
     output$tsneMDSave <- downloadHandler(
-      filename=paste0("tsneMD.",imageFileType),
+      filename=function() {
+        paste0(dataTitle,"_",gsub("^X|[_.]","",make.names(res())),
+               "_CellEmbedding_",gsub("^X|[_.]","",input$tsneMDcol),".",imageFileType)
+        },
       content=function(file) {
         if (length(res()) > 0) {
           switch(imageFileType,
@@ -1167,7 +1170,11 @@ runShiny <- function(filePath,outPath,
     })
     
     output$mdScatterSave <- downloadHandler(
-      filename=paste0("mdScatter.",imageFileType),
+      filename=function() {
+        paste0(dataTitle,"_",gsub("^X|[_.]","",make.names(res())),"_",
+               gsub("^X|[_.]","",input$mdScatterX),"_vs_",
+               gsub("^X|[_.]","",input$mdScatterY),"_CellScatterPlot.",imageFileType)
+      },
       content=function(file) {
         if (length(res()) > 0) {
           switch(imageFileType,
@@ -1223,7 +1230,10 @@ runShiny <- function(filePath,outPath,
     })
     
     output$mdFactorSave <- downloadHandler(
-      filename=paste0("mdFactor.",imageFileType),
+      filename=function() {
+        paste0(dataTitle,"_",gsub("^X|[_.]","",make.names(res())),"_",
+               gsub("^X|[_.]","",input$mdFactorData),"_PerCluster.",imageFileType)
+        },
       content=function(file) {
         if (length(res()) > 0) {
           if (is.character(d$MD[[input$mdFactorData]]) | 
@@ -1319,7 +1329,12 @@ runShiny <- function(filePath,outPath,
     })
     
     output$heatmapSave <- downloadHandler(
-      filename=paste0("heatmap.",imageFileType),
+      filename=function() {
+        paste0(dataTitle,"_",gsub("^X|[_.]","",make.names(res())),
+               "_heatmap_",input$dotplotDEtype,
+               "_FDR",sub("^0","",sub(".","",input$FDRthresh2,fixed=T)),
+               ".",imageFileType)
+        },
       content=function(file) {
         if (length(res()) > 0) {
           switch(imageFileType,
@@ -1336,7 +1351,11 @@ runShiny <- function(filePath,outPath,
     )
     
     output$CGSsave0 <- downloadHandler(
-      filename=function() { paste0("ClustGeneStats_",input$DEclustNum,".txt") },
+      filename=function() { 
+        paste0(dataTitle,"_",gsub("^X|[_.]","",make.names(res())),
+               "_ClustGeneStats_",
+               gsub("^X|[_.]","",make.names(input$DEclustNum)),".txt") 
+      },
       content=function(file) {
         outTable <- ClustGeneStats(d$SCV[[res()]])[[input$DEclustNum]][,c("MGE","DR","MDGE")]
         write.table(outTable,file,quote=F,sep="\t",row.names=T,col.names=NA)
@@ -1344,7 +1363,11 @@ runShiny <- function(filePath,outPath,
     )
     
     output$deGeneSave <- downloadHandler(
-      filename=function() { paste0(input$dotplotDEtype,"_",input$DEclustNum,".txt") },
+      filename=function() { 
+        paste0(dataTitle,"_",gsub("^X|[_.]","",make.names(res())),"_",
+               input$dotplotDEtype,"_",
+               gsub("^X|[_.]","",make.names(input$DEclustNum)),".txt") 
+      },
       content=function(file) {
         outTable <- switch(
           EXPR=input$dotplotDEtype,
@@ -1458,7 +1481,10 @@ runShiny <- function(filePath,outPath,
     }) #,res=96) # enlarge plot features in interactive session
     
     output$clusterGenesSave <- downloadHandler(
-      filename=paste0("clusterGenes.",imageFileType),
+      filename=function() {
+        paste0(dataTitle,"_",gsub("^X|[_.]","",make.names(res())),"_GeneExprCluster_",
+               gsub("^X|[_.]","",make.names(input$genePlotClust)),".",imageFileType)
+      },
       content=function(file) {
         if (length(res()) > 0) {
           switch(imageFileType,
@@ -1527,7 +1553,10 @@ runShiny <- function(filePath,outPath,
     })
     
     output$geneTestSave <- downloadHandler(
-      filename=paste0("geneBoxplot.",imageFileType),
+      filename=function() {
+        paste0(dataTitle,"_",gsub("^X|[_.]","",make.names(res())),
+               "_GeneExprBoxplot_",input$cgGene,".",imageFileType)
+      },
       content=function(file) {
         if (length(res()) > 0) {
           switch(imageFileType,
@@ -1723,8 +1752,26 @@ runShiny <- function(filePath,outPath,
       }
     })
     
+    output$goiPlot1SaveButton <- renderUI({
+      if (input$plotClust1 == "goi") {
+        if (!is.null(input$goi1)) {
+          downloadButton("goiPlot1Save",paste("Save as",toupper(imageFileType)))
+        }
+      }
+    })
+    output$goiPlot2SaveButton <- renderUI({
+      if (input$plotClust2 == "goi") {
+        if (!is.null(input$goi2)) {
+          downloadButton("goiPlot2Save",paste("Save as",toupper(imageFileType)))
+        }
+      }
+    })
+    
     output$goiPlot1Save <- downloadHandler(
-      filename=paste0("goi1.",imageFileType),
+      filename=function() {
+        paste0(dataTitle,"_",gsub("^X|[_.]","",make.names(res())),
+               "_GeneExprOverlay_",input$goi1,".",imageFileType)
+      },
       content=function(file) {
         if (input$plotClust2 == "goi" & !is.null(input$goi1)) {
           switch(imageFileType,
@@ -1752,7 +1799,10 @@ runShiny <- function(filePath,outPath,
       }
     )
     output$goiPlot2Save <- downloadHandler(
-      filename=paste0("goi2.",imageFileType),
+      filename=function() {
+        paste0(dataTitle,"_",gsub("^X|[_.]","",make.names(res())),
+               "_GeneExprOverlay_",input$goi2,".",imageFileType)
+      },
       content=function(file) {
         if (input$plotClust2 == "goi" & !is.null(input$goi2)) {
           switch(imageFileType,
@@ -1819,14 +1869,16 @@ runShiny <- function(filePath,outPath,
     })
     
     output$CGSsaveA <- downloadHandler(
-      filename=function() { paste0("ClustGeneStats_",input$ssA,".txt") },
+      filename=function() { paste0(dataTitle,"_",gsub("^X|[_.]","",make.names(res())),
+                                   "_ClustGeneStats_",input$ssA,".txt") },
       content=function(file) {
         outTable <- ClustGeneStats(d$SCV[[res()]])[[input$ssA]][,c("MGE","DR","MDGE")]
         write.table(outTable,file,quote=F,sep="\t",row.names=T,col.names=NA)
       }
     )
     output$CGSsaveB <- downloadHandler(
-      filename=function() { paste0("ClustGeneStats_",input$ssB,".txt") },
+      filename=function() { paste0(dataTitle,"_",gsub("^X|[_.]","",make.names(res())),
+                                   "_ClustGeneStats_",input$ssB,".txt") },
       content=function(file) {
         outTable <- ClustGeneStats(d$SCV[[res()]])[[input$ssB]][,c("MGE","DR","MDGE")]
         write.table(outTable,file,quote=F,sep="\t",row.names=T,col.names=NA)
@@ -1865,7 +1917,11 @@ runShiny <- function(filePath,outPath,
     )
     
     output$setScatterSave <- downloadHandler(
-      filename=paste0("setScatter.",imageFileType),
+      filename=function() {
+        paste0(dataTitle,"_",gsub("^X|[_.]","",make.names(res())),"_",
+               input$scatterInput,"_",gsub("^X|[_.]","",make.names(input$ssA)),
+               "_vs_",gsub("^X|[_.]","",make.names(input$ssB)),".",imageFileType)
+      },
       content=function(file) {
         if (length(res()) > 0) {
           switch(imageFileType,
@@ -1890,7 +1946,8 @@ runShiny <- function(filePath,outPath,
       filename=function() {
         temp <- c(paste(input$ssA,input$ssB,sep="-"),paste(input$ssB,input$ssA,sep="-"))
         tempName <- temp[temp %in% names(DEcombn(d$SCV[[res()]]))]
-        return(paste0("DEcombn_",tempName,".txt"))
+        return(paste0(dataTitle,"_",gsub("^X|[_.]","",make.names(res())),
+                      "_DEcombn_",tempName,".txt"))
       },
       content=function(file) {
         temp <- c(paste(input$ssA,input$ssB,sep="-"),paste(input$ssB,input$ssA,sep="-"))
