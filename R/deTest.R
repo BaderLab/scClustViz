@@ -1572,7 +1572,7 @@ fx_calcMarker <- function(deVS,FDRthresh) {
     cn <- as.integer(names(comp))
     if ("Wstat" %in% colnames(deVS[[1]])) {
       return(Reduce(intersect,sapply(seq_along(comp),function(i) {
-        tempW <- deVS[[cn[i]]]$Wstat - deVS[[cn[i]]]$Wstat[which.max(deVS[[cn[i]]]$pVal)]
+        tempW <- deVS[[cn[i]]]$Wstat - deVS[[cn[i]]]$Wstat[which.max(deVS[[cn[i]]]$FDR)]
         rownames(deVS[[cn[i]]])[which(deVS[[cn[i]]]$FDR <= FDRthresh & tempW * comp[i] > 0)]
       },simplify=F)))
     } else {
