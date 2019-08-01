@@ -120,9 +120,7 @@ spreadLabels2 <- function(x,y,label,padding=0,str.cex=par("cex"),str.font=par("f
       label.data[c("x","y"),i] <- label.data[c("x","y"),i] + 
         move.edge * rlnorm(2,meanlog=0,sdlog=0.5)
     }
-    # points(t(label.data[c("x","y"),]),pch=20,col=viridis(100,d=-1,a=.5)[tempITER])
-    # message(tempITER)
-    
+
     odp <- sapply(seq_len(ncol(label.data)),overlap.proportion.point,
                   ld=label.data,oX=x,oY=y,simplify=F)
     is.overlap.point <- do.call(rbind,sapply(odp,function(X) apply(X,2,function(Y) all(abs(Y) <= 1)),simplify=F))

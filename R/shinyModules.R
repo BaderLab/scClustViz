@@ -1385,6 +1385,7 @@ plot_compareClusts_MAplot <- function(sCVd,clA,clB,dataType,labType,labNum,labGe
                                         palette="Dark 3")[which(levels(Clusters(sCVd)) == clB)])
   if (labType == "search") {
     if (length(labGenes) > 0) {
+      labGenes <- labGenes[labGenes %in% rownames(CGS)]
       points(y_mean~x_diff,data=CGS[labGenes,],pch=16,col=alpha("firebrick2",0.8))
       tempLabel <- spreadLabels2(x=CGS[labGenes,"x_diff"],y=CGS[labGenes,"y_mean"],
                                  label=labGenes,str.cex=1.2,str.font=2)
@@ -1431,7 +1432,6 @@ plot_compareClusts_DEscatter <- function(sCVd,clA,clB,dataType,labType,
                                          labTypeDiff,labNum,labGenes) {
   # ^ setup -----
   CGS <- compareClusts_DF(sCVd,clA,clB,dataType)
-  labGenes <- labGenes[labGenes %in% rownames(CGS)]
   temp_exp <- switch(as.character(Param(sCVd,"exponent") == exp(1)),
                      "TRUE"="(natural log scale)",
                      "FALSE"=paste0("(log",Param(sCVd,"exponent")," scale)"))
@@ -1445,7 +1445,7 @@ plot_compareClusts_DEscatter <- function(sCVd,clA,clB,dataType,labType,
   }
   # Adding a colour scale for FDR
   # CGS <- CGS[order(CGS$FDR,decreasing=T,na.last=F),]
-  # temp_col <- viridis(100,alpha=0.3,direction=-1)[cut(-log10(CGS$FDR),100,labels=F)]
+  # temp_col <- colorspace::sequential_hcl(100,palette="Viridis",alpha=0.3,rev=T)[cut(-log10(CGS$FDR),100,labels=F)]
   # temp_col[is.na(temp_col)] <- alpha("grey90",0.3)
   
   # ^ plot -----
@@ -1470,6 +1470,7 @@ plot_compareClusts_DEscatter <- function(sCVd,clA,clB,dataType,labType,
                                         palette="Dark 3")[which(levels(Clusters(sCVd)) == clB)])
   if (labType == "search") {
     if (length(labGenes) > 0) {
+      labGenes <- labGenes[labGenes %in% rownames(CGS)]
       points(logGER~dDR,data=CGS[labGenes,],pch=16,col=alpha("firebrick2",0.8))
       tempLabel <- spreadLabels2(CGS[labGenes,"dDR"],CGS[labGenes,"logGER"],
                                  label=labGenes,str.cex=1.2,str.font=2)
@@ -1507,7 +1508,6 @@ plot_compareClusts_volcano <- function(sCVd,clA,clB,dataType,labType,labNum,labG
   CGS <- compareClusts_DF(sCVd,clA,clB,dataType)
   CGS <- CGS[!is.na(CGS$FDR),]
   CGS$FDR <- -log10(CGS$FDR)
-  labGenes <- labGenes[labGenes %in% rownames(CGS)]
   temp_exp <- switch(as.character(Param(sCVd,"exponent") == exp(1)),
                      "TRUE"="(natural log scale)",
                      "FALSE"=paste0("(log",Param(sCVd,"exponent")," scale)"))
@@ -1537,6 +1537,7 @@ plot_compareClusts_volcano <- function(sCVd,clA,clB,dataType,labType,labNum,labG
                                         palette="Dark 3")[which(levels(Clusters(sCVd)) == clB)])
   if (labType == "search") {
     if (length(labGenes) > 0) {
+      labGenes <- labGenes[labGenes %in% rownames(CGS)]
       points(x=CGS[labGenes,dataType],y=CGS[labGenes,"FDR"],
              pch=16,col=alpha("firebrick2",0.8))
       tempLabel <- spreadLabels2(x=CGS[labGenes,dataType],y=CGS[labGenes,"FDR"],

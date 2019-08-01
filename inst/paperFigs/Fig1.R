@@ -50,7 +50,7 @@ plot(fcDF$TrueLogFC,fcDF$fcOne,
      xlab="True log-ratio of gene abundance",
      #main="Calculating logGER with a pseudocount of 1",
      ylab=NA,yaxt="n",pch=19,cex=1.5,
-     col=viridis::viridis(100,.5,d=-1)[tempCut])
+     col=colorspace::sequential_hcl(100,palette="Viridis",alpha=.5,rev=T)[tempCut])
 abline(0,1)
 temp_x <- seq(from=par("usr")[1] + strwidth(round(min(tempMean),2)) * 3,
               to=par("usr")[1] + (par("usr")[2] - par("usr")[1]) * 0.3,
@@ -59,7 +59,7 @@ for (i in 1:100) {
   rect(xleft=temp_x[i],xright=temp_x[i+1],
        ybottom=par("usr")[4] - strheight(round(min(tempMean),2)) * 1.5,
        ytop=par("usr")[4] - strheight(round(min(tempMean),2)) * .5,
-       col=viridis::viridis(100,d=-1)[i],border=NA,xpd=NA)
+       col=colorspace::sequential_hcl(100,palette="Viridis",alpha=1,rev=T)[i],border=NA,xpd=NA)
 }
 text(temp_x[1],par("usr")[4] - strheight(round(min(tempMean),2)),
      labels=round(min(tempMean),2),pos=2)
@@ -75,13 +75,13 @@ plot(rep(1,sum(fcDF$TrueLogFC == -Inf)),fcDF[fcDF$TrueLogFC == -Inf,"fcOne"],
      ylim=range(fcDF$fcOne),
      ylab="Calculated log-ratio of gene abundance",
      xlab=NA,xaxt="n",pch=19,cex=1.5,
-     col=viridis::viridis(100,.5,d=-1)[tempCut[fcDF$TrueLogFC == -Inf]])
+     col=colorspace::sequential_hcl(100,palette="Viridis",alpha=.5,rev=T)[tempCut[fcDF$TrueLogFC == -Inf]])
 axis(1,1,expression(-infinity))
 
 par(mar=c(3,0,3,3))
 plot(rep(1,sum(fcDF$TrueLogFC == Inf)),fcDF[fcDF$TrueLogFC == Inf,"fcOne"],
      ylim=range(fcDF$fcOne),xlab=NA,xaxt="n",ylab=NA,yaxt="n",pch=19,cex=1.5,
-     col=viridis::viridis(100,.5,d=-1)[tempCut[fcDF$TrueLogFC == Inf]])
+     col=colorspace::sequential_hcl(100,palette="Viridis",alpha=.5,rev=T)[tempCut[fcDF$TrueLogFC == Inf]])
 axis(1,1,expression(infinity))
 
 dev.off()
@@ -100,14 +100,14 @@ plot(rep(1,sum(fcDF$TrueLogFC == -Inf)),fcDF[fcDF$TrueLogFC == -Inf,"fcCells"],
      ylim=range(fcDF$fcCells),
      ylab="Calculated log-ratio of gene abundance",
      xlab=NA,xaxt="n",pch=22,cex=1.5,
-     col=viridis::viridis(100,1,d=-1)[tempCut[fcDF$TrueLogFC == -Inf]],
-     bg=viridis::viridis(100,.5,d=-1)[tempCut[fcDF$TrueLogFC == -Inf]])
+     col=colorspace::sequential_hcl(100,palette="Viridis",rev=T)[tempCut[fcDF$TrueLogFC == -Inf]],
+     bg=colorspace::sequential_hcl(100,palette="Viridis",alpha=.5,rev=T)[tempCut[fcDF$TrueLogFC == -Inf]])
 
 par(mar=c(3,3,0.5,0.5))
 plot(rep(1,sum(fcDF$TrueLogFC == -Inf)),fcDF[fcDF$TrueLogFC == -Inf,"fcSmall"],
      xlab=NA,xaxt="n",ylab=NA,pch=23,cex=1.5,
-     col=viridis::viridis(100,1,d=-1)[tempCut[fcDF$TrueLogFC == -Inf]],
-     bg=viridis::viridis(100,.5,d=-1)[tempCut[fcDF$TrueLogFC == -Inf]])
+     col=colorspace::sequential_hcl(100,palette="Viridis",alpha=1,rev=T)[tempCut[fcDF$TrueLogFC == -Inf]],
+     bg=colorspace::sequential_hcl(100,palette="Viridis",alpha=.5,rev=T)[tempCut[fcDF$TrueLogFC == -Inf]])
 axis(1,1,expression(-infinity))
 
 par(mar=c(0.5,0.5,3,0.5))
@@ -119,12 +119,12 @@ plot(x=NA,y=NA,
 par(mar=c(0.5,0.5,0.5,0.5))
 plot(fcDF$TrueLogFC,fcDF$fcCells,
      xlab=NA,xaxt="n",ylab=NA,yaxt="n",pch=22,cex=1.5,
-     col=viridis::viridis(100,1,d=-1)[tempCut],
-     bg=viridis::viridis(100,.5,d=-1)[tempCut])
+     col=colorspace::sequential_hcl(100,palette="Viridis",alpha=1,rev=T)[tempCut],
+     bg=colorspace::sequential_hcl(100,palette="Viridis",alpha=.5,rev=T)[tempCut])
 points(fcDF$TrueLogFC,fcDF$fcSmall,
        pch=23,cex=1.5,
-       col=viridis::viridis(100,1,d=-1)[tempCut],
-       bg=viridis::viridis(100,.5,d=-1)[tempCut])
+       col=colorspace::sequential_hcl(100,palette="Viridis",alpha=1,rev=T)[tempCut],
+       bg=colorspace::sequential_hcl(100,palette="Viridis",alpha=.5,rev=T)[tempCut])
 abline(0,1)
 temp_x <- seq(from=par("usr")[1] + strwidth(round(min(tempMean),2)) * 3,
               to=par("usr")[1] + (par("usr")[2] - par("usr")[1]) * 0.3,
@@ -133,7 +133,7 @@ for (i in 1:100) {
   rect(xleft=temp_x[i],xright=temp_x[i+1],
        ybottom=par("usr")[4] - strheight(round(min(tempMean),2)) * 1.5,
        ytop=par("usr")[4] - strheight(round(min(tempMean),2)) * .5,
-       col=viridis::viridis(100,d=-1)[i],border=NA,xpd=NA)
+       col=colorspace::sequential_hcl(100,palette="Viridis",alpha=1,rev=T)[i],border=NA,xpd=NA)
 }
 text(temp_x[1],par("usr")[4] - strheight(round(min(tempMean),2)),
      labels=round(min(tempMean),2),pos=2)
@@ -154,14 +154,14 @@ plot(x=NA,y=NA,
 par(mar=c(0.5,0.5,3,3))
 plot(rep(1,sum(fcDF$TrueLogFC == Inf)),fcDF[fcDF$TrueLogFC == Inf,"fcSmall"],
      xlab=NA,xaxt="n",ylab=NA,yaxt="n",pch=23,cex=1.5,
-     col=viridis::viridis(100,1,d=-1)[tempCut[fcDF$TrueLogFC == -Inf]],
-     bg=viridis::viridis(100,.5,d=-1)[tempCut[fcDF$TrueLogFC == -Inf]])
+     col=colorspace::sequential_hcl(100,palette="Viridis",alpha=1,rev=T)[tempCut[fcDF$TrueLogFC == -Inf]],
+     bg=colorspace::sequential_hcl(100,palette="Viridis",alpha=.5,rev=T)[tempCut[fcDF$TrueLogFC == -Inf]])
 
 par(mar=c(0.5,0.5,0.5,3))
 plot(rep(1,sum(fcDF$TrueLogFC == Inf)),fcDF[fcDF$TrueLogFC == Inf,"fcCells"],
      ylim=range(fcDF$fcCells),xlab=NA,xaxt="n",ylab=NA,yaxt="n",pch=22,cex=1.5,
-     col=viridis::viridis(100,1,d=-1)[tempCut[fcDF$TrueLogFC == -Inf]],
-     bg=viridis::viridis(100,.5,d=-1)[tempCut[fcDF$TrueLogFC == -Inf]])
+     col=colorspace::sequential_hcl(100,palette="Viridis",alpha=1,rev=T)[tempCut[fcDF$TrueLogFC == -Inf]],
+     bg=colorspace::sequential_hcl(100,palette="Viridis",alpha=.5,rev=T)[tempCut[fcDF$TrueLogFC == -Inf]])
 
 par(mar=c(3,0.5,0.5,3))
 plot(x=NA,y=NA,xlim=c(1,1),ylim=range(fcDF[fcDF$TrueLogFC == -Inf,"fcSmall"]),

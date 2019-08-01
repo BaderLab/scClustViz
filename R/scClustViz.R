@@ -19,6 +19,5 @@
 #' @import methods
 #' @import shiny
 #' @importFrom scales alpha
-#' @importFrom viridis viridis
 
 NULL
