@@ -1508,6 +1508,7 @@ plot_compareClusts_volcano <- function(sCVd,clA,clB,dataType,labType,labNum,labG
   CGS <- compareClusts_DF(sCVd,clA,clB,dataType)
   CGS <- CGS[!is.na(CGS$FDR),]
   CGS$FDR <- -log10(CGS$FDR)
+  CGS$FDR[CGS$FDR == Inf] <- 300 # Min positive non-zero value is 1e-300
   temp_exp <- switch(as.character(Param(sCVd,"exponent") == exp(1)),
                      "TRUE"="(natural log scale)",
                      "FALSE"=paste0("(log",Param(sCVd,"exponent")," scale)"))
