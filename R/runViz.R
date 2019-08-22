@@ -417,7 +417,11 @@ runShiny <- function(filePath,outPath,
     ),
     fixedRow(
       column(6,align="left",downloadButton("mdScatterSave",paste("Save as",toupper(imageFileType)))),
-      column(6,align="right",downloadButton("mdFactorSave",paste("Save as",toupper(imageFileType))))
+      column(6,
+             fixedRow(
+               column(6, align="left",downloadButton("mdFactorSave",paste("Save as",toupper(imageFileType)))),
+               column(6, align="right",downloadButton("mdFactorTableSave","Save as Table"))
+             ))
     ),
     hr(),
     
@@ -1260,6 +1264,19 @@ runShiny <- function(filePath,outPath,
       }
     )
     
+    output$mdFactorTableSave <- downloadHandler(
+      filename=paste0(dataTitle, input$mdFactorData,"Table-",input$mdFactorOptsF,".csv"),
+      content=function(file){
+        id <- switch(input$mdFactorOptsF,
+                     "relative"=tapply(as.factor(d$MD[input$mdFactorData][,1]),Clusters(d$SCV[[res()]]),
+                                       function(X) table(X) / length(X)),
+                     "absolute"=tapply(as.factor(d$MD[input$mdFactorData][,1]),Clusters(d$SCV[[res()]]),table))
+        out <- t(matrix(unlist(id), nrow = length(id[[1]])))
+        rownames(out) <- names(id)
+        colnames(out) <- names(id[[1]])
+        write.table(out,file,quote=F,sep="\t",row.names=T,col.names=NA)
+      }
+    )
     
     # ^ Differentially Expressed Genes per Cluster -----------------------------------------
     
