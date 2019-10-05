@@ -400,7 +400,7 @@ Innes BT and Bader GD. scClustViz – Single-cell RNAseq cluster assessment and 
 
 
 # Contact
-You can [contact me](http://www.baderlab.org/BrendanInnes) for questions about this repo.  For general scRNAseq questions, do what I do and [ask the Toronto single-cell RNAseq working group on Slack](http://bit.ly/scRNAseqTO)!  
+You can [contact me](http://www.baderlab.org/BrendanInnes) for questions about this repo.  For general scRNAseq questions, do what I do and [ask the Toronto single-cell RNAseq working group on Slack](http://bit.ly/TOscRNAseq)!  
 
 
 
