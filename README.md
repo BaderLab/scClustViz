@@ -30,8 +30,12 @@ install.packages("devtools")
 
 # install scClustViz
 devtools::install_github("BaderLab/scClustViz")
+
+# install presto for 1000x faster differential expression testing (optional)
+devtools::install(immunogenomics/presto)
 ```
-(If you're on linux and getting errors running `devtools::install_github`, make sure RCurl is working - you might need to install libcurl4-openssl-dev).  
+If you're on linux and getting errors running `devtools::install_github`, make sure RCurl is working - you might need to install libcurl4-openssl-dev.  
+If you're on mac and having trouble installing `presto`, make sure you have the Xcode developer tools installed, since it requires `Rcpp` to compile the C++ backend.
 
 ## Basic Usage
 Following normalization, dimensionality reduction (include 2D cell embedding), and clustering using a workflow of your choice, scClustViz can be used to do differential expression testing (using the Wilcoxon rank-sum test) to both assess different clustering solutions and explore your results.  First, run the DE testing as follows:

@@ -2151,8 +2151,8 @@ runShiny <- function(filePath,outPath,
       } else {
         output$calcText <- renderText("")
         withProgress({
-          temp_warn <- options("warn")
-          options(warn=-1)
+          # temp_warn <- options("warn")
+          # options(warn=-1)
           
           temp <- rep("Unselected",ncol(getExpr(inD,Param(sCVdL[[1]],"assayType"))))
           names(temp) <- colnames(getExpr(inD,Param(sCVdL[[1]],"assayType")))
@@ -2161,48 +2161,52 @@ runShiny <- function(filePath,outPath,
           d$SCV[[newRes]] <- sCVdata(Clusters=factor(temp,levels=c("Set A","Set B")),
                                      params=Param(d$SCV[[1]]))
           # ^^^ Gene stats per set --------------------------------------------------------
-          incProgress(amount=1/6,detail="Cluster-wise gene stats")
-          ClustGeneStats(d$SCV[[newRes]]) <- fx_calcCGS(nge=getExpr(inD,Param(sCVdL[[1]],"assayType")),
-                                                        cl=Clusters(d$SCV[[newRes]]),
-                                                        exponent=Param(d$SCV[[newRes]],
-                                                                       "exponent"),
-                                                        pseudocount=Param(d$SCV[[newRes]],
-                                                                          "pseudocount"))
+          incProgress(amount=1/5,detail="Set gene stats")
+          # ClustGeneStats(d$SCV[[newRes]]) <- fx_calcCGS(nge=getExpr(inD,Param(sCVdL[[1]],"assayType")),
+          #                                               cl=Clusters(d$SCV[[newRes]]),
+          #                                               exponent=Param(d$SCV[[newRes]],
+          #                                                              "exponent"),
+          #                                               pseudocount=Param(d$SCV[[newRes]],
+          #                                                                 "pseudocount"))
+          ClustGeneStats(d$SCV[[newRes]]) <- CalcCGS(d$SCV[[newRes]],inD)
+          
           d$SCV[[newRes]] <- labelCellTypes(sCV=d$SCV[[newRes]],
                                             cellMarkers=cellMarkers,
                                             symbolMap=symbolMap)
           
           # ^^^ deTissue - DE per cluster vs all other data -------------------------------
-          incProgress(amount=2/6,detail="DE vs tissue logGER calculations")
-          deTes <- fx_calcESvsRest(nge=getExpr(inD,Param(sCVdL[[1]],"assayType")),
-                                   cl=Clusters(d$SCV[[newRes]]),
-                                   CGS=ClustGeneStats(d$SCV[[newRes]]),
-                                   exponent=Param(d$SCV[[newRes]],
-                                                  "exponent"),
-                                   pseudocount=Param(d$SCV[[newRes]],
-                                                     "pseudocount"),
-                                   DRthresh=Param(d$SCV[[newRes]],
-                                                  "DRthresh"))
-          incProgress(amount=1/6,detail="DE vs tissue Wilcoxon rank sum calculations")
-          DEvsRest(d$SCV[[newRes]]) <- fx_calcDEvsRest(nge=getExpr(inD,Param(sCVdL[[1]],"assayType")),
-                                                       cl=Clusters(d$SCV[[newRes]]),
-                                                       deTes=deTes)
+          incProgress(amount=1/5,detail="Set vs All")
+          # deTes <- fx_calcESvsRest(nge=getExpr(inD,Param(sCVdL[[1]],"assayType")),
+          #                          cl=Clusters(d$SCV[[newRes]]),
+          #                          CGS=ClustGeneStats(d$SCV[[newRes]]),
+          #                          exponent=Param(d$SCV[[newRes]],
+          #                                         "exponent"),
+          #                          pseudocount=Param(d$SCV[[newRes]],
+          #                                            "pseudocount"),
+          #                          DRthresh=Param(d$SCV[[newRes]],
+          #                                         "DRthresh"))
+          # incProgress(amount=1/6,detail="DE vs tissue Wilcoxon rank sum calculations")
+          # DEvsRest(d$SCV[[newRes]]) <- fx_calcDEvsRest(nge=getExpr(inD,Param(sCVdL[[1]],"assayType")),
+          #                                              cl=Clusters(d$SCV[[newRes]]),
+          #                                              deTes=deTes)
+          DEvsRest(d$SCV[[newRes]]) <- CalcDEvsRest(d$SCV[[newRes]],inD)
           
           # ^^^ DEmarker - DE per cluster vs each other cluster ---------------------------
-          incProgress(amount=1/6,detail="Calculating Set A vs Set B")
-          deMes <- fx_calcEScombn(cl=Clusters(d$SCV[[newRes]]),
-                                  CGS=ClustGeneStats(d$SCV[[newRes]]),
-                                  DRthresh=Param(d$SCV[[newRes]],
-                                                 "DRthresh"))
-          DEcombn(d$SCV[[newRes]]) <- fx_calcDEcombn(nge=getExpr(inD,Param(sCVdL[[1]],"assayType")),
-                                                     cl=Clusters(d$SCV[[newRes]]),
-                                                     deMes=deMes)
+          incProgress(amount=2/5,detail="Set A vs Set B")
+          # deMes <- fx_calcEScombn(cl=Clusters(d$SCV[[newRes]]),
+          #                         CGS=ClustGeneStats(d$SCV[[newRes]]),
+          #                         DRthresh=Param(d$SCV[[newRes]],
+          #                                        "DRthresh"))
+          # DEcombn(d$SCV[[newRes]]) <- fx_calcDEcombn(nge=getExpr(inD,Param(sCVdL[[1]],"assayType")),
+          #                                            cl=Clusters(d$SCV[[newRes]]),
+          #                                            deMes=deMes)
+          DEcombn(d$SCV[[newRes]]) <- CalcDEcombn(d$SCV[[newRes]],inD)
           
-          incProgress(amount=1/6,detail="Done")
+          incProgress(amount=1/5,detail="Done")
           selectedSets$a <- selectedSets$b <- NULL
           filtList$filts <- NULL
-          options(warn=temp_warn$warn)
-        },message="DE calculations:")
+          # options(warn=temp_warn$warn)
+        },message="Calculating:")
         
         res(newRes) # Automatically update the view to show the calculated results.
       }

@@ -673,7 +673,8 @@ fx_calcESvsRest <- function(nge,cl,CGS,exponent,pseudocount,DRthresh) {
 fx_calcESvsRest_BP <- function(nge,cl,CGS,exponent,pseudocount,DRthresh) {
   message("-- Calculating differential expression cluster vs rest effect size --")
   temp <- BiocParallel::bplapply(levels(cl),function(i) {
-    temp <- data.frame(overThreshold = CGS[[i]]$DR >= DRthresh,
+    temp <- data.frame(
+      # overThreshold = CGS[[i]]$DR >= DRthresh, #deprecated
                        logGER=NA,
                        Wstat=NA,
                        pVal=NA,
@@ -753,11 +754,52 @@ fx_calcDEvsRest <- function(nge,cl,deTes) {
 fx_calcDEvsRest_BP <- function(nge,cl,deTes) {
   message("-- Testing differential expression cluster vs rest --")
   deT_pVal <- BiocParallel::bplapply(levels(cl),function(i)
-    apply(nge[rownames(deTes[[i]])[deTes[[i]]$overThreshold],],1,function(X)
+    apply(nge[rownames(deTes[[i]]),],1,function(X)
       # suppressWarnings(wilcox.test(X[cl %in% i],X[!cl %in% i],alternative="greater")$p.value)
       suppressWarnings(unlist(wilcox.test(X[cl %in% i],X[!cl %in% i])[c("statistic","p.value")]))
     ))
   names(deT_pVal) <- levels(cl)
+  for (i in names(deTes)) {
+    deTes[[i]][colnames(deT_pVal[[i]]),"Wstat"] <- deT_pVal[[i]]["statistic.W",]
+    deTes[[i]][colnames(deT_pVal[[i]]),"pVal"] <- deT_pVal[[i]]["p.value",]
+    deTes[[i]][colnames(deT_pVal[[i]]),"FDR"] <- p.adjust(deT_pVal[[i]]["p.value",],"fdr")
+  } 
+  return(deTes)
+}
+
+
+#' Internal fx to perform one vs all DE testing using base R
+#'
+#' Internal function. See \code{\link{CalcDEvsRest}}.
+#'
+#' Calculates Wilcoxon rank-sum tests for all genes in each one-vs-all
+#' comparison of a cluster vs the rest of the data. You probably don't need to
+#' use this unless you're trying to customize \code{\link{clusterWiseDEtest}}.
+#'
+#' @param nge The log-normalized gene expression matrix.
+#' @param cl The factor with cluster assignments per cell (column of nge).
+#' @param deTes The output from \code{\link{fx_calcESvsRest}}.
+#'
+#' @return Differential testing results from Wilcoxon rank sum tests comparing a
+#'   gene in each cluster to the rest of the cells as a whole in a one vs all
+#'   comparison. The results are stored as a named list of dataframes. There is
+#'   a list element for each cluster containing a dataframe of three variables,
+#'   where each sample is a gene. \code{logGER} is the log gene expression ratio
+#'   calculated by subtracting the mean expression of the gene (see
+#'   \link{meanLogX} for mean calculation) in all other cells from the mean
+#'   expression of the gene in this cluster. \code{Wstat} and \code{pVal} are
+#'   the test statistic and the p-value of the Wilcoxon rank sum test.
+#'   \code{FDR} is the false discovery rate-corrected p-value of the test.
+#'   
+
+fx_calcDEvsRest_slow <- function(nge,cl,deTes) {
+  message("-- Testing differential expression cluster vs rest --")
+  deT_pVal <- pbapply::pbsapply(levels(cl),function(i)
+    apply(nge[rownames(deTes[[i]]),],1,function(X) 
+      # ^ slice by rowname is a little slower, but safer
+      # suppressWarnings(wilcox.test(X[cl %in% i],X[!cl %in% i],alternative="greater")$p.value)
+      suppressWarnings(unlist(wilcox.test(X[cl %in% i],X[!cl %in% i])[c("statistic","p.value")]))
+    ),simplify=F)
   for (i in names(deTes)) {
     deTes[[i]][colnames(deT_pVal[[i]]),"Wstat"] <- deT_pVal[[i]]["statistic.W",]
     deTes[[i]][colnames(deT_pVal[[i]]),"pVal"] <- deT_pVal[[i]]["p.value",]
@@ -889,9 +931,25 @@ setMethod("CalcDEvsRest","sCVdata",
             #                               cl=Clusters(sCVd),
             #                               deTes=deTes)
             # } else {
-            deTes <- fx_calcDEvsRest(nge=getExpr(inD,Param(sCVd,"assayType")),
-                                     cl=Clusters(sCVd),
-                                     deTes=deTes)
+            if (require(presto)) {
+              deTes <- fx_calcDEvsRest(nge=getExpr(inD,Param(sCVd,"assayType")),
+                                       cl=Clusters(sCVd),
+                                       deTes=deTes)
+            } else {
+              warning(
+                paste("",
+                      "--------------------------------------------------------",
+                      "This wilcoxon rank-sum test is 1000x faster with presto.",
+                      "Install by running:",
+                      "devtools::install('immunogenomics/presto')",
+                      "--------------------------------------------------------",
+                      "",
+                      sep="\n")
+              )
+              deTes <- fx_calcDEvsRest_slow(nge=getExpr(inD,Param(sCVd,"assayType")),
+                                            cl=Clusters(sCVd),
+                                            deTes=deTes)
+            }
             # }
             return(deTes)
           })
@@ -1011,13 +1069,57 @@ fx_calcDEcombn_BP <- function(nge,cl,deMes) {
   combosL <- strsplit(names(deMes),"-")
   message("-- Testing differential expression between clusters --")
   deM_pVal <- BiocParallel::bplapply(seq_along(combosL),function(i)
-    apply(nge[rownames(deMes[[i]])[deMes[[i]]$overThreshold],],1,function(X)
+    apply(nge[rownames(deMes[[i]]),],1,function(X)
       suppressWarnings(unlist(
         wilcox.test(X[cl == combosL[[i]][1]],
                     X[cl == combosL[[i]][2]])[c("statistic","p.value")]
       ))
     )
   )
+  for (i in seq_along(deMes)) {
+    deMes[[i]][colnames(deM_pVal[[i]]),"Wstat"] <- deM_pVal[[i]]["statistic.W",]
+    deMes[[i]][colnames(deM_pVal[[i]]),"pVal"] <- deM_pVal[[i]]["p.value",]
+    deMes[[i]][colnames(deM_pVal[[i]]),"FDR"] <- p.adjust(deM_pVal[[i]]["p.value",],"fdr")
+  } 
+  return(deMes)
+}
+
+
+#' Internal fx to calculate DE between combinations of clusters with base R
+#'
+#' Internal function. See \code{\link{CalcDEcombn}}.
+#'
+#' Calculates Wilcoxon rank-sum tests for all genes in each of the potential
+#' combinations of clusters to compare.
+#'
+#' @param nge The log-normalized gene expression matrix.
+#' @param cl The factor with cluster assignments per cell (column of nge).
+#' @param deMes The output from \code{\link{fx_calcEScombn}}.
+#'
+#' @return Differential testing results from Wilcoxon rank sum tests comparing a
+#'   gene in each cluster to that gene in every other cluster in a series of
+#'   tests. The results are stored as a nested list of dataframes. Each list
+#'   element contains a named list of clusters (cluster A). Each of those lists
+#'   contains a named list of all the other clusters (cluster B). Each of those
+#'   list elements contains a dataframe of four variables, where each sample is
+#'   a gene. \code{dDR} is the difference in detection rate of that gene between
+#'   the two clusters (DR[A] - DR[B]). \code{logGER} is the log gene expression
+#'   ratio calculated by taking the difference in mean expression of the gene
+#'   (see \code{\link{meanLogX}} for mean calculation) between the two clusters
+#'   (MGE[A] - MGE[B]). \code{Wstat} and \code{pVal} are the test statistic and
+#'   the p-value of the Wilcoxon rank sum test. \code{FDR} is the false
+#'   discovery rate-corrected p-value of the test.
+#'   
+
+fx_calcDEcombn_slow <- function(nge,cl,deMes) {
+  combosL <- strsplit(names(deMes),"-")
+  message("-- Testing differential expression between clusters --")
+  deM_pVal <- pbapply::pbsapply(seq_along(combosL),function(i)
+    apply(nge[rownames(deMes[[i]]),],1,function(X) 
+      suppressWarnings(unlist(
+        wilcox.test(X[cl == combosL[[i]][1]],
+                    X[cl == combosL[[i]][2]])[c("statistic","p.value")]
+      ))),simplify=F)
   for (i in seq_along(deMes)) {
     deMes[[i]][colnames(deM_pVal[[i]]),"Wstat"] <- deM_pVal[[i]]["statistic.W",]
     deMes[[i]][colnames(deM_pVal[[i]]),"pVal"] <- deM_pVal[[i]]["p.value",]
@@ -1146,9 +1248,26 @@ setMethod("CalcDEcombn","sCVdata",
             #                              cl=Clusters(sCVd),
             #                              deMes=deMes)
             # } else {
-            deMes <- fx_calcDEcombn(nge=getExpr(inD,Param(sCVd,"assayType")),
-                                    cl=Clusters(sCVd),
-                                    deMes=deMes)
+            if (require(presto)) {
+              
+              deMes <- fx_calcDEcombn(nge=getExpr(inD,Param(sCVd,"assayType")),
+                                      cl=Clusters(sCVd),
+                                      deMes=deMes)
+            } else {
+              warning(
+                paste("",
+                      "--------------------------------------------------------",
+                      "This wilcoxon rank-sum test is 1000x faster with presto.",
+                      "Install by running:",
+                      "devtools::install('immunogenomics/presto')",
+                      "--------------------------------------------------------",
+                      "",
+                      sep="\n")
+              )
+              deMes <- fx_calcDEcombn_slow(nge=getExpr(inD,Param(sCVd,"assayType")),
+                                           cl=Clusters(sCVd),
+                                           deMes=deMes)
+            }
             # }
             return(deMes)
           })
