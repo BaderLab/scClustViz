@@ -256,3 +256,94 @@ labelCellTypes <- function(sCV,cellMarkers,symbolMap=NULL) {
   }
   return(sCV)
 }
+
+
+# ColNNZ ----
+#' Count non-zero entries per column of a matrix
+#'
+#' 
+#'
+#' @param x A matrix, hopefully sparse.
+#'   
+#' @return An integer vector of length ncol(x) with the number of non-zero 
+#'   entries in each column of the matrix.
+#'
+#' @references https://stackoverflow.com/questions/51560456/r-package-matrix-get-number-of-non-zero-entries-per-rows-columns-of-a-sparse
+#'
+#' @name ColNNZ
+#'
+#' @export
+#' 
+
+setGeneric("ColNNZ",function(x) standardGeneric("ColNNZ"))
+
+
+#' @describeIn ColNNZ x of class "matrix"
+#' @export
+
+setMethod("ColNNZ",signature("matrix"),
+          function(x) apply(x,2,function(X) sum(X != 0)))
+
+#' @describeIn ColNNZ x of class "dgCMatrix"
+#' @export
+
+setMethod("ColNNZ",signature("dgCMatrix"),
+          function(x) diff(x@p))
+
+#' @describeIn ColNNZ x of class "dgRMatrix"
+#' @export
+
+setMethod("ColNNZ",signature("dgRMatrix"),
+          function(x) tabulate(x@j + 1))
+
+#' @describeIn ColNNZ x of class "dgTMatrix"
+#' @export
+
+setMethod("ColNNZ",signature("dgTMatrix"),
+          function(x) tabulate(x@j + 1))
+
+
+# RowNNZ ----
+#' Count non-zero entries per row of a matrix
+#'
+#' 
+#'
+#' @param x A matrix, hopefully sparse.
+#'   
+#' @return An integer vector of length nrow(x) with the number of non-zero 
+#'   entries in each row of the matrix.
+#'
+#' @references https://stackoverflow.com/questions/51560456/r-package-matrix-get-number-of-non-zero-entries-per-rows-columns-of-a-sparse
+#'
+#' @name RowNNZ
+#'
+#' @export
+#' 
+
+setGeneric("RowNNZ",function(x) standardGeneric("RowNNZ"))
+
+
+#' @describeIn RowNNZ x of class "matrix"
+#' @export
+
+setMethod("RowNNZ",signature("matrix"),
+          function(x) apply(x,1,function(X) sum(X != 0)))
+
+#' @describeIn RowNNZ x of class "dgCMatrix"
+#' @export
+
+setMethod("RowNNZ",signature("dgCMatrix"),
+          function(x) tabulate(x@i + 1))
+
+#' @describeIn RowNNZ x of class "dgRMatrix"
+#' @export
+
+setMethod("RowNNZ",signature("dgRMatrix"),
+          function(x) diff(x@p))
+
+#' @describeIn RowNNZ x of class "dgTMatrix"
+#' @export
+
+setMethod("RowNNZ",signature("dgTMatrix"),
+          function(x) tabulate(x@i + 1))
+

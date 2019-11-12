@@ -446,8 +446,8 @@ CalcSCV <- function(inD,
 
 fx_calcCGS <- function(nge,cl,exponent,pseudocount) {
   message("-- Calculating gene detection rate per cluster --")
-  DR <- pbapply::pbsapply(sapply(levels(cl),function(i) nge[,cl %in% i,drop=F],simplify=F),
-                          function(X) apply(X,1,function(Y) sum(Y > 0)/length(Y)),simplify=F)
+  DR <- pbapply::pbsapply(levels(cl),function(X) 
+    RowNNZ(nge[,cl == X]) / sum(cl == X),simplify=F)
   
   message("-- Calculating mean detected gene expression per cluster --")
   MDGE <- pbapply::pbsapply(sapply(levels(cl),function(i) nge[,cl %in% i,drop=F],simplify=F),
