@@ -2,6 +2,8 @@
 NULL
 
 
+# CalcAllSCV ----
+
 #' Prepare all cluster solutions for visualization with scClustViz
 #'
 #' An all-in-one function to prepare your data for viewing in the interactive
@@ -30,9 +32,18 @@ NULL
 #'   parameters, and rows should correspond to cells of the input gene
 #'   expression matrix.
 #' @param assayType Default = "" (for Seurat v1/2). A length-one character
-#'   vector representing the assay slot in which the expression data is stored
-#'   in the input object. This is not required for Seurat v1 or v2 objects. See
-#'   \code{\link{getExpr}} for details.
+#'   vector representing the assay object in which the expression data is stored
+#'   in the input object. This is not required for Seurat v1 or v2 objects. For 
+#'   Seurat v3 objects, this is often "RNA". For SingleCellExperiment objects, 
+#'   this is often "logcounts". See \code{\link{getExpr}} for details.
+#' @param assaySlot An optional length-one character vector representing
+#'   the slot of the Seurat v3 \code{\link[Seurat]{Assay}} object to use. Not 
+#'   used for other single-cell data objects. The default is to use the 
+#'   normalized data in the "data" slot, but you can also use the 
+#'   \code{\link[Seurat]{SCTransform}}-corrected counts by setting 
+#'   \code{assayType = "SCT"} and \code{assaySlot = "counts"}. This is 
+#'   recommended, as it will speed up differential expression 
+#'   calculations. See \code{\link{getExpr}} for details.
 #' @param DRforClust Default = "pca".A length-one character vector representing
 #'   the dimensionality reduction method used as the input for clustering. This
 #'   is commonly PCA, and should correspond to the slot name of the cell
@@ -44,10 +55,14 @@ NULL
 #' @param exponent Default = 2. A length-one numeric vector representing the
 #'   base of the log-normalized gene expression data to be processed. Generally
 #'   gene expression data is transformed into log2 space when normalizing (set
-#'   this to 2), though \code{Seurat} uses the natural log (set this to exp(1)).
+#'   this to 2), though \code{Seurat} uses the natural log (set this to exp(1)). 
+#'   If you are using data that has not been log-transformed (for example, 
+#'   corrected counts from SCTransform), set this to NA.
 #' @param pseudocount Default = 1. A length-one numeric vector representing the
 #'   pseudocount added to all log-normalized values in your input data. Most
-#'   methods use a pseudocount of 1 to eliminate log(0) errors.
+#'   methods use a pseudocount of 1 to eliminate log(0) errors. If you are using 
+#'   data that has not been log-transformed (for example, corrected counts from 
+#'   SCTransform), set this to NA. 
 #' @param DRthresh Default = 0.1. A length-one numeric vector between 0 and 1
 #'   representing the detection rate threshold for inclusion of a gene in the
 #'   differential expression testing. A gene will be included if it is detected
@@ -110,6 +125,7 @@ NULL
 #'
 #' sCVdata_list <- CalcAllSCV(inD=your_scRNAseq_data_object,
 #'                            clusterDF=your_cluster_results,
+#'                            assayType="RNA",
 #'                            DRforClust="pca",
 #'                            exponent=exp(1),
 #'                            pseudocount=1,
@@ -137,6 +153,7 @@ NULL
 CalcAllSCV <- function(inD,
                        clusterDF,
                        assayType="",
+                       assaySlot="",
                        DRforClust="pca",
                        exponent=2,
                        pseudocount=1,
@@ -157,23 +174,26 @@ CalcAllSCV <- function(inD,
             "https://github.com/BaderLab/scClustViz/issues, thanks!"),
       sep="\n  "))
   }
-  if (is.null(colnames(getExpr(inD,assayType))) | is.null(rownames(getExpr(inD,assayType)))) {
-    stop("Gene expression matrix returned by 'getExpr(inD,assayType)' is missing col/rownames.")
+  if (is.null(colnames(getExpr(inD,assayType,assaySlot))) | 
+      is.null(rownames(getExpr(inD,assayType,assaySlot)))) {
+    stop("Gene expression matrix returned by 'getExpr(inD,assayType,assaySlot)' is missing col/rownames.")
   }
   if (is.data.frame(clusterDF)) {
-    if (nrow(clusterDF) != ncol(getExpr(inD,assayType))) {
+    if (nrow(clusterDF) != ncol(getExpr(inD,assayType,assaySlot))) {
       stop(paste("clusterDF must be a data frame where each variable (column) is the cluster",
-                 "assignments for all cells (rows) from each cluster solution tested.",sep="\n  "))
+                 "assignments for all cells (rows) from each cluster solution tested.",
+                 sep="\n  "))
     }
-  } else if (length(clusterDF) == ncol(getExpr(inD,assayType))) {
+  } else if (length(clusterDF) == ncol(getExpr(inD,assayType,assaySlot))) {
     clusterDF <- as.data.frame(clusterDF)
     colnames(clusterDF) <- "Clust"
   } else {
     stop(paste("clusterDF must be a data frame where each variable (column) is the cluster",
-               "assignments for all cells (rows) from each cluster solution tested.",sep="\n  "))
+               "assignments for all cells (rows) from each cluster solution tested.",
+               sep="\n  "))
   }
-  if (!identical(rownames(clusterDF),colnames(getExpr(inD,assayType)))) {
-    rownames(clusterDF) <- colnames(getExpr(inD,assayType))
+  if (!identical(rownames(clusterDF),colnames(getExpr(inD,assayType,assaySlot)))) {
+    rownames(clusterDF) <- colnames(getExpr(inD,assayType,assaySlot))
   }
   
   # If testAll == F, cluster solutions are sorted in ascending order of number
@@ -186,6 +206,12 @@ CalcAllSCV <- function(inD,
                   sep="\n  "))
     sortedClusts <- order(sapply(clusterDF,function(X) length(unique(X))))
     clusterDF <- clusterDF[sortedClusts]
+  }
+  
+  if (assaySlot == "counts" & !(is.na(exponent) | is.na(pseudocount))) {
+    stop(paste("If you are using count data (not log-transformed),",
+               "you must set 'exponent' and/or 'pseudocount' to NA.",
+               sep="\n  "))
   }
   
   # This loop iterates through every cluster solution, and does DE testing
@@ -205,6 +231,7 @@ CalcAllSCV <- function(inD,
     outList[[X]] <- CalcSCV(inD=inD,
                             cl=temp,
                             assayType=assayType,
+                            assaySlot=assaySlot,
                             DRforClust=DRforClust,
                             exponent=exponent,
                             pseudocount=pseudocount,
@@ -220,6 +247,8 @@ CalcAllSCV <- function(inD,
   return(outList)
 }
 
+
+# CalcSCV ----
 
 #' Create sCVdata object with calculation results for a cluster
 #'
@@ -247,9 +276,18 @@ CalcAllSCV <- function(inD,
 #' @param cl a factor where each value is the cluster assignment for a cell
 #'   (column) in the input gene expression matrix.
 #' @param assayType Default = "" (for Seurat v1/2). A length-one character
-#'   vector representing the assay slot in which the expression data is stored
-#'   in the input object. This is not required for Seurat v1 or v2 objects. See
-#'   \code{\link{getExpr}} for details.
+#'   vector representing the assay object in which the expression data is stored
+#'   in the input object. This is not required for Seurat v1 or v2 objects. For 
+#'   Seurat v3 objects, this is often "RNA". For SingleCellExperiment objects, 
+#'   this is often "logcounts". See \code{\link{getExpr}} for details.
+#' @param assaySlot An optional length-one character vector representing
+#'   the slot of the Seurat v3 \code{\link[Seurat]{Assay}} object to use. Not 
+#'   used for other single-cell data objects. The default is to use the 
+#'   normalized data in the "data" slot, but you can also use the 
+#'   \code{\link[Seurat]{SCTransform}}-corrected counts by setting 
+#'   \code{assayType = "SCT"} and \code{assaySlot = "counts"}. This is 
+#'   recommended, as it will speed up differential expression 
+#'   calculations. See \code{\link{getExpr}} for details.
 #' @param DRforClust Default = "pca".A length-one character vector representing
 #'   the dimensionality reduction method used as the input for clustering. This
 #'   is commonly PCA, and should correspond to the slot name of the cell
@@ -261,10 +299,14 @@ CalcAllSCV <- function(inD,
 #' @param exponent Default = 2. A length-one numeric vector representing the
 #'   base of the log-normalized gene expression data to be processed. Generally
 #'   gene expression data is transformed into log2 space when normalizing (set
-#'   this to 2), though \code{Seurat} uses the natural log (set this to exp(1)).
+#'   this to 2), though \code{Seurat} uses the natural log (set this to exp(1)). 
+#'   If you are using data that has not been log-transformed (for example, 
+#'   corrected counts from SCTransform), set this to NA.
 #' @param pseudocount Default = 1. A length-one numeric vector representing the
 #'   pseudocount added to all log-normalized values in your input data. Most
-#'   methods use a pseudocount of 1 to eliminate log(0) errors.
+#'   methods use a pseudocount of 1 to eliminate log(0) errors. If you are using 
+#'   data that has not been log-transformed (for example, corrected counts from 
+#'   SCTransform), set this to NA. 
 #' @param DRthresh Default = 0.1. A length-one numeric vector between 0 and 1
 #'   representing the detection rate threshold for inclusion of a gene in the
 #'   differential expression testing. A gene will be included if it is detected
@@ -319,7 +361,8 @@ CalcAllSCV <- function(inD,
 #'                                           resolution=seurat_resolution)
 #'
 #'   curr_sCVdata <- CalcSCV(inD=your_seurat_obj,
-#'                           cl=your_seurat_obj@ident,
+#'                           cl=Indents(your_seurat_obj),
+#'                           assayType="RNA",
 #'                           DRforClust="pca",
 #'                           exponent=exp(1),
 #'                           pseudocount=1,
@@ -354,6 +397,7 @@ CalcAllSCV <- function(inD,
 CalcSCV <- function(inD,
                     cl,
                     assayType="",
+                    assaySlot="",
                     DRforClust="pca",
                     exponent=2,
                     pseudocount=1,
@@ -372,10 +416,11 @@ CalcSCV <- function(inD,
             "https://github.com/BaderLab/scClustViz/issues, thanks!"),
       sep="\n  "))
   }
-  if (is.null(colnames(getExpr(inD,assayType))) | is.null(rownames(getExpr(inD,assayType)))) {
-    stop("Gene expression matrix returned by 'getExpr(inD,assayType)' is missing col/rownames.")
+  if (is.null(colnames(getExpr(inD,assayType,assaySlot))) | 
+      is.null(rownames(getExpr(inD,assayType,assaySlot)))) {
+    stop("Gene expression matrix returned by 'getExpr(inD,assayType,assaySlot)' is missing col/rownames.")
   }
-  if (length(cl) != ncol(getExpr(inD,assayType))) {
+  if (length(cl) != ncol(getExpr(inD,assayType,assaySlot))) {
     stop(paste("cl must be a factor where each value is the cluster assignment",
                "for a cell (column) in the input gene expression matrix.",
                sep="\n  "))
@@ -383,8 +428,8 @@ CalcSCV <- function(inD,
   if (is.character(cl)) {
     cl <- as.factor(cl)
   }
-  if (!all(names(cl) == colnames(getExpr(inD,assayType))) | is.null(names(cl))) {
-    names(cl) <- colnames(getExpr(inD,assayType))
+  if (!all(names(cl) == colnames(getExpr(inD,assayType,assaySlot))) | is.null(names(cl))) {
+    names(cl) <- colnames(getExpr(inD,assayType,assaySlot))
   }
   if (any(grepl("-",levels(cl)))) {
     stop("Cluster names (levels in 'cl') cannot contain '-'.")
@@ -392,9 +437,10 @@ CalcSCV <- function(inD,
   
   out <- sCVdata(Clusters=cl,
                  params=sCVparams(assayType=assayType,
+                                  assaySlot=assaySlot,
                                   DRforClust=DRforClust,
-                                  exponent=exponent,
-                                  pseudocount=pseudocount,
+                                  exponent=ifelse(is.na(exponent),NA_real_,exponent),
+                                  pseudocount=ifelse(is.na(pseudocount),NA_real_,pseudocount),
                                   DRthresh=DRthresh))
   if (calcSil) { #Doing this first in case DRforClust is set incorrectly.
     if (require(cluster)) {
@@ -428,11 +474,17 @@ CalcSCV <- function(inD,
 #'
 #' @param nge The log-normalized gene expression matrix.
 #' @param cl The factor with cluster assignments per cell (column of nge).
-#' @param exponent The log base of your normalized input data. Seurat
-#'   normalization uses the natural log (set this to exp(1)), while other
-#'   normalization methods generally use log2 (set this to 2).
-#' @param pseudocount The pseudocount added to all log-normalized values in your
-#'   input data. Most methods use a pseudocount of 1 to eliminate log(0) errors.
+#' @param exponent Default = 2. A length-one numeric vector representing the
+#'   base of the log-normalized gene expression data to be processed. Generally
+#'   gene expression data is transformed into log2 space when normalizing (set
+#'   this to 2), though \code{Seurat} uses the natural log (set this to exp(1)). 
+#'   If you are using data that has not been log-transformed (for example, 
+#'   corrected counts from SCTransform), set this to NA.
+#' @param pseudocount Default = 1. A length-one numeric vector representing the
+#'   pseudocount added to all log-normalized values in your input data. Most
+#'   methods use a pseudocount of 1 to eliminate log(0) errors. If you are using 
+#'   data that has not been log-transformed (for example, corrected counts from 
+#'   SCTransform), set this to NA. 
 #' 
 #' @return The function returns a list of dataframes. Each list element contains
 #'   a named list of clusters at that resolution. Each of those list elements
@@ -445,32 +497,74 @@ CalcSCV <- function(inD,
 #'   calculation).
 
 fx_calcCGS <- function(nge,cl,exponent,pseudocount) {
-  message("-- Calculating gene detection rate per cluster --")
-  DR <- pbapply::pbsapply(levels(cl),function(X) 
-    RowNNZ(nge[,cl == X]) / sum(cl == X),simplify=F)
-  
-  message("-- Calculating mean detected gene expression per cluster --")
-  MDGE <- pbapply::pbsapply(sapply(levels(cl),function(i) nge[,cl %in% i,drop=F],simplify=F),
-                            function(X) apply(X,1,function(Y) {
-                              temp <- meanLogX(Y[Y > 0],
-                                               ncell=ncol(nge),
-                                               ex=exponent,
-                                               pc=pseudocount)
-                              if (is.na(temp)) { temp <- 0 }
-                              return(temp)
-                            }),simplify=F)
-  
-  message("-- Calculating mean gene expression per cluster --")
-  MGE <- pbapply::pbsapply(sapply(levels(cl),function(i) nge[,cl %in% i,drop=F],simplify=F),
-                           function(X) apply(X,1,function(Y)
-                             meanLogX(Y,
-                                      ncell=ncol(nge),
-                                      ex=exponent,
-                                      pc=pseudocount)),simplify=F)
-  
-  return(sapply(levels(cl),function(X) 
-    data.frame(DR=DR[[X]],MDGE=MDGE[[X]],MGE=MGE[[X]]),simplify=F))
+  temp_DR <- sapply(levels(cl),function(X) 
+    data.frame(DR=RowNNZ(nge[,cl == X]) / sum(cl == X)),simplify=F)
+  message("-- Calculating cluster-wise gene statistics --")
+  temp_Ms <- pbapply::pbsapply(
+    sapply(levels(cl),function(i) nge[,cl %in% i,drop=F],simplify=F),
+    function(X) data.frame(
+      MDGE=switch(any(is.na(c(exponent,pseudocount))) + 1,
+                  apply(X,1,function(Y) 
+                    meanLogX(Y[Y > 0],
+                             ncell=ncol(nge),
+                             ex=exponent,
+                             pc=pseudocount)
+                  ),
+                  log2(apply(X,1,function(Y) mean(Y[Y > 0])) + 1/ncol(nge))
+      ),
+      MGE=switch(any(is.na(c(exponent,pseudocount))) + 1,
+                 apply(X,1,function(Y) 
+                   meanLogX(Y,
+                            ncell=ncol(nge),
+                            ex=exponent,
+                            pc=pseudocount)
+                 ),
+                 log2(Matrix::rowMeans(X) + 1/ncol(nge))
+      )
+    ),simplify=F)
+  for (l in names(temp_Ms)) { temp_Ms[[l]][is.na(temp_Ms[[l]])] <- 0 }
+  return(sapply(names(temp_Ms),function(X) cbind(temp_DR[[X]],temp_Ms[[X]]),simplify=F))
 }
+
+# fx_calcCGS <- function(nge,cl,exponent,pseudocount) {
+#   message("-- Calculating gene detection rate per cluster --")
+#   DR <- pbapply::pbsapply(levels(cl),function(X)
+#     RowNNZ(nge[,cl == X]) / sum(cl == X),simplify=F)
+# 
+#   message("-- Calculating mean detected gene expression per cluster --")
+#   if (any(is.na(c(exponent,pseudocount)))) {
+#     MDGE <- pbapply::pbsapply(sapply(levels(cl),function(i) nge[,cl %in% i,drop=F],simplify=F),
+#                               function(X)
+#                                 log2(apply(X,1,function(Y) mean(Y[Y > 0])) + 1/ncol(nge)),
+#                               simplify=F)
+#   } else {
+#     MDGE <- pbapply::pbsapply(sapply(levels(cl),function(i) nge[,cl %in% i,drop=F],simplify=F),
+#                               function(X) apply(X,1,function(Y) {
+#                                 temp <- meanLogX(Y[Y > 0],
+#                                                  ncell=ncol(nge),
+#                                                  ex=exponent,
+#                                                  pc=pseudocount)
+#                                 if (is.na(temp)) { temp <- 0 }
+#                                 return(temp)
+#                               }),simplify=F)
+#   }
+# 
+#   message("-- Calculating mean gene expression per cluster --")
+#   if (any(is.na(c(exponent,pseudocount)))) {
+#     MGE <- pbapply::pbsapply(sapply(levels(cl),function(i) nge[,cl %in% i,drop=F],simplify=F),
+#                              function(X) log2(Matrix::rowMeans(X) + 1/ncol(nge)),simplify=F)
+#   } else {
+#     MGE <- pbapply::pbsapply(sapply(levels(cl),function(i) nge[,cl %in% i,drop=F],simplify=F),
+#                              function(X) apply(X,1,function(Y)
+#                                meanLogX(Y,
+#                                         ncell=ncol(nge),
+#                                         ex=exponent,
+#                                         pc=pseudocount)),simplify=F)
+#   }
+# 
+#   return(sapply(levels(cl),function(X)
+#     data.frame(DR=DR[[X]],MDGE=MDGE[[X]],MGE=MGE[[X]]),simplify=F))
+# }
 
 #' Internal fx for cluster-wise gene statistics using BiocParallel
 #'
@@ -478,11 +572,17 @@ fx_calcCGS <- function(nge,cl,exponent,pseudocount) {
 #'
 #' @param nge The log-normalized gene expression matrix.
 #' @param cl The factor with cluster assignments per cell (column of nge).
-#' @param exponent The log base of your normalized input data. Seurat
-#'   normalization uses the natural log (set this to exp(1)), while other
-#'   normalization methods generally use log2 (set this to 2).
-#' @param pseudocount The pseudocount added to all log-normalized values in your
-#'   input data. Most methods use a pseudocount of 1 to eliminate log(0) errors.
+#' @param exponent A length-one numeric vector representing the
+#'   base of the log-normalized gene expression data to be processed. Generally
+#'   gene expression data is transformed into log2 space when normalizing (set
+#'   this to 2), though \code{Seurat} uses the natural log (set this to exp(1)). 
+#'   If you are using data that has not been log-transformed (for example, 
+#'   corrected counts from SCTransform), set this to NA.
+#' @param pseudocount A length-one numeric vector representing the
+#'   pseudocount added to all log-normalized values in your input data. Most
+#'   methods use a pseudocount of 1 to eliminate log(0) errors. If you are using 
+#'   data that has not been log-transformed (for example, corrected counts from 
+#'   SCTransform), set this to NA. 
 #' 
 #' @return The function returns a list of dataframes. Each list element contains
 #'   a named list of clusters at that resolution. Each of those list elements
@@ -583,7 +683,7 @@ setMethod("CalcCGS",signature("sCVdata"),
             #                 exponent=Param(sCVd,"exponent"),
             #                 pseudocount=Param(sCVd,"pseudocount"))
             # } else {
-            fx_calcCGS(nge=getExpr(inD,Param(sCVd,"assayType")),
+            fx_calcCGS(nge=getExpr(inD,Param(sCVd,"assayType"),Param(sCVd,"assaySlot")),
                        cl=Clusters(sCVd),
                        exponent=Param(sCVd,"exponent"),
                        pseudocount=Param(sCVd,"pseudocount"))
@@ -604,11 +704,17 @@ setMethod("CalcCGS",signature("sCVdata"),
 #' @param nge The log-normalized gene expression matrix.
 #' @param cl The factor with cluster assignments per cell (column of nge).
 #' @param CGS The output from \code{\link{CalcCGS}}.
-#' @param exponent The log base of your normalized input data. Seurat
-#'   normalization uses the natural log (set this to exp(1)), while other
-#'   normalization methods generally use log2 (set this to 2).
-#' @param pseudocount The pseudocount added to all log-normalized values in your
-#'   input data. Most methods use a pseudocount of 1 to eliminate log(0) errors.
+#' @param exponent A length-one numeric vector representing the
+#'   base of the log-normalized gene expression data to be processed. Generally
+#'   gene expression data is transformed into log2 space when normalizing (set
+#'   this to 2), though \code{Seurat} uses the natural log (set this to exp(1)). 
+#'   If you are using data that has not been log-transformed (for example, 
+#'   corrected counts from SCTransform), set this to NA.
+#' @param pseudocount A length-one numeric vector representing the
+#'   pseudocount added to all log-normalized values in your input data. Most
+#'   methods use a pseudocount of 1 to eliminate log(0) errors. If you are using 
+#'   data that has not been log-transformed (for example, corrected counts from 
+#'   SCTransform), set this to NA. 
 #' @param DRthresh The threshold for minimum detection rate of a gene in the
 #'   cluster for the gene to be considered in the following Wilcoxon rank-sum
 #'   test.
@@ -626,12 +732,18 @@ fx_calcESvsRest <- function(nge,cl,CGS,exponent,pseudocount,DRthresh) {
   return(pbapply::pbsapply(levels(cl),function(i) {
     data.frame(
       logGER=CGS[[i]][CGS[[i]]$DR >= DRthresh,"MGE"] - 
-        apply(nge[CGS[[i]]$DR >= DRthresh,(!cl %in% i | is.na(cl))],
-              MARGIN=1,
-              FUN=meanLogX,
-              ncell=ncol(nge),
-              ex=exponent,
-              pc=pseudocount
+        switch(any(is.na(c(exponent,pseudocount))) + 1,
+               apply(
+                 nge[CGS[[i]]$DR >= DRthresh,(!cl %in% i | is.na(cl))],
+                 MARGIN=1,
+                 FUN=meanLogX,
+                 ncell=ncol(nge),
+                 ex=exponent,
+                 pc=pseudocount
+               ),
+               log2(Matrix::rowMeans(
+                 nge[CGS[[i]]$DR >= DRthresh,(!cl %in% i | is.na(cl))]
+               ) + 1/ncol(nge))
         ),
       Wstat=NA,
       pVal=NA,
@@ -653,11 +765,17 @@ fx_calcESvsRest <- function(nge,cl,CGS,exponent,pseudocount,DRthresh) {
 #' @param nge The log-normalized gene expression matrix.
 #' @param cl The factor with cluster assignments per cell (column of nge).
 #' @param CGS The output from \code{\link{CalcCGS}}.
-#' @param exponent The log base of your normalized input data. Seurat
-#'   normalization uses the natural log (set this to exp(1)), while other
-#'   normalization methods generally use log2 (set this to 2).
-#' @param pseudocount The pseudocount added to all log-normalized values in your
-#'   input data. Most methods use a pseudocount of 1 to eliminate log(0) errors.
+#' @param exponent A length-one numeric vector representing the
+#'   base of the log-normalized gene expression data to be processed. Generally
+#'   gene expression data is transformed into log2 space when normalizing (set
+#'   this to 2), though \code{Seurat} uses the natural log (set this to exp(1)). 
+#'   If you are using data that has not been log-transformed (for example, 
+#'   corrected counts from SCTransform), set this to NA.
+#' @param pseudocount A length-one numeric vector representing the
+#'   pseudocount added to all log-normalized values in your input data. Most
+#'   methods use a pseudocount of 1 to eliminate log(0) errors. If you are using 
+#'   data that has not been log-transformed (for example, corrected counts from 
+#'   SCTransform), set this to NA. 
 #' @param DRthresh The threshold for minimum detection rate of a gene in the
 #'   cluster for the gene to be considered in the following Wilcoxon rank-sum
 #'   test.
@@ -919,7 +1037,7 @@ setMethod("CalcDEvsRest","sCVdata",
             #                               pseudocount=Param(sCVd,"pseudocount"),
             #                               DRthresh=Param(sCVd,"DRthresh"))
             # } else {
-            deTes <- fx_calcESvsRest(nge=getExpr(inD,Param(sCVd,"assayType")),
+            deTes <- fx_calcESvsRest(nge=getExpr(inD,Param(sCVd,"assayType"),Param(sCVd,"assaySlot")),
                                      cl=Clusters(sCVd),
                                      CGS=ClustGeneStats(sCVd),
                                      exponent=Param(sCVd,"exponent"),
@@ -932,7 +1050,7 @@ setMethod("CalcDEvsRest","sCVdata",
             #                               deTes=deTes)
             # } else {
             if (require(presto)) {
-              deTes <- fx_calcDEvsRest(nge=getExpr(inD,Param(sCVd,"assayType")),
+              deTes <- fx_calcDEvsRest(nge=getExpr(inD,Param(sCVd,"assayType"),Param(sCVd,"assaySlot")),
                                        cl=Clusters(sCVd),
                                        deTes=deTes)
             } else {
@@ -946,7 +1064,7 @@ setMethod("CalcDEvsRest","sCVdata",
                       "",
                       sep="\n")
               )
-              deTes <- fx_calcDEvsRest_slow(nge=getExpr(inD,Param(sCVd,"assayType")),
+              deTes <- fx_calcDEvsRest_slow(nge=getExpr(inD,Param(sCVd,"assayType"),Param(sCVd,"assaySlot")),
                                             cl=Clusters(sCVd),
                                             deTes=deTes)
             }
@@ -1250,7 +1368,7 @@ setMethod("CalcDEcombn","sCVdata",
             # } else {
             if (require(presto)) {
               
-              deMes <- fx_calcDEcombn(nge=getExpr(inD,Param(sCVd,"assayType")),
+              deMes <- fx_calcDEcombn(nge=getExpr(inD,Param(sCVd,"assayType"),Param(sCVd,"assaySlot")),
                                       cl=Clusters(sCVd),
                                       deMes=deMes)
             } else {
@@ -1264,7 +1382,7 @@ setMethod("CalcDEcombn","sCVdata",
                       "",
                       sep="\n")
               )
-              deMes <- fx_calcDEcombn_slow(nge=getExpr(inD,Param(sCVd,"assayType")),
+              deMes <- fx_calcDEcombn_slow(nge=getExpr(inD,Param(sCVd,"assayType"),Param(sCVd,"assaySlot")),
                                            cl=Clusters(sCVd),
                                            deMes=deMes)
             }

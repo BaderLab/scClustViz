@@ -4,13 +4,22 @@
 \alias{getExpr}
 \title{Get gene expression matrix from input data object}
 \usage{
-getExpr(x, assayType)
+getExpr(x, assayType, assaySlot)
 }
 \arguments{
 \item{x}{The single-cell data object.}
 
-\item{assayType}{The name of the assay slot to access. Not required for 
-Seurat v1 or v2.}
+\item{assayType}{A length-one character vector representing the assay object
+in which the expression data is stored in the input object. For Seurat v1
+or v2 objects, set this to "". For Seurat v3 objects, this is often "RNA".
+For SingleCellExperiment objects, this is often "logcounts". See Details
+for how this argument is used in the accessor functions for each class.}
+
+\item{assaySlot}{An optional length-one character vector representing the
+slot of the Seurat v3 \code{\link[Seurat]{Assay}} object to use. In Seurat
+v3, normalized data is stored in the "data" slot, and counts in the
+"counts" slot. See Details for how this argument is used in the accessor
+functions for each class.}
 }
 \description{
 Extract the gene expression matrix from a single-cell data object containing
@@ -18,14 +27,12 @@ the input data for scClustViz visualization.
 }
 \details{
 This is a wrapper function to the relevant class's normalized data slot
-accessor method. Currently supported input object classes:
-\itemize{
-  \item Class \code{\link[Seurat]{seurat}/\link[Seurat]{Seurat}} stored in
-    \code{x@data} or \code{x@assays[[assayType]]@data}, 
-    depending on Seurat object version.
-  \item Class \code{\link[SingleCellExperiment]{SingleCellExperiment}} 
-    accessed by \code{\link[SummarizedExperiment]{assay}(x,assayType)}.
-}
+accessor method. Currently supported input object classes: \itemize{ \item
+Class \code{\link[Seurat]{seurat}/\link[Seurat]{Seurat}} stored in
+\code{x@data} or \code{x@assays[[assayType]]@assaySlot}, depending on Seurat
+object version. \item Class
+\code{\link[SingleCellExperiment]{SingleCellExperiment}} accessed by
+\code{\link[SummarizedExperiment]{assay}(x,assayType)}. }
 \href{https://github.com/BaderLab/scClustViz/issues}{Please submit requests
 for other data objects here!}
 }

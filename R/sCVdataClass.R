@@ -39,6 +39,7 @@
 
 sCVparams <- setClass(Class="sCVparams",
                       slots=c(assayType="character",
+                              assaySlot="character",
                               DRforClust="character",
                               exponent="numeric",
                               pseudocount="numeric",
@@ -46,6 +47,10 @@ sCVparams <- setClass(Class="sCVparams",
 setValidity("sCVparams",function(object) {
   if (length(object@assayType) > 1) {
     return(paste("assayType should be the slot of the input object where the",
+                 "expression data is stored. See ?getExpr"))
+  }
+  if (length(object@assaySlot) > 1) {
+    return(paste("assaySlot should be the slot of the input object where the",
                  "expression data is stored. See ?getExpr"))
   }
   if (length(object@DRforClust) > 1) {

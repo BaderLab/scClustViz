@@ -261,10 +261,14 @@ runShiny <- function(filePath,outPath,
       annotationDB <- get(annotationDB)
     }
     if (missing(rownameKeytype)) {
-      rownameKeytype <- findKeyType(getExpr(inD,Param(sCVdL[[1]],"assayType")),
+      rownameKeytype <- findKeyType(getExpr(inD,
+                                            Param(sCVdL[[1]],"assayType"),
+                                            Param(sCVdL[[1]],"assaySlot")),
                                     annotationDB)
     }
-    symbolMap <- map2symbol(getExpr(inD,Param(sCVdL[[1]],"assayType")),
+    symbolMap <- map2symbol(getExpr(inD,
+                                    Param(sCVdL[[1]],"assayType"),
+                                    Param(sCVdL[[1]],"assaySlot")),
                             annotationDB,
                             rownameKeytype)
   }
@@ -1544,7 +1548,9 @@ runShiny <- function(filePath,outPath,
     # ^^ Boxplots for gene expression comparison ------------------------------------------------------
     output$geneTest <- renderPlot({
       if (length(res()) > 0) {
-        plot_GEboxplot(nge=getExpr(inD,Param(sCVdL[[1]],"assayType")),
+        plot_GEboxplot(nge=getExpr(inD,
+                                   Param(sCVdL[[1]],"assayType"),
+                                   Param(sCVdL[[1]],"assaySlot")),
                        sCVd=d$SCV[[res()]],
                        gene=input$cgGene,
                        geneName=geneNameBx(),
@@ -1564,7 +1570,9 @@ runShiny <- function(filePath,outPath,
                  "eps"=grDevices::cairo_ps(file,height=7,width=12,fallback_resolution=600),
                  "tiff"=grDevices::tiff(file,height=7,width=12,units="in",res=600),
                  "png"=grDevices::png(file,height=7,width=12,units="in",res=600))
-          plot_GEboxplot(nge=getExpr(inD,Param(sCVdL[[1]],"assayType")),
+          plot_GEboxplot(nge=getExpr(inD,
+                                     Param(sCVdL[[1]],"assayType"),
+                                     Param(sCVdL[[1]],"assaySlot")),
                          sCVd=d$SCV[[res()]],
                          gene=input$cgGene,
                          geneName=geneNameBx(),
@@ -1693,7 +1701,13 @@ runShiny <- function(filePath,outPath,
         } else {
           plot_tsne(
             cell_coord=getEmb(inD,input$GOI_EmbType)[,c(input$GOI_EmbDimX,input$GOI_EmbDimY)],
-            md=getExpr(inD,Param(sCVdL[[1]],"assayType"))[input$goi1,],
+            md=switch(any(is.na(c(Param(sCVdL[[1]],"exponent"),Param(sCVdL[[1]],"pseudocount")))) + 1,
+                      getExpr(inD,
+                              Param(sCVdL[[1]],"assayType"),
+                              Param(sCVdL[[1]],"assaySlot"))[input$goi1,],
+                      log2(getExpr(inD,
+                                   Param(sCVdL[[1]],"assayType"),
+                                   Param(sCVdL[[1]],"assaySlot"))[input$goi1,] + 1)),
             md_title=geneNameGOI1(),
             md_log=F,
             label=switch(
@@ -1735,7 +1749,13 @@ runShiny <- function(filePath,outPath,
         } else {
           plot_tsne(
             cell_coord=getEmb(inD,input$GOI_EmbType)[,c(input$GOI_EmbDimX,input$GOI_EmbDimY)],
-            md=getExpr(inD,Param(sCVdL[[1]],"assayType"))[input$goi2,],
+            md=switch(any(is.na(c(Param(sCVdL[[1]],"exponent"),Param(sCVdL[[1]],"pseudocount")))) + 1,
+                      getExpr(inD,
+                              Param(sCVdL[[1]],"assayType"),
+                              Param(sCVdL[[1]],"assaySlot"))[input$goi2,],
+                      log2(getExpr(inD,
+                                   Param(sCVdL[[1]],"assayType"),
+                                   Param(sCVdL[[1]],"assaySlot"))[input$goi2,] + 1)),
             md_title=geneNameGOI2(),
             md_log=F,
             label=switch(
@@ -1781,7 +1801,13 @@ runShiny <- function(filePath,outPath,
                  "png"=grDevices::png(file,height=7,width=7,units="in",res=600))
           plot_tsne(
             cell_coord=getEmb(inD,input$GOI_EmbType)[,c(input$GOI_EmbDimX,input$GOI_EmbDimY)],
-            md=getExpr(inD,Param(sCVdL[[1]],"assayType"))[input$goi1,],
+            md=switch(any(is.na(c(Param(sCVdL[[1]],"exponent"),Param(sCVdL[[1]],"pseudocount")))) + 1,
+                      getExpr(inD,
+                              Param(sCVdL[[1]],"assayType"),
+                              Param(sCVdL[[1]],"assaySlot"))[input$goi1,],
+                      log2(getExpr(inD,
+                                   Param(sCVdL[[1]],"assayType"),
+                                   Param(sCVdL[[1]],"assaySlot"))[input$goi1,] + 1)),
             md_title=geneNameGOI1(),
             md_log=F,
             label=switch(
@@ -1812,7 +1838,13 @@ runShiny <- function(filePath,outPath,
                  "png"=grDevices::png(file,height=7,width=7,units="in",res=600))
           plot_tsne(
             cell_coord=getEmb(inD,input$GOI_EmbType)[,c(input$GOI_EmbDimX,input$GOI_EmbDimY)],
-            md=getExpr(inD,Param(sCVdL[[1]],"assayType"))[input$goi2,],
+            md=switch(any(is.na(c(Param(sCVdL[[1]],"exponent"),Param(sCVdL[[1]],"pseudocount")))) + 1,
+                      getExpr(inD,
+                              Param(sCVdL[[1]],"assayType"),
+                              Param(sCVdL[[1]],"assaySlot"))[input$goi2,],
+                      log2(getExpr(inD,
+                                   Param(sCVdL[[1]],"assayType"),
+                                   Param(sCVdL[[1]],"assaySlot"))[input$goi2,] + 1)),
             md_title=geneNameGOI2(),
             md_log=F,
             label=switch(
@@ -2154,8 +2186,12 @@ runShiny <- function(filePath,outPath,
           # temp_warn <- options("warn")
           # options(warn=-1)
           
-          temp <- rep("Unselected",ncol(getExpr(inD,Param(sCVdL[[1]],"assayType"))))
-          names(temp) <- colnames(getExpr(inD,Param(sCVdL[[1]],"assayType")))
+          temp <- rep("Unselected",ncol(getExpr(inD,
+                                                Param(sCVdL[[1]],"assayType"),
+                                                Param(sCVdL[[1]],"assaySlot"))))
+          names(temp) <- colnames(getExpr(inD,
+                                          Param(sCVdL[[1]],"assayType"),
+                                          Param(sCVdL[[1]],"assaySlot")))
           temp[selectedSets$a] <- "Set A"
           temp[selectedSets$b] <- "Set B"
           d$SCV[[newRes]] <- sCVdata(Clusters=factor(temp,levels=c("Set A","Set B")),

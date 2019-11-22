@@ -13,12 +13,18 @@ fx_calcESvsRest_BP(nge, cl, CGS, exponent, pseudocount, DRthresh)
 
 \item{CGS}{The output from \code{\link{CalcCGS}}.}
 
-\item{exponent}{The log base of your normalized input data. Seurat
-normalization uses the natural log (set this to exp(1)), while other
-normalization methods generally use log2 (set this to 2).}
+\item{exponent}{A length-one numeric vector representing the
+base of the log-normalized gene expression data to be processed. Generally
+gene expression data is transformed into log2 space when normalizing (set
+this to 2), though \code{Seurat} uses the natural log (set this to exp(1)). 
+If you are using data that has not been log-transformed (for example, 
+corrected counts from SCTransform), set this to NA.}
 
-\item{pseudocount}{The pseudocount added to all log-normalized values in your
-input data. Most methods use a pseudocount of 1 to eliminate log(0) errors.}
+\item{pseudocount}{A length-one numeric vector representing the
+pseudocount added to all log-normalized values in your input data. Most
+methods use a pseudocount of 1 to eliminate log(0) errors. If you are using 
+data that has not been log-transformed (for example, corrected counts from 
+SCTransform), set this to NA.}
 
 \item{DRthresh}{The threshold for minimum detection rate of a gene in the
 cluster for the gene to be considered in the following Wilcoxon rank-sum

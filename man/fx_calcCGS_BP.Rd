@@ -11,12 +11,18 @@ fx_calcCGS_BP(nge, cl, exponent, pseudocount)
 
 \item{cl}{The factor with cluster assignments per cell (column of nge).}
 
-\item{exponent}{The log base of your normalized input data. Seurat
-normalization uses the natural log (set this to exp(1)), while other
-normalization methods generally use log2 (set this to 2).}
+\item{exponent}{A length-one numeric vector representing the
+base of the log-normalized gene expression data to be processed. Generally
+gene expression data is transformed into log2 space when normalizing (set
+this to 2), though \code{Seurat} uses the natural log (set this to exp(1)). 
+If you are using data that has not been log-transformed (for example, 
+corrected counts from SCTransform), set this to NA.}
 
-\item{pseudocount}{The pseudocount added to all log-normalized values in your
-input data. Most methods use a pseudocount of 1 to eliminate log(0) errors.}
+\item{pseudocount}{A length-one numeric vector representing the
+pseudocount added to all log-normalized values in your input data. Most
+methods use a pseudocount of 1 to eliminate log(0) errors. If you are using 
+data that has not been log-transformed (for example, corrected counts from 
+SCTransform), set this to NA.}
 }
 \value{
 The function returns a list of dataframes. Each list element contains

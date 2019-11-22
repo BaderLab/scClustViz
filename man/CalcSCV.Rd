@@ -4,9 +4,9 @@
 \alias{CalcSCV}
 \title{Create sCVdata object with calculation results for a cluster}
 \usage{
-CalcSCV(inD, cl, assayType = "", DRforClust = "pca", exponent = 2,
-  pseudocount = 1, DRthresh = 0.1, calcSil = T, calcDEvsRest = T,
-  calcDEcombn = T)
+CalcSCV(inD, cl, assayType = "", assaySlot = "", DRforClust = "pca",
+  exponent = 2, pseudocount = 1, DRthresh = 0.1, calcSil = T,
+  calcDEvsRest = T, calcDEcombn = T)
 }
 \arguments{
 \item{inD}{The input dataset. An object of class \code{\link[Seurat]{seurat}}
@@ -19,9 +19,19 @@ for other data objects here!}}
 (column) in the input gene expression matrix.}
 
 \item{assayType}{Default = "" (for Seurat v1/2). A length-one character
-vector representing the assay slot in which the expression data is stored
-in the input object. This is not required for Seurat v1 or v2 objects. See
-\code{\link{getExpr}} for details.}
+vector representing the assay object in which the expression data is stored
+in the input object. This is not required for Seurat v1 or v2 objects. For 
+Seurat v3 objects, this is often "RNA". For SingleCellExperiment objects, 
+this is often "logcounts". See \code{\link{getExpr}} for details.}
+
+\item{assaySlot}{An optional length-one character vector representing
+the slot of the Seurat v3 \code{\link[Seurat]{Assay}} object to use. Not 
+used for other single-cell data objects. The default is to use the 
+normalized data in the "data" slot, but you can also use the 
+\code{\link[Seurat]{SCTransform}}-corrected counts by setting 
+\code{assayType = "SCT"} and \code{assaySlot = "counts"}. This is 
+recommended, as it will speed up differential expression 
+calculations. See \code{\link{getExpr}} for details.}
 
 \item{DRforClust}{Default = "pca".A length-one character vector representing
 the dimensionality reduction method used as the input for clustering. This
@@ -35,11 +45,15 @@ embedding in your input data - either the \code{type} argument in
 \item{exponent}{Default = 2. A length-one numeric vector representing the
 base of the log-normalized gene expression data to be processed. Generally
 gene expression data is transformed into log2 space when normalizing (set
-this to 2), though \code{Seurat} uses the natural log (set this to exp(1)).}
+this to 2), though \code{Seurat} uses the natural log (set this to exp(1)). 
+If you are using data that has not been log-transformed (for example, 
+corrected counts from SCTransform), set this to NA.}
 
 \item{pseudocount}{Default = 1. A length-one numeric vector representing the
 pseudocount added to all log-normalized values in your input data. Most
-methods use a pseudocount of 1 to eliminate log(0) errors.}
+methods use a pseudocount of 1 to eliminate log(0) errors. If you are using 
+data that has not been log-transformed (for example, corrected counts from 
+SCTransform), set this to NA.}
 
 \item{DRthresh}{Default = 0.1. A length-one numeric vector between 0 and 1
 representing the detection rate threshold for inclusion of a gene in the
@@ -117,7 +131,8 @@ while(DE_bw_clust) {
                                           resolution=seurat_resolution)
 
   curr_sCVdata <- CalcSCV(inD=your_seurat_obj,
-                          cl=your_seurat_obj@ident,
+                          cl=Indents(your_seurat_obj),
+                          assayType="RNA",
                           DRforClust="pca",
                           exponent=exp(1),
                           pseudocount=1,

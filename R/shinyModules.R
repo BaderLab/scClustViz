@@ -934,7 +934,8 @@ plot_clusterGenes_markers <- function(sCVd,selClust,cellMarkers) {
     # }
     temp_ylab <- switch(as.character(Param(sCVd,"exponent") == exp(1)),
                         "TRUE"="(natural log scale)",
-                        "FALSE"=paste0("(log",Param(sCVd,"exponent")," scale)"))
+                        "FALSE"=paste0("(log",Param(sCVd,"exponent")," scale)"),
+                        "NA"="(log2 scale)")
     plot(MDGE~DR,
          data=CGS[!((CGS$cMu | CGS$cMs) & CGS$overCut),],
          xlim=range(CGS$DR),ylim=range(CGS$MDGE),
@@ -1044,7 +1045,8 @@ plot_clusterGenes_DEgenes <- function(sCVd,selClust,DEgenes,DEnum,DEtype) {
     # }
     temp_ylab <- switch(as.character(Param(sCVd,"exponent") == exp(1)),
                         "TRUE"="(natural log scale)",
-                        "FALSE"=paste0("(log",Param(sCVd,"exponent")," scale)"))
+                        "FALSE"=paste0("(log",Param(sCVd,"exponent")," scale)"),
+                        "NA"="(log2 scale)")
     plot(MDGE~DR,
          data=CGS[!rownames(CGS) %in% names(DEgenes[[selClust]])[1:DEnum],],
          xlim=range(CGS$DR),ylim=range(CGS$MDGE),
@@ -1136,7 +1138,8 @@ plot_clusterGenes_search <- function(sCVd,selClust,GOI) {
     if (!"genes" %in% names(CGS)) { CGS$genes <- rownames(CGS) }
     temp_ylab <- switch(as.character(Param(sCVd,"exponent") == exp(1)),
                         "TRUE"="(natural log scale)",
-                        "FALSE"=paste0("(log",Param(sCVd,"exponent")," scale)"))
+                        "FALSE"=paste0("(log",Param(sCVd,"exponent")," scale)"),
+                        "NA"="(log2 scale)")
     plot(MDGE~DR,
          data=CGS[!CGS$genes %in% GOI,],
          col=alpha("black",0.2),pch=temp_pch,cex=temp_cex,
@@ -1245,7 +1248,8 @@ plot_GEboxplot <- function(nge,sCVd,gene,geneName,opts=c("sct","dr")) {
     hC <- hclust(as.dist(DEdist(sCVd)),"single")
     temp_ylab <- switch(as.character(Param(sCVd,"exponent") == exp(1)),
                         "TRUE"="(natural log scale)",
-                        "FALSE"=paste0("(log",Param(sCVd,"exponent")," scale)"))
+                        "FALSE"=paste0("(log",Param(sCVd,"exponent")," scale)"),
+                        "NA"="(log2 scale)")
     temp_pos <- switch(as.character(length(levels(Clusters(sCVd))) > 1),
                        "TRUE"=hC$order,"FALSE"=1)
     if ("sct" %in% opts) {
@@ -1260,7 +1264,10 @@ plot_GEboxplot <- function(nge,sCVd,gene,geneName,opts=c("sct","dr")) {
     par(mar=c(3,3,0,3),mgp=2:0)
     suppressWarnings(boxplot(
       vector("list",length(levels(Clusters(sCVd))[levels(Clusters(sCVd)) != "Unselected"])),
-      ylim=range(nge[gene,]),xaxt="n",xlab=NA,
+      ylim=switch(any(is.na(c(Param(sCVd,"exponent"),Param(sCVd,"pseudocount")))) + 1,
+                  range(nge[gene,]),
+                  range(log2(nge[gene,] + 1))),
+      xaxt="n",xlab=NA,
       ylab=paste(gene,"normalized gene expression",temp_ylab)
     ))
     mtext(levels(Clusters(sCVd))[temp_pos],side=1,line=0,at=seq_along(temp_pos))
@@ -1274,25 +1281,34 @@ plot_GEboxplot <- function(nge,sCVd,gene,geneName,opts=c("sct","dr")) {
     }
     for (i in temp_pos) {
       if ("sct" %in% opts) {
-        points(jitter(rep(which(temp_pos == i),
+        points(x=jitter(rep(which(temp_pos == i),
                           sum(Clusters(sCVd) %in% levels(Clusters(sCVd))[i])),
                       amount=.2),
-               nge[gene,Clusters(sCVd) %in% levels(Clusters(sCVd))[i]],
+               y=switch(any(is.na(c(Param(sCVd,"exponent"),Param(sCVd,"pseudocount")))) + 1,
+                        nge[gene,Clusters(sCVd) %in% levels(Clusters(sCVd))[i]],
+                        log2(nge[gene,Clusters(sCVd) %in% levels(Clusters(sCVd))[i]] + 1)),
                pch=".",cex=3,
                col=colorspace::qualitative_hcl(length(levels(Clusters(sCVd))),
                                                palette="Dark 3",
                                                alpha=.4)[i])
       }
-      boxplot(nge[gene,Clusters(sCVd) %in% levels(Clusters(sCVd))[i]],add=T,
-              at=which(temp_pos == i),col=bxpCol[i],outline=F)
+      boxplot(switch(any(is.na(c(Param(sCVd,"exponent"),Param(sCVd,"pseudocount")))) + 1,
+                     nge[gene,Clusters(sCVd) %in% levels(Clusters(sCVd))[i]],
+                     log2(nge[gene,Clusters(sCVd) %in% levels(Clusters(sCVd))[i]] + 1)),
+              add=T,at=which(temp_pos == i),col=bxpCol[i],outline=F)
     }
     if ("dr" %in% opts) {
       points(x=seq_along(ClustGeneStats(sCVd)),
              y=sapply(ClustGeneStats(sCVd)[temp_pos],function(X) X[gene,"DR"]) * 
-               max(nge[gene,]) + min(nge[gene,]),
+               switch(any(is.na(c(Param(sCVd,"exponent"),Param(sCVd,"pseudocount")))) + 1,
+                      max(nge[gene,]) + min(nge[gene,]),
+                      log2(max(nge[gene,]) + 1) + log2(min(nge[gene,]) + 1)),
              pch="-",cex=2)
-      axis(side=4,at=seq(0,1,.25) * max(nge[gene,]) + min(nge[gene,]),
-           labels=paste0(seq(0,1,.25) * 100,"%"))
+      axis(at=seq(0,1,.25) * 
+             switch(any(is.na(c(Param(sCVd,"exponent"),Param(sCVd,"pseudocount")))) + 1,
+                    max(nge[gene,]) + min(nge[gene,]),
+                    log2(max(nge[gene,]) + 1) + log2(min(nge[gene,]) + 1)),
+           side=4,labels=paste0(seq(0,1,.25) * 100,"%"))
       mtext(side=4,line=2,text="- Gene detection rate per cluster")
     }
     if (length(temp_pos) > 1) { 
@@ -1350,7 +1366,8 @@ plot_compareClusts_MAplot <- function(sCVd,clA,clB,dataType,labType,labNum,labGe
   CGS <- compareClusts_DF(sCVd,clA,clB,dataType)
   temp_exp <- switch(as.character(Param(sCVd,"exponent") == exp(1)),
                      "TRUE"="(natural log scale)",
-                     "FALSE"=paste0("(log",Param(sCVd,"exponent")," scale)"))
+                     "FALSE"=paste0("(log",Param(sCVd,"exponent")," scale)"),
+                     "NA"="(log2 scale)")
   temp_label <- switch(dataType,
                        "MGE"=paste("mean normalized gene expression",temp_exp),
                        "MDGE"=paste("mean normalized gene expression where detected",temp_exp),
@@ -1434,7 +1451,8 @@ plot_compareClusts_DEscatter <- function(sCVd,clA,clB,dataType,labType,
   CGS <- compareClusts_DF(sCVd,clA,clB,dataType)
   temp_exp <- switch(as.character(Param(sCVd,"exponent") == exp(1)),
                      "TRUE"="(natural log scale)",
-                     "FALSE"=paste0("(log",Param(sCVd,"exponent")," scale)"))
+                     "FALSE"=paste0("(log",Param(sCVd,"exponent")," scale)"),
+                     "NA"="(log2 scale)")
   if (labType == "diff") {
     gnA <- rownames(head(CGS[order(CGS[[labTypeDiff]],decreasing=T),],labNum))
     gnB <- rownames(tail(CGS[order(CGS[[labTypeDiff]],decreasing=T),],labNum))
@@ -1511,7 +1529,8 @@ plot_compareClusts_volcano <- function(sCVd,clA,clB,dataType,labType,labNum,labG
   CGS$FDR[CGS$FDR == Inf] <- 300 # Min positive non-zero value is 1e-300
   temp_exp <- switch(as.character(Param(sCVd,"exponent") == exp(1)),
                      "TRUE"="(natural log scale)",
-                     "FALSE"=paste0("(log",Param(sCVd,"exponent")," scale)"))
+                     "FALSE"=paste0("(log",Param(sCVd,"exponent")," scale)"),
+                     "NA"="(log2 scale)")
   if (labType == "diff") {
     gnA <- rownames(head(CGS[order(CGS[[dataType]],decreasing=T),],labNum))
     gnB <- rownames(tail(CGS[order(CGS[[dataType]],decreasing=T),],labNum))
