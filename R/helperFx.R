@@ -294,13 +294,13 @@ setMethod("ColNNZ",signature("dgCMatrix"),
 #' @export
 
 setMethod("ColNNZ",signature("dgRMatrix"),
-          function(x) tabulate(x@j + 1))
+          function(x) tabulate(x@j + 1,nbins=ncol(x)))
 
 #' @describeIn ColNNZ x of class "dgTMatrix"
 #' @export
 
 setMethod("ColNNZ",signature("dgTMatrix"),
-          function(x) tabulate(x@j + 1))
+          function(x) tabulate(x@j + 1,nbins=ncol(x)))
 
 
 # RowNNZ ----
@@ -333,7 +333,7 @@ setMethod("RowNNZ",signature("matrix"),
 #' @export
 
 setMethod("RowNNZ",signature("dgCMatrix"),
-          function(x) tabulate(x@i + 1))
+          function(x) tabulate(x@i + 1,nbins=nrow(x)))
 
 #' @describeIn RowNNZ x of class "dgRMatrix"
 #' @export
@@ -345,5 +345,5 @@ setMethod("RowNNZ",signature("dgRMatrix"),
 #' @export
 
 setMethod("RowNNZ",signature("dgTMatrix"),
-          function(x) tabulate(x@i + 1))
+          function(x) tabulate(x@i + 1,nbins=nrow(x)))
 
