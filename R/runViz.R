@@ -740,6 +740,12 @@ runShiny <- function(filePath,outPath,
   
   # Server -------------------------------------------------------------------------------
   server <- function(input,output,session) {
+    session$onSessionEnded(function() {
+      message("RShiny scClustViz session closed, stopping runShiny function.")
+      stopApp()
+    })
+    # Stops Shiny process in R when Shiny UI session ends (browser window closes)
+    
     d <- reactiveValues(MD=getMD(inD)[!names(getMD(inD)) %in% names(sCVdL)],
                         SCV=sCVdL)
     
