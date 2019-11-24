@@ -51,11 +51,13 @@ function will assume the rownames are official gene symbols. If less than
 80% of rownames map to official gene symbols, the function will try to
 predict the appropriate keytype of the rownames (this takes a bit of time).}
 
-\item{imageFileType}{Default="pdf". The file format for saved figures. One of
+\item{imageFileType}{Default="png". The file format for saved figures. One of
 \code{"pdf"} (generated with \code{\link[grDevices]{cairo_pdf}}),
 \code{"eps"} (generated with \code{\link[grDevices]{cairo_ps}}),
 \code{"tiff"} (generated with \code{\link[grDevices]{tiff}}), or
-\code{"png"} (generated with \code{\link[grDevices]{png}}).}
+\code{"png"} (generated with \code{\link[grDevices]{png}}). Note that \code{"pdf"}
+and \code{"eps"} outputs require the cairo graphics library. Check to see if R can
+find it on your computer by running \code{capabilities("cairo")}.}
 
 \item{...}{Named options that should be passed to the
 \code{\link[shiny]{runApp}} call (these can be any of the following:
