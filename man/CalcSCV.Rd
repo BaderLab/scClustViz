@@ -4,9 +4,19 @@
 \alias{CalcSCV}
 \title{Create sCVdata object with calculation results for a cluster}
 \usage{
-CalcSCV(inD, cl, assayType = "", assaySlot = "", DRforClust = "pca",
-  exponent = 2, pseudocount = 1, DRthresh = 0.1, calcSil = T,
-  calcDEvsRest = T, calcDEcombn = T)
+CalcSCV(
+  inD,
+  cl,
+  assayType = "",
+  assaySlot = "",
+  DRforClust = "pca",
+  exponent = 2,
+  pseudocount = 1,
+  DRthresh = 0.1,
+  calcSil = T,
+  calcDEvsRest = T,
+  calcDEcombn = T
+)
 }
 \arguments{
 \item{inD}{The input dataset. An object of class \code{\link[Seurat]{seurat}}
@@ -142,7 +152,7 @@ while(DE_bw_clust) {
                           calcDEcombn=T)
 
   DE_bw_NN <- sapply(DEneighb(curr_sCVdata,0.05),length)
-  # ^ counts # of DE genes between neighbouring clusters at 5\% FDR
+  # ^ counts # of DE genes between neighbouring clusters at 5% FDR
 
   if (min(DE_bw_NN) < 1) { DE_bw_clust <- FALSE }
   # ^ If no DE genes between nearest neighbours, don't loop again.

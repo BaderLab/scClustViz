@@ -3,7 +3,6 @@
 \docType{package}
 \name{scClustViz}
 \alias{scClustViz}
-\alias{scClustViz-package}
 \title{scClustViz: A package for interactive exploration of scRNAseq clustering
 results}
 \description{

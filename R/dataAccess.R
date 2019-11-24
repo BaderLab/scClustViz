@@ -197,10 +197,14 @@ suppressMessages(
                  paste0(names(slot(x,"assays")),collapse=", "),sep="\n  "))
     }
     if (assayType %in% names(slot(x,"assays"))) {
-      if (assaySlot == "") {
-        return(x@assays[[assayType]]@data)
+      if (!missing(assaySlot)) {
+        if (is.na(assaySlot) | assaySlot == "") {
+          return(x@assays[[assayType]]@data)
+        } else {
+          return(slot(x@assays[[assayType]],assaySlot))
+        }
       } else {
-        return(slot(x@assays[[assayType]],assaySlot))
+        return(x@assays[[assayType]]@data)
       }
     } else {
       stop(paste(paste0("assayType '",assayType,"' not found."),

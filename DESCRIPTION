@@ -1,8 +1,8 @@
 Package: scClustViz
 Type: Package
 Title: Differential Expression-based scRNAseq Cluster Assessment and Viewing
-Version: 1.3.0
-Date: 2019-11-21
+Version: 1.3.1
+Date: 2019-11-24
 Authors@R: c(as.person("Brendan T. Innes <brendan.innes@mail.utoronto.ca> [aut,cre]"),
              as.person("Gary D. Bader [aut,ths]"))
 Description: An interactive R Shiny tool for visualizing single-cell RNAseq 
@@ -14,7 +14,7 @@ Description: An interactive R Shiny tool for visualizing single-cell RNAseq
 License: MIT + file LICENSE
 Encoding: UTF-8
 LazyData: true
-RoxygenNote: 6.1.1
+RoxygenNote: 7.0.0
 Suggests:
     cluster (>= 2.0.7-1),
     org.Hs.eg.db (>= 3.6.0),

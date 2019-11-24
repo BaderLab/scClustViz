@@ -7,10 +7,13 @@
 #' \code{\link{Param}}. Slots are accessed using
 #' \code{\link{Param}(sCVdata,slotName)}
 #'
-#' @slot assayType A length-one character vector representing the assay slot in
-#'   which the expression data is stored in the input object. This is not
-#'   required for Seurat v1 or v2 objects. See \code{\link{getExpr}} for
-#'   details.
+#' @slot assayType A character vector representing the assay slot in which the
+#'   expression data is stored in the input object. For SingleCellExperiment
+#'   objects, this is often "logcounts". This is not required for Seurat v1 or
+#'   v2 objects (set to "").  For Seurat v3 objects, this is often "RNA".
+#'   Optionally, you can specify the Seurat v3 assay slot to use (i.e. "data" or
+#'   "counts") as the second element of this character vector. For example,
+#'   assayType = c("SCT","counts"). See \code{\link{getExpr}} for details.
 #' @slot DRforClust A length-one character vector representing the
 #'   dimensionality reduction method used as the input for clustering. This is
 #'   commonly PCA, and should correspond to the slot name of the cell embedding
@@ -39,18 +42,13 @@
 
 sCVparams <- setClass(Class="sCVparams",
                       slots=c(assayType="character",
-                              assaySlot="character",
                               DRforClust="character",
                               exponent="numeric",
                               pseudocount="numeric",
                               DRthresh="numeric"))
 setValidity("sCVparams",function(object) {
-  if (length(object@assayType) > 1) {
+  if (length(object@assayType) > 2) {
     return(paste("assayType should be the slot of the input object where the",
-                 "expression data is stored. See ?getExpr"))
-  }
-  if (length(object@assaySlot) > 1) {
-    return(paste("assaySlot should be the slot of the input object where the",
                  "expression data is stored. See ?getExpr"))
   }
   if (length(object@DRforClust) > 1) {

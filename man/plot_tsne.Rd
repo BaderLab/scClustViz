@@ -4,8 +4,16 @@
 \alias{plot_tsne}
 \title{scClustViz plot: Plot cell embedding in 2D}
 \usage{
-plot_tsne(cell_coord, md, md_title, md_log = F, label = NULL,
-  sel_cells, sel_cells_A, sel_cells_B)
+plot_tsne(
+  cell_coord,
+  md,
+  md_title,
+  md_log = F,
+  label = NULL,
+  sel_cells,
+  sel_cells_A,
+  sel_cells_B
+)
 }
 \arguments{
 \item{cell_coord}{A numeric matrix where named rows are cells, and two

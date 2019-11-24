@@ -4,8 +4,16 @@
 \alias{plot_compareClusts}
 \title{scClustViz plot: Volcano and MA-style plots to compare clusters}
 \usage{
-plot_compareClusts(sCVd, clA, clB, dataType, labType = "de", labGenes,
-  labNum = 5, labTypeDiff = "logGER")
+plot_compareClusts(
+  sCVd,
+  clA,
+  clB,
+  dataType,
+  labType = "de",
+  labGenes,
+  labNum = 5,
+  labTypeDiff = "logGER"
+)
 }
 \arguments{
 \item{sCVd}{The sCVdata object.}

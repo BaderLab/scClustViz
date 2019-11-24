@@ -4,8 +4,14 @@
 \alias{spreadLabels2}
 \title{Prevent overlapping labels}
 \usage{
-spreadLabels2(x, y, label, padding = 0, str.cex = par("cex"),
-  str.font = par("font"))
+spreadLabels2(
+  x,
+  y,
+  label,
+  padding = 0,
+  str.cex = par("cex"),
+  str.font = par("font")
+)
 }
 \arguments{
 \item{x}{The set of x coordinates for the points to plot}

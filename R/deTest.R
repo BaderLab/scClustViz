@@ -436,8 +436,7 @@ CalcSCV <- function(inD,
   }
   
   out <- sCVdata(Clusters=cl,
-                 params=sCVparams(assayType=assayType,
-                                  assaySlot=assaySlot,
+                 params=sCVparams(assayType=c(assayType,assaySlot),
                                   DRforClust=DRforClust,
                                   exponent=ifelse(is.na(exponent),NA_real_,exponent),
                                   pseudocount=ifelse(is.na(pseudocount),NA_real_,pseudocount),
@@ -683,7 +682,9 @@ setMethod("CalcCGS",signature("sCVdata"),
             #                 exponent=Param(sCVd,"exponent"),
             #                 pseudocount=Param(sCVd,"pseudocount"))
             # } else {
-            fx_calcCGS(nge=getExpr(inD,Param(sCVd,"assayType"),Param(sCVd,"assaySlot")),
+            fx_calcCGS(nge=getExpr(inD,
+                                   Param(sCVd,"assayType")[1],
+                                   Param(sCVd,"assayType")[2]),
                        cl=Clusters(sCVd),
                        exponent=Param(sCVd,"exponent"),
                        pseudocount=Param(sCVd,"pseudocount"))
@@ -1037,7 +1038,9 @@ setMethod("CalcDEvsRest","sCVdata",
             #                               pseudocount=Param(sCVd,"pseudocount"),
             #                               DRthresh=Param(sCVd,"DRthresh"))
             # } else {
-            deTes <- fx_calcESvsRest(nge=getExpr(inD,Param(sCVd,"assayType"),Param(sCVd,"assaySlot")),
+            deTes <- fx_calcESvsRest(nge=getExpr(inD,
+                                                 Param(sCVd,"assayType")[1],
+                                                 Param(sCVd,"assayType")[2]),
                                      cl=Clusters(sCVd),
                                      CGS=ClustGeneStats(sCVd),
                                      exponent=Param(sCVd,"exponent"),
@@ -1050,7 +1053,9 @@ setMethod("CalcDEvsRest","sCVdata",
             #                               deTes=deTes)
             # } else {
             if (require(presto)) {
-              deTes <- fx_calcDEvsRest(nge=getExpr(inD,Param(sCVd,"assayType"),Param(sCVd,"assaySlot")),
+              deTes <- fx_calcDEvsRest(nge=getExpr(inD,
+                                                   Param(sCVd,"assayType")[1],
+                                                   Param(sCVd,"assayType")[2]),
                                        cl=Clusters(sCVd),
                                        deTes=deTes)
             } else {
@@ -1064,7 +1069,9 @@ setMethod("CalcDEvsRest","sCVdata",
                       "",
                       sep="\n")
               )
-              deTes <- fx_calcDEvsRest_slow(nge=getExpr(inD,Param(sCVd,"assayType"),Param(sCVd,"assaySlot")),
+              deTes <- fx_calcDEvsRest_slow(nge=getExpr(inD,
+                                                        Param(sCVd,"assayType")[1],
+                                                        Param(sCVd,"assayType")[2]),
                                             cl=Clusters(sCVd),
                                             deTes=deTes)
             }
@@ -1368,7 +1375,9 @@ setMethod("CalcDEcombn","sCVdata",
             # } else {
             if (require(presto)) {
               
-              deMes <- fx_calcDEcombn(nge=getExpr(inD,Param(sCVd,"assayType"),Param(sCVd,"assaySlot")),
+              deMes <- fx_calcDEcombn(nge=getExpr(inD,
+                                                  Param(sCVd,"assayType")[1],
+                                                  Param(sCVd,"assayType")[2]),
                                       cl=Clusters(sCVd),
                                       deMes=deMes)
             } else {
@@ -1382,7 +1391,9 @@ setMethod("CalcDEcombn","sCVdata",
                       "",
                       sep="\n")
               )
-              deMes <- fx_calcDEcombn_slow(nge=getExpr(inD,Param(sCVd,"assayType"),Param(sCVd,"assaySlot")),
+              deMes <- fx_calcDEcombn_slow(nge=getExpr(inD,
+                                                       Param(sCVd,"assayType")[1],
+                                                       Param(sCVd,"assayType")[2]),
                                            cl=Clusters(sCVd),
                                            deMes=deMes)
             }

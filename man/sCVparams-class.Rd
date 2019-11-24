@@ -14,10 +14,13 @@ this object from the containing \code{\link{sCVdata}} object with
 \section{Slots}{
 
 \describe{
-\item{\code{assayType}}{A length-one character vector representing the assay slot in
-which the expression data is stored in the input object. This is not
-required for Seurat v1 or v2 objects. See \code{\link{getExpr}} for
-details.}
+\item{\code{assayType}}{A character vector representing the assay slot in which the
+expression data is stored in the input object. For SingleCellExperiment
+objects, this is often "logcounts". This is not required for Seurat v1 or
+v2 objects (set to "").  For Seurat v3 objects, this is often "RNA".
+Optionally, you can specify the Seurat v3 assay slot to use (i.e. "data" or
+"counts") as the second element of this character vector. For example,
+assayType = c("SCT","counts"). See \code{\link{getExpr}} for details.}
 
 \item{\code{DRforClust}}{A length-one character vector representing the
 dimensionality reduction method used as the input for clustering. This is

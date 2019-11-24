@@ -4,10 +4,21 @@
 \alias{CalcAllSCV}
 \title{Prepare all cluster solutions for visualization with scClustViz}
 \usage{
-CalcAllSCV(inD, clusterDF, assayType = "", assaySlot = "",
-  DRforClust = "pca", exponent = 2, pseudocount = 1,
-  DRthresh = 0.1, testAll = TRUE, FDRthresh = 0.05, calcSil = T,
-  calcDEvsRest = T, calcDEcombn = T)
+CalcAllSCV(
+  inD,
+  clusterDF,
+  assayType = "",
+  assaySlot = "",
+  DRforClust = "pca",
+  exponent = 2,
+  pseudocount = 1,
+  DRthresh = 0.1,
+  testAll = TRUE,
+  FDRthresh = 0.05,
+  calcSil = T,
+  calcDEvsRest = T,
+  calcDEcombn = T
+)
 }
 \arguments{
 \item{inD}{The input dataset. An object of class \code{\link[Seurat]{seurat}}
