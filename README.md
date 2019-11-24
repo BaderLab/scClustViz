@@ -7,9 +7,9 @@ An interactive R Shiny tool for visualizing single-cell RNAseq clustering result
 - [Usage](#usage)
   - [Installation](#installation)
   - [Basic Usage](#basic-usage)
+  - [Use Your Own Cluster Names](#use-your-own-cluster-names)
   - [Iterative Clustering With scClustViz](#iterative-clustering-with-scclustviz)
   - [Use Your Own Differential Expression Results](#use-your-own-differential-expression-results)
-  - [Use Your Own Cluster Names](#use-your-own-cluster-names)
 - [Data Packages](#data-packages)
   - [Embryonic Mouse Cerebral Cortex](#embryonic-mouse-cerebral-cortex)
   - [Human Liver Atlas](#human-liver-atlas)
@@ -103,6 +103,24 @@ runShiny(
   #Set the file format of any saved figures from the app.
 )
 
+```
+
+## Use Your Own Cluster Names
+scClustViz has a very basic cluster annotation method built into `runShiny` implemented by the `labelCellTypes` function. It uses a user-defined list of marker genes per expected cell type to assign labels to each cluster.  The median gene expression for each set of marker genes is calculated for each cluster, and clusters are assigned the label of the highest-ranking marker gene set.  This is provided as a convenience function, as there are many more sophisticated cluster annotation methods in the literature, and expert curation is probably still the gold standard.  With that in mind, you can assign your own labels to clusters for any cluster solution (the same labels can be assigned to multiple clusters).
+```r
+levels(Clusters(sCVdata_list$chosen_cluster_solution))
+# Your cluster labels should be in the same order as the existing cluster levels
+
+your_cluster_names <- c("Cell type zero",
+                        "Cell type one",
+                        "Third cell type",
+                        "Cell type 3 (thanks Seurat)",
+                        "Last cell type (4,5,who knows?)")
+ClusterNames(sCVdata_list$chosen_cluster_solution) <- your_cluster_names
+
+save(your_scRNAseq_data_object,sCVdata_list,
+     file="for_scClustViz.RData") 
+# ^ Don't forget to save!
 ```
 
 ## Iterative Clustering With scClustViz
@@ -233,24 +251,6 @@ DEcombn(your_sCV_obj) <- MAST_pw
 # ^ Slot MAST results into sCVdata object
 ```
 
-## Use Your Own Cluster Names
-scClustViz has a very basic cluster annotation method built into `runShiny` implemented by the `labelCellTypes` function. It uses a user-defined list of marker genes per expected cell type to assign labels to each cluster.  The median gene expression for each set of marker genes is calculated for each cluster, and clusters are assigned the label of the highest-ranking marker gene set.  This is provided as a convenience function, as there are many more sophisticated cluster annotation methods in the literature, and expert curation is probably still the gold standard.  With that in mind, assigning your own labels to clusters is as simple as assigning a named character vector to the attribute `ClusterNames` of `Clusters(your_sCV_obj)`, like so:
-```r
-temp_clusters <- levels(Clusters(your_sCV_obj))
-# ^ A vector of existing cluster labels. For example
-# (from Seurat) something like c(0,1,2,3,4)...
-
-your_cluster_names <- c("Cell type zero",
-                        "Cell type one",
-                        "Third cell type",
-                        "Cell type 3 (thanks Seurat)",
-                        "Last cell type (4,5,who knows?)")
-names(your_cluster_names) <- temp_clusters
-# ^ Needs to be a named vector where names are existing cluster labels
-
-attr(Clusters(your_sCV_obj),"ClusterNames") <- your_cluster_names
-# ^ The "ClusterNames" attribute is where cell type annotations are stored.
-```
 
 # Data Packages
 The following data packages can be used to explore the features of scClustViz. You can also follow the vignette below to build your own data package to easily share your analysed scRNAseq data with collaborators and the public.

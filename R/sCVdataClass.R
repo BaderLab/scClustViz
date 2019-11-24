@@ -228,6 +228,30 @@ setGeneric("Clusters<-",function(sCVd,value) standardGeneric("Clusters<-"))
 setReplaceMethod("Clusters","sCVdata",
                  function(sCVd,value) initialize(sCVd,Clusters=value))
 
+setGeneric("ClusterNames",function(sCVd) standardGeneric("ClusterNames"))
+#' @describeIn sCVdata Access Clusters slot
+#' @aliases Clusters
+#' @export
+setMethod("ClusterNames","sCVdata",function(sCVd) attr(Clusters(sCVd),"ClusterNames"))
+setGeneric("ClusterNames<-",function(sCVd,value) standardGeneric("ClusterNames<-"))
+#' @describeIn sCVdata Assign Clusters slot
+#' @export
+setReplaceMethod("ClusterNames","sCVdata",
+                 function(sCVd,value) {
+                   if (length(value) != length(levels(Clusters(sCVd)))) {
+                     stop(paste("ClusterNames must be a character vector of the same length",
+                                "as levels(Clusters(sCVd)), where each element is a name assigned",
+                                "to the corresponding cluster as ordered in levels(Clusters(sCVd))",
+                                sep="\n  "))
+                   }
+                   temp_cl <- Clusters(sCVd)
+                   temp_val <- value
+                   names(temp_val) <- levels(temp_cl)
+                   attr(temp_cl,"ClusterNames") <- temp_val
+                   initialize(sCVd,Clusters=temp_cl)
+                 })
+
+
 setGeneric("ClustGeneStats",function(sCVd) standardGeneric("ClustGeneStats"))
 #' @describeIn sCVdata Access ClustGeneStats slot
 #' @aliases ClustGeneStats
