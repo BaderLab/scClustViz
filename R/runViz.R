@@ -216,11 +216,15 @@ runShiny <- function(filePath,outPath,
       }
     }
   }
+  if (is.null(savedRes) & length(sCVdL) == 1) {
+    savedRes <- names(sCVdL)
+  }
   # Load the default cluster solution from the user-provided filepath (outPath)
   # preferentially, otherwise load from the same directory as the input file. If
-  # neither exist, set to NULL.  This is actually accomplished by overwriting
-  # the initial NULL up to two times if they both exist, but since it's a single
-  # character string it's not appreciably slower.
+  # neither exist, set to NULL. If there's no default solution but there's only
+  # one cluster solution in the sCVdata list, just use it. This is actually
+  # accomplished by overwriting the initial NULL up to two times if they both
+  # exist, but since it's a single character string it's not appreciably slower.
   
   # ^^ Generate blank preamble if none saved -------------------------------------
   introPath <- paste0(dataPath,dataTitle,"_intro.md")
