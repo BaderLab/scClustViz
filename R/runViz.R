@@ -425,7 +425,8 @@ runShiny <- function(filePath,outPath,
     ),
     fixedRow(
       column(6,align="left",downloadButton("mdScatterSave",paste("Save as",toupper(imageFileType)))),
-      column(6,align="right",downloadButton("mdFactorSave",paste("Save as",toupper(imageFileType))))
+      column(4,align="right",downloadButton("mdFactorSave",paste("Save as",toupper(imageFileType)))),
+      column(2,align="right",downloadButton("mdFactorTable","Download metadata per cluster"))
     ),
     hr(),
     
@@ -1271,6 +1272,30 @@ runShiny <- function(filePath,outPath,
                           opt=temp_opts)
           grDevices::dev.off()
         }
+      }
+    )
+    
+    output$mdFactorTable <- downloadHandler(
+      filename=function() {
+        paste0(dataTitle,"_",gsub("^X|[_.]","",make.names(res())),"_",
+               gsub("^X|[_.]","",input$mdFactorData),"_PerCluster.txt")
+      },
+      content=function(file) {
+        if (is.factor(d$MD[[input$mdFactorData]]) | 
+            is.character(d$MD[[input$mdFactorData]])) {
+          outTable <- do.call(rbind,
+                              tapply(d$MD[[input$mdFactorData]],
+                                     Clusters(d$SCV[[res()]]),
+                                     table))
+          rownames(outTable) <- levels(Clusters(d$SCV[[res()]]))
+        } else {
+          outTable <- do.call(rbind,
+                              tapply(d$MD[[input$mdFactorData]],
+                                     Clusters(d$SCV[[res()]]),
+                                     summary))
+          rownames(outTable) <- levels(Clusters(d$SCV[[res()]]))
+        }
+        write.table(outTable,file,quote=F,sep="\t",row.names=T,col.names=NA)
       }
     )
     
