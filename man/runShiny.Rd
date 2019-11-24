@@ -10,7 +10,7 @@ runShiny(
   cellMarkers = list(),
   annotationDB,
   rownameKeytype,
-  imageFileType = "pdf",
+  imageFileType = "png",
   ...
 )
 }
