@@ -497,7 +497,7 @@ CalcSCV <- function(inD,
 
 fx_calcCGS <- function(nge,cl,exponent,pseudocount) {
   temp_DR <- sapply(levels(cl),function(X) 
-    data.frame(DR=RowNNZ(nge[,cl == X]) / sum(cl == X)),simplify=F)
+    data.frame(DR=RowNNZ(nge[,cl %in% X]) / sum(cl %in% X)),simplify=F)
   message("-- Calculating cluster-wise gene statistics --")
   temp_Ms <- pbapply::pbsapply(
     sapply(levels(cl),function(i) nge[,cl %in% i,drop=F],simplify=F),
