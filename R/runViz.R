@@ -678,16 +678,19 @@ runShiny <- function(filePath,outPath,
     hr(),
     
     # ^ Custom sets for DE -----------------------------------------------------------------
-    fixedRow(titlePanel("Manually Select Cells for DE Testing"),
+    fixedRow(titlePanel("Manually Select Cells for DE Testing or Further Analysis"),
              p(paste("Here you can select sets of cells to directly compare in the figures",
-                     "above. This can be done manually, or by setting filters on the metadata.",
+                     "above, or to generate a new data object for further analysis in R.",
+                     "This can be done manually, or by setting filters on the metadata.",
                      "Click and drag to select cells manually, and use the buttons below to",
                      "add or remove the selected cells to/from a set of cells.",
                      "Filters can be set on metadata by selecting a metadata column from the",
                      "pulldown menu, and selecting factors / data ranges to include cells.",
                      "You can include more than one metadata filter, and they will be combined",
                      "using the logical AND (intersection of sets). You can see the selected",
-                     "cells bolded in the plot. When your sets are ready, name the comparison",
+                     "cells bolded in the plot. When your cell set(s) are ready, if subsetting",
+                     "just save the subset as a new RData file to disk using the save button.",
+                     "If building a comparison of cell sets for DE testing, name the comparison",
                      "and click the 'Calculate differential gene expression' button. Once the",
                      "calculation is done the comparison will be added to the cluster list",
                      "at the top of the page and the current cluster solution will be updated",
@@ -697,6 +700,12 @@ runShiny <- function(filePath,outPath,
     fixedRow(
       column(8,plotOutput("tsneSelDE",brush="tsneSelDEbrush",hover="tsneSelDEhover",height="750px")),
       column(4,
+             fixedRow(
+               radioButtons("DEorSubset",inline=T,
+                            label="Select cells for:",
+                            choiceValues=c("DE","subset"),
+                            choiceNames=c("DE testing","Subsetting data object"))
+             ),
              fixedRow(
                column(4,uiOutput("SelDE_EmbType")),
                column(4,uiOutput("SelDE_EmbDimX")),
@@ -718,25 +727,20 @@ runShiny <- function(filePath,outPath,
              fixedRow(
                column(
                  6,htmlOutput("textSetA"),
-                 actionButton("addCellsA","Set A: Add Cells",icon("plus"),
-                              style="color: #fff; background-color: #a50026"),
-                 actionButton("removeCellsA","Set A: Remove Cells",icon("minus"),
-                              style="color: #a50026; background-color: #fff; border-color: #a50026")
+                 uiOutput("addCellsA"),
+                 uiOutput("removeCellsA")
                ),
                column(
                  6,htmlOutput("textSetB"),
-                 actionButton("addCellsB","Set B: Add Cells",icon("plus"),
-                              style="color: #fff; background-color: #313695"),
-                 actionButton("removeCellsB","Set B: Remove Cells",icon("minus"),
-                              style="color: #313695; background-color: #fff; border-color: #313695")
+                 uiOutput("addCellsB"),
+                 uiOutput("removeCellsB")
                )
              ),
              span(textOutput("textOverlap"),style="color:red"),
              hr(),
-             textInput("DEsetName","Short name for this comparison:",
-                       placeholder="A-z0-9_ only please"),
-             actionButton("calcDE","Calculate differential gene expression",icon("play")),
-             span(textOutput("calcText"),style="color:red"),
+             uiOutput("DEsetName"),
+             uiOutput("calcDE"),
+             uiOutput("calcText"),
              hr(),
              textOutput("cellsHovered")
       )
@@ -2036,6 +2040,83 @@ runShiny <- function(filePath,outPath,
                   choices=c(paste("Clusters:",res()),colnames(d$MD)))
     })
     
+    output$addCellsA <- renderUI({
+      if (input$DEorSubset == "DE") {
+        actionButton("addCellsA","Set A: Add Cells",icon("plus"),
+                     style="color: #fff; background-color: #a50026")
+      } else if (input$DEorSubset == "subset") {
+        actionButton("addCells2","Add Cells To Set",icon("plus"),
+                     style="color: #fff; background-color: #a50026")
+      } else {
+        stop("DEorSubset radio button output broke")
+      }
+    })
+    output$addCellsB <- renderUI({
+      if (input$DEorSubset == "DE") {
+        actionButton("addCellsB","Set B: Add Cells",icon("plus"),
+                     style="color: #fff; background-color: #313695")
+      } else if (input$DEorSubset == "subset") {
+        actionButton("removeCells2","Remove Cells From Set",icon("minus"),
+                     style="color: #a50026; background-color: #fff; border-color: #a50026")
+      } else {
+        stop("DEorSubset radio button output broke")
+      }
+    })
+    
+    output$removeCellsA <- renderUI({
+      if (input$DEorSubset == "DE") {
+        actionButton("removeCellsA","Set A: Remove Cells",icon("minus"),
+                     style="color: #a50026; background-color: #fff; border-color: #a50026")
+      }
+    })
+    output$removeCellsB <- renderUI({
+      if (input$DEorSubset == "DE") {
+        actionButton("removeCellsB","Set B: Remove Cells",icon("minus"),
+                     style="color: #313695; background-color: #fff; border-color: #313695")
+      }
+    })
+    
+    output$DEsetName <- renderUI({
+      if (input$DEorSubset == "DE") {
+        textInput("DEsetName","Short name for this comparison:",
+                placeholder="A-z0-9_ only please")
+      }
+    })
+    output$calcDE <- renderUI({
+      if (input$DEorSubset == "DE") {
+        actionButton("calcDE","Calculate differential gene expression",icon("play"))
+      } else if (input$DEorSubset == "subset") {
+        downloadButton("DownloadSubset",
+                       paste("Download",is(inD)[1],"object of selected cells"))
+      } else {
+        stop("DEorSubset radio button output broke")
+      }
+    })
+    
+    output$DownloadSubset <- downloadHandler(
+      filename=function() { paste0(dataTitle,"_NameYourCellSubset.rds") },
+      content=function(file) {
+        temp <- subsetCells(inD,selectedSets$a)
+        if (is(temp) == is(inD)) {
+          saveRDS(temp,file=file)
+        } else {
+          stop("subsetCells failed to output data object")
+        }
+      }
+    )
+    output$calcText <- renderUI({
+      if (input$DEorSubset == "DE") {
+        span(textOutput("calcText"),style="color:red")
+      } else if (input$DEorSubset == "subset") {
+        HTML(
+          paste0("Compressing and saving RDS file will take time.<br/>",
+                "RDS files can be loaded into your R session with:<br/>",
+                "<code>my_subset <- readRDS('my_file.rds')</code>")
+        )
+      }
+    })
+    
+    
     filtList <- reactiveValues(filts=NULL)
     observeEvent(input$plusFilt,{ 
       filtList$filts <- unique(c(filtList$filts,input$tsneSelDEcol)) 
@@ -2191,18 +2272,44 @@ runShiny <- function(filePath,outPath,
     observeEvent(input$removeCellsA,{ 
       selectedSets$a <- selectedSets$a[!selectedSets$a %in% currSel()]
     })
+    observeEvent(input$addCells2,{ 
+      selectedSets$a <- unique(c(selectedSets$a,currSel()))
+    })
+    observeEvent(input$removeCells2,{ 
+      selectedSets$a <- selectedSets$a[!selectedSets$a %in% currSel()]
+    })
     observeEvent(input$addCellsB,{ 
       selectedSets$b <- unique(c(selectedSets$b,currSel()))
     })
     observeEvent(input$removeCellsB,{ 
       selectedSets$b <- selectedSets$b[!selectedSets$b %in% currSel()]
     })
-    output$textSetA <- renderText(paste(length(selectedSets$a),"cells in Set A."))
-    output$textSetB <- renderText(paste(length(selectedSets$b),"cells in Set B."))
+    observeEvent({ input$DEorSubset == "subset" },{ selectedSets$b <- NULL })
+    
+    output$textSetA <- renderText(
+      if (input$DEorSubset == "DE") {
+        paste(length(selectedSets$a),"cells in Set A.")
+      } else if (input$DEorSubset == "subset") {
+        paste(length(selectedSets$a),"cells in selected set.")
+      } else {
+        stop("DEorSubset radio button output broke")
+      }
+    )
+    output$textSetB <- renderText(
+      if (input$DEorSubset == "DE") {
+        paste(length(selectedSets$b),"cells in Set B.")
+      } else if (input$DEorSubset == "subset") {
+        "&nbsp"
+      } else {
+        stop("DEorSubset radio button output broke")
+      }
+    )
     output$textOverlap <- renderText(
-      if (length(intersect(selectedSets$a,selectedSets$b)) > 0) {
-        paste(length(intersect(selectedSets$a,selectedSets$b)),"cells in both sets.",
-              "Cells must be assigned to a single set prior to calculation.")
+      if (input$DEorSubset == "DE") {
+        if (length(intersect(selectedSets$a,selectedSets$b)) > 0) {
+          paste(length(intersect(selectedSets$a,selectedSets$b)),"cells in both sets.",
+                "Cells must be assigned to a single set prior to calculation.")
+        }
       }
     )
     

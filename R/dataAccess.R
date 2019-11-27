@@ -124,6 +124,31 @@ setGeneric("getEmb",function(x,DRtype) standardGeneric("getEmb"))
 setGeneric("hasEmb",function(x) standardGeneric("hasEmb"))
 
 
+# ^ subsetCells ----
+
+#' Subset a data object to return just the specified cells
+#' 
+#' Internal fx.  Way shittier than the modern object class' subset fx. 
+#' Req'd because old Seurat is a POS.
+#' 
+#' This is a wrapper function to the relevant class's subsetting method. 
+#' Currently supported input object classes:
+#' \itemize{
+#'   \item Class \code{\link[Seurat]{seurat}/\link[Seurat]{Seurat}}.
+#'   \item Class \code{\link[SingleCellExperiment]{SingleCellExperiment}}.
+#' }
+#' \href{https://github.com/BaderLab/scClustViz/issues}{Please submit requests
+#' for other data objects here!}
+#'
+#' @param x The single-cell data object.
+#' @param cells A character vector of cell names to extract. This is 
+#'   intentionally less versatile than most subsetting, since older versions of 
+#'   Seurat required cell names explicitly.
+#' @name subsetCells
+#' 
+setGeneric("subsetCells",function(x,cells) standardGeneric("subsetCells"))
+
+
 # Methods ----
 
 # ^ seurat (v1/2) ----
@@ -188,6 +213,13 @@ suppressMessages(
 )
 
 
+suppressMessages(
+  setMethod("subsetCells","seurat",function(x,cells) {
+    Seurat::SubsetData(x,cells.use=cells)
+  })
+)
+
+
 # ^ Seurat (v3) ----
 suppressMessages(
   setMethod("getExpr","Seurat",function(x,assayType,assaySlot) {
@@ -247,6 +279,13 @@ suppressMessages(
 )
 
 
+suppressMessages(
+  setMethod("subsetCells","Seurat",function(x,cells) {
+    subset(x,cells=cells)
+  })
+)
+
+
 # ^ SingleCellExperiment ----
 suppressMessages(
   setMethod("getExpr","SingleCellExperiment",function(x,assayType) {
@@ -301,5 +340,12 @@ suppressMessages(
 suppressMessages(
   setMethod("hasEmb","SingleCellExperiment",function(x) { 
     SingleCellExperiment::reducedDimNames(x)
+  })
+)
+
+
+suppressMessages(
+  setMethod("subsetCells","SingleCellExperiment",function(x,cells) {
+    return(x[,cells])
   })
 )
