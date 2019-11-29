@@ -292,10 +292,10 @@ plot_tsne <- function(cell_coord,md,md_title,md_log=F,label=NULL,
   plot(x=NULL,y=NULL,xlab=colnames(cell_coord)[1],ylab=colnames(cell_coord)[2],
        xlim=range(cell_coord[,1]),ylim=range(cell_coord[,2]))
   if (length(sel_cells) > 0) {
-    points(cell_coord[!rownames(cell_coord) %in% sel_cells,],pch=temp_pch,cex=temp_cex,
+    points(cell_coord[!rownames(cell_coord) %in% sel_cells,,drop=F],pch=temp_pch,cex=temp_cex,
            col=alpha(idcol,.6)[id[!rownames(cell_coord) %in% sel_cells]],
            bg=alpha(idcol,0.3)[id[!rownames(cell_coord) %in% sel_cells]])
-    points(cell_coord[sel_cells,],pch=temp_pch,cex=temp_cex + .5,
+    points(cell_coord[sel_cells,,drop=F],pch=temp_pch,cex=temp_cex + .5,
            col=alpha(idcol,1)[id[rownames(cell_coord) %in% sel_cells]],
            bg=alpha(idcol,0.6)[id[rownames(cell_coord) %in% sel_cells]])
   } else {
@@ -384,9 +384,9 @@ plot_mdScatter <- function(MD,sel_clust,md_log) {
   temp_par <- par(no.readonly=T)
   layout(matrix(c(2,1,0,3),2),c(5,1),c(1,5))
   par(mar=c(3,3,0,0),mgp=2:0,cex=1.1)
-  plot(MD[!MD$sel_cells,1:2],log=md_log,xlim=range(MD[,1]),ylim=range(MD[,2]),
+  plot(MD[!MD$sel_cells,1:2,drop=F],log=md_log,xlim=range(MD[,1]),ylim=range(MD[,2]),
        pch=temp_pch,cex=temp_cex,col=alpha("black",0.2),bg=alpha("black",0.1))
-  points(MD[MD$sel_cells,1:2],pch=temp_pch,cex=temp_cex + .5,
+  points(MD[MD$sel_cells,1:2,drop=F],pch=temp_pch,cex=temp_cex + .5,
          col=alpha("red",0.4),bg=alpha("red",0.2))
   par(mar=c(0,3,1,0))
   boxplot(tapply(MD[,1],MD$sel_cells,c),log=sub("y","",md_log),

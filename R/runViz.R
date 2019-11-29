@@ -292,8 +292,6 @@ runShiny <- function(filePath,outPath,
     fixedRow(
       titlePanel(paste("scClustViz -",dataTitle)),
       includeMarkdown(introPath)
-      #### TESTING ####
-      # verbatimTextOutput("TEST")
     ),
     hr(),
     
@@ -697,6 +695,8 @@ runShiny <- function(filePath,outPath,
                      "to show this comparison. The comparison can be saved by clicking 'Save",
                      "this comparison to disk' next to either cluster solution menu."))
     ),
+    #### TESTING ####
+    # verbatimTextOutput("TEST"),
     fixedRow(
       column(8,plotOutput("tsneSelDE",brush="tsneSelDEbrush",hover="tsneSelDEhover",height="750px")),
       column(4,
@@ -761,7 +761,7 @@ runShiny <- function(filePath,outPath,
                         SCV=sCVdL)
     
     #### TESTING ####
-    # output$TEST <- renderPrint(NULL) 
+    # output$TEST <- renderPrint(currSel())
     
     # ^ Clustering Solution Selection ------------------------------------------------------
     numClust <- sapply(sCVdL[!grepl("^Comp:",names(sCVdL))],
