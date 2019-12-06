@@ -140,13 +140,20 @@ runShiny <- function(filePath,outPath,
         if (is(get(lfc[X])[[1]]) == "sCVdata") {
           return("sCVdL")
         } else {
-          stop("Unexpected input object.")
+          stop("Unexpected input object. Missing CalcAllSCV output object.")
         }
       } else {
-        stop("Unexpected input object.")
+        stop("Unexpected input object. Missing single-cell data object.")
       }
     }
   })
+  temp_missing_files <- setdiff(c("inD","sCVdL"),names(lfc))
+  if (length(temp_missing_files) > 0) {
+    stop(paste("Unexpected input object. Missing",
+               switch(temp_missing_files,
+                      inD="single-cell data object.",
+                      sCVdL="CalcAllSCV output object.")))
+  }
   inD <- get(lfc["inD"])
   sCVdL <- get(lfc["sCVdL"])
   
