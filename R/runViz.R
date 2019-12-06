@@ -115,6 +115,9 @@ runShiny <- function(filePath,outPath,
       if (.lastFilePath == filePath) {
         if (exists(.lastFileCall[1]) & exists(.lastFileCall[2])) {
           lfc <- .lastFileCall
+          warning(paste("Skipping file loading. Reading the following",
+                        "previously-loaded data from R environment:",
+                        .lastFileCall[1],.lastFileCall[2],sep="\n"))
           break
         } else {
           rm(.lastFileCall,.lastFilePath,envir=.GlobalEnv)
