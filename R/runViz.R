@@ -196,7 +196,7 @@ runShiny <- function(filePath,outPath,
       }
     }
   }
-  for (selDEfile in grep(paste0("^",dataTitle,".+selDE.+RData$"),list.files(dataPath),value=T)) {
+  for (selDEfile in grep(paste0("^",dataTitle,"_selDE.+RData$"),list.files(dataPath),value=T)) {
     temp <- load(paste0(dataPath,selDEfile))
     if (is.list(get(temp))) {
       if (all(sapply(get(temp),function(X) "sCVdata" %in% is(X)))) {
