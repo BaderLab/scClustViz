@@ -703,7 +703,8 @@ runShiny <- function(filePath,outPath,
                      "calculation is done the comparison will be added to the cluster list",
                      "at the top of the page and the current cluster solution will be updated",
                      "to show this comparison. The comparison can be saved by clicking 'Save",
-                     "this comparison to disk' next to either cluster solution menu."))
+                     "this comparison to disk' next to either cluster solution menu.")),
+             uiOutput("NoSubsetWarning")
     ),
     #### TESTING ####
     # verbatimTextOutput("TEST"),
@@ -711,10 +712,7 @@ runShiny <- function(filePath,outPath,
       column(8,plotOutput("tsneSelDE",brush="tsneSelDEbrush",hover="tsneSelDEhover",height="750px")),
       column(4,
              fixedRow(
-               radioButtons("DEorSubset",inline=T,
-                            label="Select cells for:",
-                            choiceValues=c("DE","subset"),
-                            choiceNames=c("DE testing","Subsetting data object"))
+               uiOutput("DEorSubset")
              ),
              fixedRow(
                column(4,uiOutput("SelDE_EmbType")),
@@ -2050,6 +2048,26 @@ runShiny <- function(filePath,outPath,
                   choices=c(paste("Clusters:",res()),colnames(d$MD)))
     })
     
+    output$DEorSubset <- renderUI({
+      if (is.na(outPath)) {
+        radioButtons("DEorSubset",inline=T,
+                   label="Select cells for:",
+                   choiceValues=c("DE","subset"),
+                   choiceNames=c("DE testing","Subsetting (not available)"))
+      } else {
+        radioButtons("DEorSubset",inline=T,
+                     label="Select cells for:",
+                     choiceValues=c("DE","subset"),
+                     choiceNames=c("DE testing","Subsetting data object"))
+      }
+    })
+    
+    output$NoSubsetWarning <- renderUI({
+      if (is.na(outPath)) {
+      em("Manual subsetting is not available on shiny.baderlab.org")
+      }
+    })
+    
     output$addCellsA <- renderUI({
       if (input$DEorSubset == "DE") {
         actionButton("addCellsA","Set A: Add Cells",icon("plus"),
@@ -2096,8 +2114,10 @@ runShiny <- function(filePath,outPath,
       if (input$DEorSubset == "DE") {
         actionButton("calcDE","Calculate differential gene expression",icon("play"))
       } else if (input$DEorSubset == "subset") {
-        downloadButton("DownloadSubset",
-                       paste("Download",is(inD)[1],"object of selected cells"))
+        if (!is.na(outPath)) {
+          downloadButton("DownloadSubset",
+                         paste("Download",is(inD)[1],"object of selected cells"))
+        }
       } else {
         stop("DEorSubset radio button output broke")
       }
