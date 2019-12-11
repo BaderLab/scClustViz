@@ -14,7 +14,7 @@ Description: An interactive R Shiny tool for visualizing single-cell RNAseq
 License: MIT + file LICENSE
 Encoding: UTF-8
 LazyData: true
-RoxygenNote: 7.0.0
+RoxygenNote: 7.0.1
 Suggests:
     cluster (>= 2.0.7-1),
     org.Hs.eg.db (>= 3.6.0),
