@@ -9,6 +9,8 @@
 \alias{Clusters<-,sCVdata-method}
 \alias{ClusterNames,sCVdata-method}
 \alias{ClusterNames<-,sCVdata-method}
+\alias{ClusterColours,sCVdata-method}
+\alias{ClusterColours<-,sCVdata-method}
 \alias{ClustGeneStats,sCVdata-method}
 \alias{ClustGeneStats}
 \alias{ClustGeneStats<-,sCVdata-method}
@@ -32,6 +34,10 @@
 \S4method{ClusterNames}{sCVdata}(sCVd)
 
 \S4method{ClusterNames}{sCVdata}(sCVd) <- value
+
+\S4method{ClusterColours}{sCVdata}(sCVd)
+
+\S4method{ClusterColours}{sCVdata}(sCVd) <- value
 
 \S4method{ClustGeneStats}{sCVdata}(sCVd)
 
@@ -69,6 +75,10 @@ generated for multiple cluster solutions using the single command
 \item \code{ClusterNames}: Access Clusters slot
 
 \item \code{ClusterNames<-}: Assign Clusters slot
+
+\item \code{ClusterColours}: Access Clusters slot
+
+\item \code{ClusterColours<-}: Assign Clusters slot
 
 \item \code{ClustGeneStats}: Access ClustGeneStats slot
 

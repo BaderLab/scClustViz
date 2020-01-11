@@ -8,6 +8,7 @@ plot_tsne(
   cell_coord,
   md,
   md_title,
+  md_cols = NULL,
   md_log = F,
   label = NULL,
   sel_cells,
@@ -47,6 +48,9 @@ when building manual cell set comparisons, in conjunction with
 \code{sel_cells_B}.}
 
 \item{sel_cells_B}{Optional. See \code{sel_cells_A}.}
+
+\item{cols}{Default = \code{NULL}. A vector of colours used to label the
+clusters. Only used in md_title is NULL.}
 }
 \description{
 This function plots cells in two dimensions, with various overlays.

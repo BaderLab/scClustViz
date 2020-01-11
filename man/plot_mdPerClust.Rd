@@ -4,7 +4,7 @@
 \alias{plot_mdPerClust}
 \title{scClustViz plot: Plot to view cellular metadata by cluster}
 \usage{
-plot_mdPerClust(MD, sel, cl, opt = "absolute")
+plot_mdPerClust(MD, sel, cl, opt = "absolute", cols = NULL)
 }
 \arguments{
 \item{MD}{A dataframe of cellular metadata. See \code{\link{getMD}}.}
@@ -20,6 +20,8 @@ log-scales the data for postive numerical metadata. For categorical
 metadata, \code{"absolute"} plots a stacked barplot of raw counts, whereas
 \code{"relative"} plots the proportion of each cluster represented by each
 category.}
+
+\item{cols}{Default = \code{NULL}. A vector of colours used to label the clusters.}
 }
 \description{
 This function makes boxplots / stacked barplots of cellular metadata

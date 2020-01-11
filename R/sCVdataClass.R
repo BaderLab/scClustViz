@@ -228,6 +228,7 @@ setGeneric("Clusters<-",function(sCVd,value) standardGeneric("Clusters<-"))
 setReplaceMethod("Clusters","sCVdata",
                  function(sCVd,value) initialize(sCVd,Clusters=value))
 
+
 setGeneric("ClusterNames",function(sCVd) standardGeneric("ClusterNames"))
 #' @describeIn sCVdata Access Clusters slot
 #' @aliases Clusters
@@ -252,6 +253,30 @@ setReplaceMethod("ClusterNames","sCVdata",
                  })
 
 
+setGeneric("ClusterColours",function(sCVd) standardGeneric("ClusterColours"))
+#' @describeIn sCVdata Access Clusters slot
+#' @aliases Clusters
+#' @export
+setMethod("ClusterColours","sCVdata",function(sCVd) attr(Clusters(sCVd),"ClusterColours"))
+setGeneric("ClusterColours<-",function(sCVd,value) standardGeneric("ClusterColours<-"))
+#' @describeIn sCVdata Assign Clusters slot
+#' @export
+setReplaceMethod("ClusterColours","sCVdata",
+                 function(sCVd,value) {
+                   if (length(value) != length(levels(Clusters(sCVd)))) {
+                     stop(paste("ClusterColours must be a character vector of the same length",
+                                "as levels(Clusters(sCVd)), where each element is a colour assigned",
+                                "to the corresponding cluster as ordered in levels(Clusters(sCVd))",
+                                sep="\n  "))
+                   }
+                   temp_cl <- Clusters(sCVd)
+                   temp_val <- value
+                   names(temp_val) <- levels(temp_cl)
+                   attr(temp_cl,"ClusterColours") <- temp_val
+                   initialize(sCVd,Clusters=temp_cl)
+                 })
+
+
 setGeneric("ClustGeneStats",function(sCVd) standardGeneric("ClustGeneStats"))
 #' @describeIn sCVdata Access ClustGeneStats slot
 #' @aliases ClustGeneStats
@@ -262,6 +287,7 @@ setGeneric("ClustGeneStats<-",function(sCVd,value) standardGeneric("ClustGeneSta
 #' @export
 setReplaceMethod("ClustGeneStats","sCVdata",
                  function(sCVd,value) initialize(sCVd,ClustGeneStats=value))
+
 
 setGeneric("DEvsRest",function(sCVd) standardGeneric("DEvsRest"))
 #' @describeIn sCVdata Access DEvsRest slot
@@ -274,6 +300,7 @@ setGeneric("DEvsRest<-",function(sCVd,value) standardGeneric("DEvsRest<-"))
 setReplaceMethod("DEvsRest","sCVdata",
                  function(sCVd,value) initialize(sCVd,DEvsRest=value))
 
+
 setGeneric("DEcombn",function(sCVd) standardGeneric("DEcombn"))
 #' @describeIn sCVdata Access DEcombn slot
 #' @aliases DEcombn
@@ -285,6 +312,7 @@ setGeneric("DEcombn<-",function(sCVd,value) standardGeneric("DEcombn<-"))
 setReplaceMethod("DEcombn","sCVdata",
                  function(sCVd,value) initialize(sCVd,DEcombn=value))
 
+
 setGeneric("Silhouette",function(sCVd) standardGeneric("Silhouette"))
 #' @describeIn sCVdata Access Silhouette slot
 #' @aliases Silhouette
@@ -295,6 +323,7 @@ setGeneric("Silhouette<-",function(sCVd,value) standardGeneric("Silhouette<-"))
 #' @export
 setReplaceMethod("Silhouette","sCVdata",
                  function(sCVd,value) initialize(sCVd,Silhouette=value))
+
 
 setGeneric("Param",function(sCVd,param) standardGeneric("Param"))
 #' @describeIn sCVdata Access Param slot (see \code{\link{sCVparams}})
