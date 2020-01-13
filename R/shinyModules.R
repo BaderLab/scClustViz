@@ -751,8 +751,9 @@ plot_deDotplot <- function(sCVd,DEgenes,DEnum) {
     hG <- list(order=1)
   }
   
+  hC <- hclust(dist(t(sapply(ClustGeneStats(sCVd),function(X) X$MGE))))
   #  if (length(ClustGeneStats(sCVd)) > 2) {
-  hC <- hclust(as.dist(DEdist(sCVd)),"single")
+  # hC <- hclust(as.dist(DEdist(sCVd)),"single")
   # } else {
   #    hC <- hclust(dist(t(temp_DR)))
   #  }  
