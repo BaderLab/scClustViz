@@ -582,7 +582,7 @@ plot_mdBarplot <- function(MD,opt,cols) {
 plot_mdBoxplot <- function(MD,opt,cols) {
   temp_par <- par(no.readonly=T)
   if (is.null(cols)) {
-    cols <- colorspace::qualitative_hcl(length(levels(Clusters(sCVd))),
+    cols <- colorspace::qualitative_hcl(length(levels(MD$cl)),
                                         palette="Dark 3")
   }
   par(mar=c(3,3,2,1),mgp=2:0,cex=1.1)
