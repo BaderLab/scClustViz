@@ -4,3 +4,6 @@
 .Ruserdata
 inst/doc
 scClustViz.Rproj
+scClustViz.Rcheck/
+scClustViz*.tar.gz
+scClustViz*.tgz
