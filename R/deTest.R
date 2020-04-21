@@ -425,7 +425,7 @@ CalcSCV <- function(inD,
                "for a cell (column) in the input gene expression matrix.",
                sep="\n  "))
   }
-  if (is.character(cl)) {
+  if (is.character(cl) | is.numeric(cl)) {
     cl <- as.factor(cl)
   }
   if (!all(names(cl) == colnames(getExpr(inD,assayType,assaySlot))) | is.null(names(cl))) {

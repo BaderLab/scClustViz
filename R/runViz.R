@@ -277,9 +277,9 @@ runShiny <- function(filePath,outPath,
       annotationDB <- get(annotationDB)
     }
     if (missing(rownameKeytype)) {
-      rownameKeytype <- findKeyType(getExpr(inD,
-                                            Param(sCVdL[[1]],"assayType")[1],
-                                            Param(sCVdL[[1]],"assayType")[2]),
+      rownameKeytype <- findKeyType(rownames(getExpr(inD,
+                                                     Param(sCVdL[[1]],"assayType")[1],
+                                                     Param(sCVdL[[1]],"assayType")[2])),
                                     annotationDB)
     }
     symbolMap <- map2symbol(getExpr(inD,

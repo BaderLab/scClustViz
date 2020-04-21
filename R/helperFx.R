@@ -58,7 +58,9 @@ cosineSim <- function(A,B) sum(A*B)/sqrt(sum(A^2)*sum(B^2))
 #' expression matrix with keys for all keytypes in an AnnotationDb object, and
 #' returns the keytype with the best match.
 #'
-#' @param nge The gene expression matrix, i.e. \code{getExpr(yourDataObject)}.
+#' @param keys The rownames of the gene expression matrix, 
+#'   i.e. \code{getExpr(yourDataObject)}.  Or any set of potential keys to the
+#'   annotationDB object.
 #' @param annotationDB The AnnotationDb object.
 #'
 #' @return A character value, the \code{keytype} of the AnnotationDb object, to
@@ -68,7 +70,7 @@ cosineSim <- function(A,B) sum(A*B)/sqrt(sum(A^2)*sum(B^2))
 #' 
 #' @export
 
-findKeyType <- function(nge,annotationDB) {
+findKeyType <- function(keys,annotationDB) {
   rownameKeytype <- "SYMBOL"
   if (sum(rownames(nge) %in% keys(annotationDB,rownameKeytype)) / nrow(nge) < 0.8) {
     warning(paste("Less than 80% of rownames map to official gene symbols.",
