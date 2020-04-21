@@ -58,7 +58,7 @@ cosineSim <- function(A,B) sum(A*B)/sqrt(sum(A^2)*sum(B^2))
 #' expression matrix with keys for all keytypes in an AnnotationDb object, and
 #' returns the keytype with the best match.
 #'
-#' @param keys The rownames of the gene expression matrix, 
+#' @param k Keys, the rownames of the gene expression matrix, 
 #'   i.e. \code{getExpr(yourDataObject)}.  Or any set of potential keys to the
 #'   annotationDB object.
 #' @param annotationDB The AnnotationDb object.
@@ -70,16 +70,16 @@ cosineSim <- function(A,B) sum(A*B)/sqrt(sum(A^2)*sum(B^2))
 #' 
 #' @export
 
-findKeyType <- function(keys,annotationDB) {
+findKeyType <- function(k,annotationDB) {
   rownameKeytype <- "SYMBOL"
-  if (sum(keys %in% keys(annotationDB,rownameKeytype)) / length(keys) < 0.8) {
+  if (sum(k %in% keys(annotationDB,rownameKeytype)) / length(k) < 0.8) {
     warning(paste("Less than 80% of rownames map to official gene symbols.",
                   "Automatically determining keytype from rownames..."))
     temp_keyMatch <- pbapply::pbsapply(AnnotationDbi::keytypes(annotationDB),function(X) 
-      sum(keys %in% AnnotationDbi::keys(annotationDB,X)))
+      sum(k %in% try(AnnotationDbi::keys(annotationDB,X),silent=T)))
     rownameKeytype <- names(which.max(temp_keyMatch))
     warning(paste0("Keytype '",rownameKeytype,"' matched ",
-                 max(temp_keyMatch),"/",length(keys)," rownames."))
+                 max(temp_keyMatch),"/",length(k)," rownames."))
   }
   return(rownameKeytype)
 }
