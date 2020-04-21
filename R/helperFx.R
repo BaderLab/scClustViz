@@ -72,14 +72,14 @@ cosineSim <- function(A,B) sum(A*B)/sqrt(sum(A^2)*sum(B^2))
 
 findKeyType <- function(keys,annotationDB) {
   rownameKeytype <- "SYMBOL"
-  if (sum(rownames(nge) %in% keys(annotationDB,rownameKeytype)) / nrow(nge) < 0.8) {
+  if (sum(keys %in% keys(annotationDB,rownameKeytype)) / length(keys) < 0.8) {
     warning(paste("Less than 80% of rownames map to official gene symbols.",
                   "Automatically determining keytype from rownames..."))
     temp_keyMatch <- pbapply::pbsapply(AnnotationDbi::keytypes(annotationDB),function(X) 
-      sum(rownames(nge) %in% AnnotationDbi::keys(annotationDB,X)))
+      sum(keys %in% AnnotationDbi::keys(annotationDB,X)))
     rownameKeytype <- names(which.max(temp_keyMatch))
     warning(paste0("Keytype '",rownameKeytype,"' matched ",
-                 max(temp_keyMatch),"/",nrow(nge)," rownames."))
+                 max(temp_keyMatch),"/",length(keys)," rownames."))
   }
   return(rownameKeytype)
 }
