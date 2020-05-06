@@ -209,7 +209,7 @@ tsne_labels <- function(sCVd,cell_coord,lab_type) {
 #' @param md_title NULL or a character vector of one. If NULL, \code{md} is
 #'   assumed to be cluster assignments. Otherwise this should be the title of
 #'   the overlay represented by \code{md}.
-#' @param cols Default = \code{NULL}. A vector of colours used to label the
+#' @param md_cols Default = \code{NULL}. A vector of colours used to label the
 #'   clusters. Only used in md_title is NULL.
 #' @param md_log Default=FALSE. Logical vector of length one indicating whether
 #'   \code{md} should be log-transformed. Only to be used when \code{md} is
