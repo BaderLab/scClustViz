@@ -48,9 +48,7 @@ library(scClustViz)
 # the metadata columns representing cluster results:
 your_cluster columns <- grepl("res[.0-9]+$",
                               names(getMD(your_scRNAseq_data_object)))
-your_cluster_results <- getMD(
-  your_scRNAseq_data_oubject[your_cluster_columns]
-)
+your_cluster_results <- getMD(your_scRNAseq_data_oubject)[,your_cluster_columns]
 
 
 sCVdata_list <- CalcAllSCV(
