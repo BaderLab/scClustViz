@@ -306,6 +306,17 @@ runShiny <- function(filePath,outPath,
     hr(),
     
     # ^ Clustering Solution Selection ------------------------------------------------------
+    #### TEMPORARY WARNING ####
+    fixedRow(
+      p(HTML(paste(
+        "<b>Please note:</b>",
+        "scClustViz is currently suffering from a bug causing plots to <em>temporarily</em> fail to load.",
+        "The current work-around is to toggle an input to the plot - for interactive plots",
+        "such as the first figure below left, attempting to zoom in/out,",
+        "and for others, switching an input (such as swapping between PCA and tSNE/UMAP for",
+        "the cell embedding plot). We're sorry for the inconvenience, and are working to",
+        "find and squash the bug now.")),style="color:red")
+    ),
     fixedRow(
       titlePanel("Clustering Solution Selection"),
       p(paste(
