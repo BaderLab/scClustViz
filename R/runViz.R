@@ -930,9 +930,14 @@ runShiny <- function(filePath,outPath,
                            "sCVdata object at this cluster resolution.",sep="\n"))
         }
       } else {
-        plot_sil(d$SCV[[input$res]])
-        if (length(res()) > 0) { 
-          d$MD$SilhouetteWidth <- Silhouette(d$SCV[[res()]])[,"sil_width"] 
+        if (require(cluster)) {
+          plot_sil(d$SCV[[input$res]])
+          if (length(res()) > 0) { 
+            d$MD$SilhouetteWidth <- Silhouette(d$SCV[[res()]])[,"sil_width"] 
+          }
+        } else {
+          plot(x=NA,y=NA,xlim=0:1,ylim=0:1,xaxt="n",yaxt="n",xlab=NA,ylab=NA)
+          text(.5,.5,"Silhouette plot requires 'cluster' package to be installed.")
         }
       }
     })
