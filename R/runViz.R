@@ -40,6 +40,10 @@
 #'   \code{"png"} (generated with \code{\link[grDevices]{png}}). Note that \code{"pdf"}
 #'   and \code{"eps"} outputs require the cairo graphics library. Check to see if R can
 #'   find it on your computer by running \code{capabilities("cairo")}.
+#' @param includeHeadHTML Default=NA. If you'd like an HTML script to be included
+#'   the webpage <head> section (such as the Google Analytics tracking script, 
+#'   see https://shiny.rstudio.com/articles/google-analytics.html), pass the 
+#'   path to the script HTML file here.  
 #' @param ... Named options that should be passed to the
 #'   \code{\link[shiny]{runApp}} call (these can be any of the following:
 #'   "port", "launch.browser", "host", "quiet", "display.mode" and "test.mode").
@@ -107,7 +111,13 @@
 runShiny <- function(filePath,outPath,
                      cellMarkers=list(),
                      annotationDB,rownameKeytype,
-                     imageFileType="png",...) {
+                     imageFileType="png",
+                     includeHeadHTML=NA,
+                     ...) {
+  
+  if (is.na(includeHeadHTML)) {
+    includeHeadHTML <- system.file("blank.html",package="scClustViz")
+  }
   
   # ^ Load data from file ------------------------------------------------------------------
   while(T) {
@@ -299,6 +309,7 @@ runShiny <- function(filePath,outPath,
   
   # UI -------------------------------------------------------------------------------------
   ui <- fixedPage(
+    tags$head(includeHTML(includeHeadHTML)),
     fixedRow(
       titlePanel(paste("scClustViz -",dataTitle)),
       includeMarkdown(introPath)
