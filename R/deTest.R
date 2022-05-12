@@ -174,6 +174,11 @@ CalcAllSCV <- function(inD,
             "https://github.com/BaderLab/scClustViz/issues, thanks!"),
       sep="\n  "))
   }
+  if (testAll == FALSE & calcDEcombn == FALSE) {
+    stop(paste("Argument 'calcDEcombn' must be TRUE if 'testAll' = FALSE.",
+               "The decision to stop testing depends on the results of caclDEcombn.",
+               sep="\n"))
+  }
   if (is.null(colnames(getExpr(inD,assayType,assaySlot))) | 
       is.null(rownames(getExpr(inD,assayType,assaySlot)))) {
     stop("Gene expression matrix returned by 'getExpr(inD,assayType,assaySlot)' is missing col/rownames.")
