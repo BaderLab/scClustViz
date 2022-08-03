@@ -148,18 +148,26 @@ runShiny <- function(filePath,outPath,
   names(lfc) <- sapply(seq_along(lfc),function(X) {
     if (is(get(lfc[X]))[1] %in% findMethodSignatures(getExpr)) {
       return("inD")
-    } else {
-      if (is(get(lfc[X]))[1] == "list") {
-        if (is(get(lfc[X])[[1]]) == "sCVdata") {
-          return("sCVdL")
-        } else {
-          stop("Unexpected input object. Missing CalcAllSCV output object.")
-        }
+    } 
+    if (is(get(lfc[X]))[1] == "sCVdata") {
+      return("sCV")
+    }
+    if (is(get(lfc[X]))[1] == "list") {
+      if (is(get(lfc[X])[[1]]) == "sCVdata") {
+        return("sCVdL")
       } else {
-        stop("Unexpected input object. Missing single-cell data object.")
+        stop("Unexpected input object. Missing CalcAllSCV output object.")
       }
+    } else {
+      stop("Unexpected input object. Missing scClustViz data object.")
     }
   })
+  if (any(names(lfc) == "sCV")) {
+    temp_sCVdL <- list(clusters=get(lfc["sCV"]))
+    lfc["sCVdL"] <- "temp_sCVdL"
+    # lfc <- lfc[-which(names(lfc) == "sCV")]
+  }
+  
   temp_missing_files <- setdiff(c("inD","sCVdL"),names(lfc))
   if (length(temp_missing_files) > 0) {
     stop(paste("Unexpected input object. Missing",
