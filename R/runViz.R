@@ -987,8 +987,8 @@ runShiny <- function(filePath,outPath,
           sapply(temp_embs,function(X) nrow(getEmb(inD,X))) == nrow(getMD(inD))
         ]
       selectInput("MD_EmbType",label="Select cell embedding:",
-                  choices=toupper(temp_embs),
-                  selected=toupper(temp_embs)[length(toupper(temp_embs))])
+                  choices=temp_embs,
+                  selected=temp_embs[length(temp_embs)])
     })
     output$MD_EmbDimX <- renderUI({
       selectInput("MD_EmbDimX",label="x-axis:",
@@ -1683,8 +1683,8 @@ runShiny <- function(filePath,outPath,
           sapply(temp_embs,function(X) nrow(getEmb(inD,X))) == nrow(getMD(inD))
         ]
       selectInput("GOI_EmbType",label="Select cell embedding:",
-                  choices=toupper(temp_embs),
-                  selected=toupper(temp_embs)[length(toupper(temp_embs))])
+                  choices=temp_embs,
+                  selected=temp_embs[length(temp_embs)])
     })
     output$GOI_EmbDimX <- renderUI({
       selectInput("GOI_EmbDimX",label="x-axis:",
@@ -2252,8 +2252,8 @@ runShiny <- function(filePath,outPath,
           sapply(temp_embs,function(X) nrow(getEmb(inD,X))) == nrow(getMD(inD))
         ]
       selectInput("SelDE_EmbType",label="Embedding:",
-                  choices=toupper(temp_embs),
-                  selected=toupper(temp_embs)[length(toupper(temp_embs))])
+                  choices=temp_embs,
+                  selected=temp_embs[length(temp_embs)])
     })
     output$SelDE_EmbDimX <- renderUI({
       selectInput("SelDE_EmbDimX",label="x-axis:",

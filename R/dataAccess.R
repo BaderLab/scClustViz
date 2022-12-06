@@ -178,16 +178,16 @@ suppressMessages(
                    "The following cell embeddings are available in this object:",
                    paste0(names(slot(x,"dr")),collapse=", "),sep="\n  "))
       }
-      if (tolower(DRtype) %in% names(slot(x,"dr"))) {
-        slot(x@dr[[tolower(DRtype)]],"cell.embeddings")
+      if (DRtype %in% names(slot(x,"dr"))) {
+        slot(x@dr[[DRtype]],"cell.embeddings")
       } else {
         stop(paste(paste0("DRtype '",DRtype,"' not found."),
                    "The following cell embeddings are available in this object:",
                    paste0(names(slot(x,"dr")),collapse=", "),sep="\n  "))
       }
     } else {
-      if (.hasSlot(x,paste0(tolower(DRtype),".rot"))) {
-        slot(x,paste0(tolower(DRtype),".rot"))
+      if (.hasSlot(x,paste0(DRtype,".rot"))) {
+        slot(x,paste0(DRtype,".rot"))
       } else {
         oldSrots <- c("pca","ica","tsne")
         oldSrots <- oldSrots[sapply(oldSrots,function(X) .hasSlot(x,paste0(X,".rot")))]
@@ -261,8 +261,8 @@ suppressMessages(
                  "The following cell embeddings are available in this object:",
                  paste0(names(slot(x,"reductions")),collapse=", "),sep="\n  "))
     }
-    if (tolower(DRtype) %in% names(slot(x,"reductions"))) {
-      return(slot(x@reductions[[tolower(DRtype)]],"cell.embeddings"))
+    if (DRtype %in% names(slot(x,"reductions"))) {
+      return(slot(x@reductions[[DRtype]],"cell.embeddings"))
     } else {
       stop(paste(paste0("DRtype '",DRtype,"' not found."),
                  "The following cell embeddings are available in this object:",
@@ -321,11 +321,11 @@ suppressMessages(
                  paste0(SingleCellExperiment::reducedDimNames(x),collapse=", "),
                  sep="\n  "))
     }
-    if (tolower(DRtype) %in% tolower(SingleCellExperiment::reducedDimNames(x))) {
+    if (DRtype %in% SingleCellExperiment::reducedDimNames(x)) {
       return(SingleCellExperiment::reducedDim(
         x,
         SingleCellExperiment::reducedDimNames(x)[
-          tolower(DRtype) == tolower(SingleCellExperiment::reducedDimNames(x))
+          DRtype == SingleCellExperiment::reducedDimNames(x)
           ]))
     } else {
       stop(paste(paste0("DRtype '",DRtype,"' not found."),
